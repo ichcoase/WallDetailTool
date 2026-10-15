@@ -33,9 +33,7 @@ namespace WallDetailTool
                     {
                         ValidatePolyline(source);
                         // Inputs are millimetres. Unitless drawings explicitly use 1 unit = 1 mm.
-                        double scale = doc.Database.Insunits == UnitsValue.Undefined ? 1.0
-                            : UnitsConverter.GetConversionFactor(UnitsValue.Millimeters, doc.Database.Insunits);
-                        if (!Finite(scale) || scale <= 0) throw new InvalidOperationException("无法换算图纸单位。");
+                        double scale = MillimetresToDrawingUnits(doc.Database);
                         if (doc.Database.Insunits == UnitsValue.Undefined)
                             ed.WriteMessage("\n图纸未设置单位，本命令按 1 图形单位 = 1 mm 处理。");
                         double cover, diameter;
@@ -54,27 +52,14 @@ namespace WallDetailTool
                             ed.WriteMessage("\n方向不明确：请在线段旁点选，不要点在线上、端部或拐角等距处。");
                         }
 
-                        using (Polyline result = OffsetOne(source, signedDistance))
+                        using (Polyline result = CreateRebar(source, signedDistance, distance, diameter * scale, doc.Database))
                         {
-                            ValidatePolyline(result);
-                            // Reject collapsed corners instead of silently dropping contour segments.
-                            if (result.NumberOfVertices != source.NumberOfVertices)
-                                throw new InvalidOperationException("偏移使轮廓线段消失或拓扑发生变化，请减小距离或调整轮廓。");
-                            ValidateClearance(source, result, distance);
-                            result.SetDatabaseDefaults(doc.Database);
-                            result.ConstantWidth = 0;
-                            result.Thickness = 0;
-                            for (int i = 0; i < result.NumberOfVertices; i++)
-                            {
-                                result.SetStartWidthAt(i, 0);
-                                result.SetEndWidthAt(i, 0);
-                            }
                             var space = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
                             space.AppendEntity(result);
                             tr.AddNewlyCreatedDBObject(result, true);
                             tr.Commit();
                         }
-                        ed.WriteMessage("\n钢筋中心线已生成；偏移距离 = {0:g} mm。原轮廓未修改。", cover + diameter / 2.0);
+                        ed.WriteMessage("\n钢筋已生成：宽度 {0:g} mm，中心线偏移 {1:g} mm。原轮廓未修改。", diameter, cover + diameter / 2.0);
                     }
                 }
             }
@@ -84,7 +69,45 @@ namespace WallDetailTool
             }
         }
 
-        private static bool Finite(double value) { return !double.IsNaN(value) && !double.IsInfinity(value); }
+        internal static bool Finite(double value) { return !double.IsNaN(value) && !double.IsInfinity(value); }
+
+        internal static double MillimetresToDrawingUnits(Database database)
+        {
+            double scale = database.Insunits == UnitsValue.Undefined ? 1.0
+                : UnitsConverter.GetConversionFactor(UnitsValue.Millimeters, database.Insunits);
+            if (!Finite(scale) || scale <= 0) throw new InvalidOperationException("无法换算图纸单位。");
+            return scale;
+        }
+
+        internal static Polyline CreateRebar(Polyline source, double signedDistance, double distance, double width, Database database)
+        {
+            if (!Finite(width) || width <= GeometryTolerance)
+                throw new InvalidOperationException("钢筋直径无效或小于几何容差。");
+            Polyline result = OffsetOne(source, signedDistance);
+            try
+            {
+                ValidatePolyline(result);
+                if (result.NumberOfVertices != source.NumberOfVertices)
+                    throw new InvalidOperationException("偏移使轮廓线段消失或拓扑发生变化，请减小距离或调整轮廓。");
+                ValidateClearance(source, result, distance);
+                result.SetDatabaseDefaults(database);
+                result.Thickness = 0;
+                SetRebarWidth(result, width);
+                return result;
+            }
+            catch { result.Dispose(); throw; }
+        }
+
+        internal static void SetRebarWidth(Polyline result, double width)
+        {
+            if (!Finite(width) || width <= 0) throw new InvalidOperationException("钢筋直径必须大于零。");
+            result.ConstantWidth = width;
+            for (int i = 0; i < result.NumberOfVertices - 1; i++)
+            {
+                result.SetStartWidthAt(i, width);
+                result.SetEndWidthAt(i, width);
+            }
+        }
 
         private static bool ReadSize(Editor ed, string message, double value, bool allowZero, out double size)
         {
@@ -100,7 +123,7 @@ namespace WallDetailTool
             return true;
         }
 
-        private static Polyline CopyContour(Entity original)
+        internal static Polyline CopyContour(Entity original)
         {
             var light = original as Polyline;
             if (light != null) return (Polyline)light.Clone();
@@ -131,7 +154,7 @@ namespace WallDetailTool
             }
         }
 
-        private static bool TryDirection(Polyline source, Point3d picked, double distance, out double signedDistance)
+        internal static bool TryDirection(Polyline source, Point3d picked, double distance, out double signedDistance)
         {
             signedDistance = 0;
             // Editor points are WCS; project onto the contour plane, including tilted/elevated contours.
@@ -179,7 +202,7 @@ namespace WallDetailTool
             return new Line(p.GetPoint3dAt(i), p.GetPoint3dAt(i + 1));
         }
 
-        private static void ValidatePolyline(Polyline p)
+        internal static void ValidatePolyline(Polyline p)
         {
             if (p.Closed || p.NumberOfVertices < 2)
                 throw new InvalidOperationException("必须是至少包含一条线段的开放式多段线。");

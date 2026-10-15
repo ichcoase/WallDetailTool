@@ -1,9 +1,9 @@
 # WallDetailTool 架构
 
 ## 当前实现（已检查源码）
-单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs在Commands分部类中完成输入、单位转换、轮廓副本、原生GetOffsetCurves、校验和事务写入。项目显式列出Compile文件，新增源码必须加入项目。
-build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。脚本默认输出bin/Release；README要求使用bin/Rebar，须明确指定输出路径并核对新DLL。
-tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr及两个版本日志属于既有测试材料。当前没有面板、领域层或持久化层。不要把以下设计描述成现有实现。
+单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs在Commands分部类中完成输入、单位转换、轮廓副本、原生GetOffsetCurves、校验、统一钢筋宽度及事务写入。RebarPalette.cs加入WinForms PaletteSet最小侧边栏，按钮安排CAD命令执行数据库操作，预览使用TransientManager临时图形，确认前核对源轮廓/参数/单位/绘图空间；文档切换或关闭面板时清除预览。项目显式列出Compile文件，新增源码必须加入项目。
+build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase2；后续构建仍应指定新输出路径并核对DLL。
+tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔离控制台验证宽度、单位和撤销。当前仅有最小面板及临时预览，没有领域层或持久化层；图形界面交互尚待人工验收。不要把以下设计描述成现有实现。
 
 ## 拟议分层（按需要逐步拆分）
 - CAD适配层：命令、实体读取与写入、选择、事务、文档事件、单位与坐标转换。
