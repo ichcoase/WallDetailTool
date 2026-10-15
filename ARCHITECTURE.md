@@ -1,9 +1,9 @@
 # WallDetailTool 架构
 
 ## 当前实现（已检查源码）
-单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs在Commands分部类中完成输入、单位转换、轮廓副本、原生GetOffsetCurves、校验、统一钢筋宽度及事务写入。RebarPalette.cs加入WinForms PaletteSet最小侧边栏，按钮安排CAD命令执行数据库操作，预览使用TransientManager临时图形，确认前核对源轮廓/参数/单位/绘图空间；文档切换或关闭面板时清除预览。项目显式列出Compile文件，新增源码必须加入项目。
-build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase2；后续构建仍应指定新输出路径并核对DLL。
-tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔离控制台验证宽度、单位和撤销。当前仅有最小面板及临时预览，没有领域层或持久化层；图形界面交互尚待人工验收。不要把以下设计描述成现有实现。
+单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs在Commands分部类中完成输入、单位转换、轮廓副本、原生GetOffsetCurves、校验、统一钢筋宽度及事务写入。RebarPalette.cs加入WinForms PaletteSet侧边栏，按钮安排CAD命令执行数据库操作，预览使用TransientManager临时图形，确认前核对源轮廓/组/参数/单位/绘图空间；文档切换或关闭面板时清除预览。DrawingData.cs存储节点、钢筋组、钢筋记录，面板确认时实体与关联同事务提交。项目显式列出Compile文件，新增源码必须加入项目。
+build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase3；后续构建仍应指定新输出路径并核对DLL。
+tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔离控制台验证宽度、单位和撤销。PersistenceTests.cs在两版隔离控制台验证层级创建、默认参数编辑、实体删除、撤销重做、未知版本拒写与保存重开。图形界面交互尚待人工验收。不要把以下未来设计描述成现有实现。
 
 ## 拟议分层（按需要逐步拆分）
 - CAD适配层：命令、实体读取与写入、选择、事务、文档事件、单位与坐标转换。
@@ -20,7 +20,7 @@ DetailNode：稳定GUID、名称、轮廓引用、子组；RebarGroup：GUID、�
 参数继承拟为单筋覆盖组默认值，组覆盖节点默认值；具体字段进入层级阶段再定。尚无依据的间距、数量、锚固参数不写成现有能力。
 
 ## 计划持久化
-拟使用实体扩展字典/Xrecord保存稳定ID及轻量关联，图纸级字典存节点/组及schemaVersion；最终存储API待原型验证。ObjectId仅会话有效，不能独自作为持久标识；句柄辅助定位，GUID及图纸作用域用于一致性检查。
+首版在DWG命名对象字典WDT_DATA内使用Xrecord：SCHEMA记录版本1，N_/G_/R_分别记录节点、组、单筋；每项有GUID，钢筋记录含指向原生多段线的软指针与实际尺寸。组保存创建时继承的节点默认值，新筋使用组默认值且可在生成前手工覆盖；修改默认值不重写已有筋。整个关联数据与新实体同一事务提交。ObjectId只在CAD读取时使用，不作为跨会话稳定标识；复制/跨图复制语义仍未定义。
 复制/跨图复制的ID、归组和关联策略暂缓决定，实施前与用户确认；仅预留处理入口，不提前承诺具体行为。删除形成失联待处理；另存保持内部一致；未知版本以只读或可恢复错误处理。迁移前备份，失败不破坏原数据。验证保存重开、撤销重做、删除恢复、多文档隔离；复制测试待规则确认后补充。
 
 ## 计划双向同步及预览
