@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <ProjectGuid>{91B29058-6236-4D71-9B59-183C596B5577}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>WallDetailTool</RootNamespace>
+    <AssemblyName>WallDetailTool</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <AutoCADDir Condition="'$(AutoCADDir)' == ''">D:\Software\AutoCAD 2023</AutoCADDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="AcMgd">
+      <HintPath>$(AutoCADDir)\AcMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AutoCADDir)\AcDbMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AutoCADDir)\AcCoreMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Compile Include="Commands.cs" />
+    <Compile Include="RebarCommands.cs" />
+  </ItemGroup>
+  <Target Name="CheckAutoCADReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(AutoCADDir)\AcMgd.dll')" Text="Missing $(AutoCADDir)\AcMgd.dll. Set AutoCADDir to your AutoCAD 2023/2024 installation directory." />
+    <Error Condition="!Exists('$(AutoCADDir)\AcDbMgd.dll')" Text="Missing $(AutoCADDir)\AcDbMgd.dll." />
+    <Error Condition="!Exists('$(AutoCADDir)\AcCoreMgd.dll')" Text="Missing $(AutoCADDir)\AcCoreMgd.dll." />
+  </Target>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

@@ -1,0 +1,16 @@
+_.TRUSTEDPATHS
+D:/Waste/WallDtailTool/tests/bin
+_.NETLOAD
+D:/Waste/WallDtailTool/tests/bin/WallDetailTool.dll
+_.NETLOAD
+D:/Waste/WallDtailTool/tests/bin/WallDetailTool.GeometryTests.dll
+WDTGEOMETRYTEST
+(setvar "INSUNITS" 4)
+(setq wdtSource (entmakex '((0 . "LWPOLYLINE") (100 . "AcDbEntity") (100 . "AcDbPolyline") (90 . 2) (70 . 0) (10 0.0 0.0) (10 1000.0 0.0))))
+(setq wdtBefore (entget wdtSource))
+(command "WDTREBAR" wdtSource "" "" '(500.0 50.0 0.0))
+(if (and (not (eq (entlast) wdtSource)) (equal wdtBefore (entget wdtSource)) (equal (cdr (assoc 10 (entget (entlast)))) '(0.0 31.0) 0.000001)) (princ "WDT_COMMAND_TEST_PASS") (princ "WDT_COMMAND_TEST_FAIL"))
+WDTTEST
+_.QUIT
+_Y
+
