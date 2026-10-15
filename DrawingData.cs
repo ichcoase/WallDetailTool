@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Autodesk.AutoCAD.DatabaseServices;
 
 namespace WallDetailTool
@@ -10,7 +13,7 @@ namespace WallDetailTool
     {
         private const string RootKey = "WDT_DATA";
         private const string VersionKey = "SCHEMA";
-        private const int Version = 1;
+        private const int Version = 2;
 
         internal sealed class Node
         {
@@ -34,6 +37,12 @@ namespace WallDetailTool
             internal ObjectId EntityId;
             internal double Cover;
             internal double Diameter;
+            internal ObjectId SourceId;
+            internal double Side;
+            internal string SourceHash;
+            internal string GeometryHash;
+            internal string Layer;
+            internal string Mode;
         }
         internal sealed class Index
         {
@@ -77,6 +86,30 @@ namespace WallDetailTool
             if (!Commands.Finite(result)) throw new InvalidOperationException("图纸中的尺寸记录无效。");
             return result;
         }
+        private static string OptionalText(TypedValue value)
+        {
+            if (value.TypeCode != Code(DxfCode.Text) || !(value.Value is string))
+                throw new InvalidOperationException("图纸中的钢筋状态记录损坏。");
+            return (string)value.Value;
+        }
+        internal static string GeometryHash(Polyline polyline)
+        {
+            var data = new StringBuilder();
+            data.Append(polyline.NumberOfVertices).Append('|').Append(polyline.Closed).Append('|');
+            data.Append(polyline.Normal.X.ToString("R", CultureInfo.InvariantCulture)).Append('|');
+            data.Append(polyline.Normal.Y.ToString("R", CultureInfo.InvariantCulture)).Append('|');
+            data.Append(polyline.Normal.Z.ToString("R", CultureInfo.InvariantCulture)).Append('|');
+            data.Append(polyline.Elevation.ToString("R", CultureInfo.InvariantCulture)).Append('|');
+            for (int i = 0; i < polyline.NumberOfVertices; i++)
+            {
+                var p = polyline.GetPoint2dAt(i);
+                data.Append(p.X.ToString("R", CultureInfo.InvariantCulture)).Append(',')
+                    .Append(p.Y.ToString("R", CultureInfo.InvariantCulture)).Append(',')
+                    .Append(polyline.GetBulgeAt(i).ToString("R", CultureInfo.InvariantCulture)).Append(';');
+            }
+            using (var sha = SHA256.Create())
+                return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(data.ToString())));
+        }
         private static DBDictionary Root(Database database, Transaction tr, bool create)
         {
             DBDictionary named = (DBDictionary)tr.GetObject(database.NamedObjectsDictionaryId,
@@ -117,8 +150,9 @@ namespace WallDetailTool
             if (!root.Contains(VersionKey)) throw new InvalidOperationException("缺少 WallDetailTool 数据版本，已禁止写入。");
             TypedValue[] version = Values(root, VersionKey, tr);
             if (version.Length != 1 || version[0].TypeCode != Code(DxfCode.Int32) ||
-                Convert.ToInt32(version[0].Value) != Version)
+                (Convert.ToInt32(version[0].Value) != 1 && Convert.ToInt32(version[0].Value) != Version))
                 throw new InvalidOperationException("WallDetailTool 图纸数据版本未知，已禁止写入。请保留图纸副本。");
+            int schema = Convert.ToInt32(version[0].Value);
             var ids = new HashSet<Guid>();
             foreach (DBDictionaryEntry entry in root)
             {
@@ -142,11 +176,25 @@ namespace WallDetailTool
                 }
                 else if (entry.Key.StartsWith("R_", StringComparison.Ordinal))
                 {
-                    if (v.Length != 5 || v[2].TypeCode != Code(DxfCode.SoftPointerId))
+                    if ((v.Length != 5 && !(schema == 2 && v.Length == 11)) || v[2].TypeCode != Code(DxfCode.SoftPointerId))
                         throw new InvalidOperationException("钢筋关联记录损坏。");
                     var r = new Rebar { Id = Id(v[0]), GroupId = Id(v[1]), EntityId = (ObjectId)v[2].Value,
                         Cover = Number(v[3]), Diameter = Number(v[4]) };
                     Sizes(r.Cover, r.Diameter);
+                    if (v.Length == 11)
+                    {
+                        if (v[5].TypeCode == Code(DxfCode.SoftPointerId)) r.SourceId = (ObjectId)v[5].Value;
+                        else if (OptionalText(v[5]) != "") throw new InvalidOperationException("源轮廓关联记录损坏。");
+                        r.Side = Number(v[6]);
+                        r.SourceHash = OptionalText(v[7]);
+                        r.GeometryHash = OptionalText(v[8]);
+                        r.Layer = Label(v[9]);
+                        r.Mode = OptionalText(v[10]);
+                        if ((r.SourceId.IsNull && r.Side != 0) || (!r.SourceId.IsNull && Math.Abs(r.Side) != 1) ||
+                            (r.Mode != "Contour" && r.Mode != "Free"))
+                            throw new InvalidOperationException("钢筋路径模式记录损坏。");
+                    }
+                    else { r.SourceHash = ""; r.GeometryHash = ""; r.Layer = ""; r.Mode = "Legacy"; }
                     if (entry.Key != "R_" + r.Id.ToString("N") || !ids.Add(r.Id)) throw new InvalidOperationException("钢筋标识损坏或重复。");
                     index.Rebars.Add(r);
                 }
@@ -186,6 +234,56 @@ namespace WallDetailTool
                 Text(id.ToString("D")), Text(groupId.ToString("D")),
                 new TypedValue(Code(DxfCode.SoftPointerId), entityId), Real(cover), Real(diameter));
             return id;
+        }
+
+        private static void Upgrade(Database database, Transaction tr)
+        {
+            DBDictionary root = Root(database, tr, true);
+            Xrecord schema = (Xrecord)tr.GetObject(root.GetAt(VersionKey), OpenMode.ForWrite);
+            TypedValue[] values = schema.Data.AsArray();
+            if (values.Length != 1 || values[0].TypeCode != Code(DxfCode.Int32) ||
+                (Convert.ToInt32(values[0].Value) != 1 && Convert.ToInt32(values[0].Value) != Version))
+                throw new InvalidOperationException("未知图纸数据版本，拒绝更新。");
+            schema.Data = new ResultBuffer(new TypedValue(Code(DxfCode.Int32), Version));
+        }
+        private static TypedValue Source(ObjectId sourceId)
+        {
+            return sourceId.IsNull ? Text("") : new TypedValue(Code(DxfCode.SoftPointerId), sourceId);
+        }
+        private static ResultBuffer RebarValues(Rebar rebar)
+        {
+            return new ResultBuffer(Text(rebar.Id.ToString("D")), Text(rebar.GroupId.ToString("D")),
+                new TypedValue(Code(DxfCode.SoftPointerId), rebar.EntityId), Real(rebar.Cover), Real(rebar.Diameter),
+                Source(rebar.SourceId), Real(rebar.Side), Text(rebar.SourceHash ?? ""),
+                Text(rebar.GeometryHash ?? ""), Text(Name(rebar.Layer)), Text(rebar.Mode));
+        }
+        internal static Guid AddLinkedRebar(Database database, Transaction tr, Guid groupId,
+            Polyline entity, ObjectId sourceId, double side, string sourceHash, double cover, double diameter)
+        {
+            Sizes(cover, diameter);
+            if (entity == null || entity.ObjectId.IsNull || sourceId.IsNull || Math.Abs(side) != 1 ||
+                !Read(database, tr).Groups.Exists(g => g.Id == groupId))
+                throw new InvalidOperationException("新钢筋缺少有效的轮廓或钢筋组。");
+            Upgrade(database, tr);
+            var rebar = new Rebar { Id = Guid.NewGuid(), GroupId = groupId, EntityId = entity.ObjectId,
+                SourceId = sourceId, Side = side, SourceHash = sourceHash,
+                GeometryHash = GeometryHash(entity), Layer = entity.Layer, Mode = "Contour",
+                Cover = cover, Diameter = diameter };
+            DBDictionary root = Root(database, tr, true);
+            Xrecord record = new Xrecord { Data = RebarValues(rebar) };
+            root.SetAt("R_" + rebar.Id.ToString("N"), record);
+            tr.AddNewlyCreatedDBObject(record, true);
+            return rebar.Id;
+        }
+        internal static void UpdateRebar(Database database, Transaction tr, Rebar rebar)
+        {
+            Sizes(rebar.Cover, rebar.Diameter);
+            if (!Read(database, tr).Rebars.Exists(r => r.Id == rebar.Id))
+                throw new InvalidOperationException("钢筋关联已变化，请刷新。");
+            Upgrade(database, tr);
+            DBDictionary root = Root(database, tr, true);
+            Xrecord record = (Xrecord)tr.GetObject(root.GetAt("R_" + rebar.Id.ToString("N")), OpenMode.ForWrite);
+            record.Data = RebarValues(rebar);
         }
 
         internal static void UpdateDefaults(Database database, Transaction tr, Guid id, string name, double cover, double diameter)

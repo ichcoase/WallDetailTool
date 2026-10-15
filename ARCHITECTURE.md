@@ -1,8 +1,8 @@
 # WallDetailTool 架构
 
 ## 当前实现（已检查源码）
-单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs在Commands分部类中完成输入、单位转换、轮廓副本、原生GetOffsetCurves、校验、统一钢筋宽度及事务写入。RebarPalette.cs加入WinForms PaletteSet侧边栏，按钮安排CAD命令执行数据库操作，预览使用TransientManager临时图形，确认前核对源轮廓/组/参数/单位/绘图空间；文档切换或关闭面板时清除预览。DrawingData.cs存储节点、钢筋组、钢筋记录，面板确认时实体与关联同事务提交。项目显式列出Compile文件，新增源码必须加入项目。
-build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase3；后续构建仍应指定新输出路径并核对DLL。
+单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs完成原生偏移、校验与宽度。RebarPalette.cs及RebarEditing.cs使用WinForms PaletteSet、AutoCAD命令上下文和TransientManager显示生成/修改预览；确认前核对源轮廓、钢筋、参数、单位及图层，文档切换或关闭面板清除预览。RebarEditService.cs把实体、图层及关联放在同一事务；LayerTools.cs负责图层列表、名称校验及新图层确认。DrawingData.cs保存DWG关联。项目显式列出Compile文件，新增源码必须加入项目。
+build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase4；后续构建仍应指定新输出路径并核对DLL。
 tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔离控制台验证宽度、单位和撤销。PersistenceTests.cs在两版隔离控制台验证层级创建、默认参数编辑、实体删除、撤销重做、未知版本拒写与保存重开。图形界面交互尚待人工验收。不要把以下未来设计描述成现有实现。
 
 ## 拟议分层（按需要逐步拆分）
@@ -10,17 +10,17 @@ tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔�
 - 应用层：生成、预览、确认、修改与同步用例；统一校验及撤销边界。
 - 领域层：节点、钢筋组、单筋、参数、推荐候选与审核状态；尽量不引用CAD类型。
 - 几何层：保留已工作的原生偏移能力，封装校验；纯计算与CAD几何API边界明确。
-- 展示层：拟用可停靠PaletteSet承载面板，具体WPF/WinForms选型在最小原型时验证；显示当前文档状态。
+- 展示层：当前使用WinForms PaletteSet承载可停靠面板，显示当前图纸单位、层级和目标图层。
 - 存储与模板层：DWG关联、版本迁移、样式模板读写。
 首阶段只改宽度，不为远期目标全面重写。具体AutoCAD API及版本兼容性在实现阶段查官方文档并实测。
 
 ## 计划数据模型
 DetailNode：稳定GUID、名称、轮廓引用、子组；RebarGroup：GUID、父节点、组参数、成员；Rebar：GUID、父组、路径、直径、保护层、CAD引用、覆盖参数、审核状态。
 内部尺寸统一毫米，CAD边界集中换算；明确WCS/OCS/UCS、法向与标高，避免重复转换。原生实体几何记录已提交形状，领域数据记录语义与参数；两者不一致时进入冲突状态，不能静默覆盖。
-参数继承拟为单筋覆盖组默认值，组覆盖节点默认值；具体字段进入层级阶段再定。尚无依据的间距、数量、锚固参数不写成现有能力。
+当前组在创建时复制节点默认保护层/直径，新筋在创建时复制组默认值，用户可在生成前单次覆盖；已有实体不随默认值变化。更复杂的动态继承及尚无依据的间距、数量、锚固参数仍未实现。
 
 ## 计划持久化
-首版在DWG命名对象字典WDT_DATA内使用Xrecord：SCHEMA记录版本1，N_/G_/R_分别记录节点、组、单筋；每项有GUID，钢筋记录含指向原生多段线的软指针与实际尺寸。组保存创建时继承的节点默认值，新筋使用组默认值且可在生成前手工覆盖；修改默认值不重写已有筋。整个关联数据与新实体同一事务提交。ObjectId只在CAD读取时使用，不作为跨会话稳定标识；复制/跨图复制语义仍未定义。
+在DWG命名对象字典WDT_DATA内使用Xrecord：SCHEMA记录版本2，N_/G_/R_分别记录节点、组、单筋；每项有GUID。钢筋记录含原生实体和源轮廓软指针、方向、实际尺寸、图层、生成/自由编辑状态及路径指纹。阶段3版本1的记录仍可读取；第一次修改旧钢筋时在同一事务升级数据，旧记录缺少源轮廓时须重新选择，不能猜测。组默认值只用于后续新筋。ObjectId只在CAD读取时使用，不作为跨会话稳定标识；复制/跨图复制语义仍未定义。
 复制/跨图复制的ID、归组和关联策略暂缓决定，实施前与用户确认；仅预留处理入口，不提前承诺具体行为。删除形成失联待处理；另存保持内部一致；未知版本以只读或可恢复错误处理。迁移前备份，失败不破坏原数据。验证保存重开、撤销重做、删除恢复、多文档隔离；复制测试待规则确认后补充。
 
 ## 计划双向同步及预览

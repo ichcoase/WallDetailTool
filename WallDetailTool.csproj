@@ -34,6 +34,9 @@
     <Compile Include="RebarCommands.cs" />
     <Compile Include="RebarPalette.cs" />
     <Compile Include="DrawingData.cs" />
+    <Compile Include="LayerTools.cs" />
+    <Compile Include="RebarEditing.cs" />
+    <Compile Include="RebarEditService.cs" />
   </ItemGroup>
   <Target Name="CheckAutoCADReferences" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(AutoCADDir)\AcMgd.dll')" Text="Missing $(AutoCADDir)\AcMgd.dll. Set AutoCADDir to your AutoCAD 2023/2024 installation directory." />
