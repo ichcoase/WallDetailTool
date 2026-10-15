@@ -1,0 +1,15 @@
+_.TRUSTEDPATHS
+D:/Waste/WallDtailTool/tests/bin
+_.NETLOAD
+D:/Waste/WallDtailTool/tests/bin/WallDetailTool.dll
+_.NETLOAD
+D:/Waste/WallDtailTool/tests/bin/WallDetailTool.GeometryTests.dll
+WDTGEOMETRYTEST
+WDTEDITCREATE
+WDTEDITAPPLY
+WDTEDITDIRECT
+WDTEDITLAYERONLY
+WDTEDITVERIFY
+WDTTEST
+_.QUIT
+_Y

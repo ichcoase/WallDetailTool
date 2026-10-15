@@ -15,7 +15,7 @@ using TransientDrawingMode = Autodesk.AutoCAD.GraphicsInterface.TransientDrawing
 namespace WallDetailTool
 {
     // Palette buttons schedule commands so all database reads/writes occur in AutoCAD's document context.
-    internal static class RebarPalette
+    internal static partial class RebarPalette
     {
         private static PaletteSet palette;
         private static RebarPanel panel;
@@ -33,6 +33,8 @@ namespace WallDetailTool
             internal double Cover;
             internal double Diameter;
             internal Guid GroupId;
+            internal double Side;
+            internal string Layer;
         }
 
         internal static void Open()
@@ -56,12 +58,14 @@ namespace WallDetailTool
 
         private static void OnDocumentChanging(object sender, DocumentCollectionEventArgs args)
         {
-            if (preview != null && ReferenceEquals(preview.Document, args.Document)) ClearPreview();
+            if ((preview != null && ReferenceEquals(preview.Document, args.Document)) ||
+                (editPreview != null && ReferenceEquals(editPreview.Document, args.Document))) ClearPreview();
         }
 
         private static void OnDocumentActivated(object sender, DocumentCollectionEventArgs args)
         {
-            if (preview != null && !ReferenceEquals(preview.Document, args.Document)) ClearPreview();
+            if ((preview != null && !ReferenceEquals(preview.Document, args.Document)) ||
+                (editPreview != null && !ReferenceEquals(editPreview.Document, args.Document))) ClearPreview();
             if (panel != null) panel.RefreshDocument();
         }
 
@@ -74,6 +78,7 @@ namespace WallDetailTool
 
         internal static void ClearPreview()
         {
+            ClearEditPreview();
             PreviewState old = preview;
             preview = null;
             if (old != null)
@@ -95,6 +100,7 @@ namespace WallDetailTool
             {
                 double cover, diameter;
                 panel.ReadParameters(out cover, out diameter);
+                string layer = LayerTools.CheckName(panel.LayerName);
                 Guid groupId = panel.SelectedGroupId;
                 if (groupId == Guid.Empty) throw new InvalidOperationException("请先在侧边栏创建并选中一个钢筋组。");
                 using (Transaction read = document.Database.TransactionManager.StartTransaction())
@@ -141,10 +147,11 @@ namespace WallDetailTool
                             Document = document, SourceId = selection.ObjectId,
                             SpaceId = document.Database.CurrentSpaceId, Units = document.Database.Insunits,
                             SourceSnapshot = snapshot, Result = result,
-                            Cover = cover, Diameter = diameter, GroupId = groupId
+                            Cover = cover, Diameter = diameter, GroupId = groupId,
+                            Side = Math.Sign(signedDistance), Layer = layer
                         };
                         panel.SetPreviewAvailable(true);
-                        panel.ShowStatus("红色为临时预览。确认后才写入图纸；改参数后请重新预览。");
+                        panel.ShowStatus("红色为临时预览；目标图层：" + layer + "。确认后才写入图纸。");
                     }
                     catch
                     {
@@ -178,8 +185,15 @@ namespace WallDetailTool
                 panel.ReadParameters(out cover, out diameter);
                 if (cover != state.Cover || diameter != state.Diameter ||
                     panel.SelectedGroupId != state.GroupId ||
+                    panel.LayerName != state.Layer ||
                     document.Database.Insunits != state.Units || document.Database.CurrentSpaceId != state.SpaceId)
                     throw new InvalidOperationException("参数、图纸单位或绘图空间已变化，请重新预览。");
+                if (!LayerTools.ConfirmNew(document.Database, document.Editor, state.Layer))
+                {
+                    ClearPreview();
+                    panel.ShowStatus("未创建图层；预览已取消，图纸未改变。");
+                    return;
+                }
                 using (Transaction transaction = document.Database.TransactionManager.StartTransaction())
                 {
                     Entity original = transaction.GetObject(state.SourceId, OpenMode.ForRead) as Entity;
@@ -192,14 +206,18 @@ namespace WallDetailTool
                     }
                     using (Polyline result = (Polyline)state.Result.Clone())
                     {
+                        LayerTools.Ensure(document.Database, transaction, state.Layer);
                         // The red color belongs only to the temporary preview.
                         result.SetDatabaseDefaults(document.Database);
                         result.ColorIndex = 256;
+                        result.Layer = state.Layer;
                         Commands.SetRebarWidth(result, state.Result.ConstantWidth);
                         BlockTableRecord space = (BlockTableRecord)transaction.GetObject(state.SpaceId, OpenMode.ForWrite);
                         space.AppendEntity(result);
                         transaction.AddNewlyCreatedDBObject(result, true);
-                        DrawingData.AddRebar(document.Database, transaction, state.GroupId, result.ObjectId, cover, diameter);
+                        DrawingData.AddLinkedRebar(document.Database, transaction, state.GroupId,
+                            result, state.SourceId, state.Side,
+                            DrawingData.GeometryHash(state.SourceSnapshot), cover, diameter);
                         transaction.Commit();
                     }
                 }
@@ -267,14 +285,16 @@ namespace WallDetailTool
                 options.AddAllowedClass(typeof(Polyline), true);
                 PromptEntityResult selected = doc.Editor.GetEntity(options);
                 if (selected.Status != PromptStatus.OK) return;
+                Guid found = Guid.Empty;
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                 {
                     DrawingData.Index data = DrawingData.Read(doc.Database, tr);
                     DrawingData.Rebar match = data.Rebars.Find(r => r.EntityId == selected.ObjectId);
                     if (match == null) { panel.ShowStatus("这条多段线尚未纳入钢筋组。"); return; }
-                    panel.RefreshTree(match.Id);
-                    panel.ShowStatus("已定位到钢筋。列表中的“已删除”表示图形已被擦除，可尝试撤销。");
+                    found = match.Id;
                 }
+                panel.RefreshTree(found);
+                panel.ShowStatus("已定位到钢筋。列表中的“已删除”表示图形已被擦除，可尝试撤销。");
             }
             catch (System.Exception ex) { panel.ShowStatus("定位失败：" + ex.Message); doc.Editor.WriteMessage("\n定位失败：{0}", ex.Message); }
         }
@@ -303,7 +323,8 @@ namespace WallDetailTool
         private static bool SameContour(Polyline a, Polyline b)
         {
             if (a.NumberOfVertices != b.NumberOfVertices || a.Closed != b.Closed ||
-                a.Normal != b.Normal || a.Elevation != b.Elevation) return false;
+                a.Normal != b.Normal || a.Elevation != b.Elevation ||
+                a.ConstantWidth != b.ConstantWidth) return false;
             for (int i = 0; i < a.NumberOfVertices; i++)
                 if (a.GetPoint2dAt(i) != b.GetPoint2dAt(i) || a.GetBulgeAt(i) != b.GetBulgeAt(i) ||
                     a.GetStartWidthAt(i) != b.GetStartWidthAt(i) || a.GetEndWidthAt(i) != b.GetEndWidthAt(i)) return false;
@@ -328,7 +349,11 @@ namespace WallDetailTool
         private readonly Button locate = new Button { Text = "在列表定位钢筋", Width = 220 };
         private readonly Button refresh = new Button { Text = "刷新列表", Width = 220 };
         private readonly Button saveDefaults = new Button { Text = "保存所选节点/组的名称与默认尺寸", Width = 250 };
+        private readonly ComboBox layer = new ComboBox { Width = 230, DropDownStyle = ComboBoxStyle.DropDown };
+        private readonly Button editPreview = new Button { Text = "预览修改所选钢筋", Width = 220, Height = 34 };
+        private readonly Button editConfirm = new Button { Text = "确认修改", Width = 220, Height = 34, Enabled = false };
         private bool populating;
+        private Document layerDocument;
         private DrawingData.Index current = new DrawingData.Index();
 
         internal RebarPanel()
@@ -350,14 +375,19 @@ namespace WallDetailTool
             layout.Controls.Add(new Label { Text = "钢筋直径（mm）", AutoSize = true, Margin = new Padding(3, 12, 3, 3) });
             layout.Controls.Add(diameter);
             layout.Controls.Add(units);
+            layout.Controls.Add(new Label { Text = "目标钢筋图层（可选已有或输入新名称）", AutoSize = true });
+            layout.Controls.Add(layer);
             layout.Controls.Add(saveDefaults);
             layout.Controls.Add(select);
             layout.Controls.Add(confirm);
             layout.Controls.Add(cancel);
+            layout.Controls.Add(editPreview);
+            layout.Controls.Add(editConfirm);
             layout.Controls.Add(status);
             Controls.Add(layout);
             cover.TextChanged += ParametersChanged;
             diameter.TextChanged += ParametersChanged;
+            layer.TextChanged += ParametersChanged;
             select.Click += (sender, args) => RebarPalette.Queue("WDTSELECT");
             confirm.Click += (sender, args) => RebarPalette.Queue("WDTCONFIRM");
             cancel.Click += (sender, args) => { RebarPalette.ClearPreview(); ShowStatus("预览已取消，没有生成图形。"); };
@@ -366,27 +396,48 @@ namespace WallDetailTool
             locate.Click += (sender, args) => RebarPalette.Queue("WDTLOCATE");
             refresh.Click += (sender, args) => RefreshTree();
             saveDefaults.Click += (sender, args) => RebarPalette.Queue("WDTUPDATE");
-            hierarchy.AfterSelect += (sender, args) =>
-            {
-                if (populating) return;
+            editPreview.Click += (sender, args) => RebarPalette.Queue("WDTEDITPREVIEW");
+            editConfirm.Click += (sender, args) => RebarPalette.Queue("WDTEDITCONFIRM");
+            hierarchy.AfterSelect += (sender, args) => { if (!populating) ApplySelection(); };
+        }
+
+        private void ApplySelection()
+        {
                 RebarPalette.ClearPreview();
                 Guid groupId = SelectedGroupId;
                 DrawingData.Group group = current.Groups.Find(g => g.Id == groupId);
                 DrawingData.Node node = current.Nodes.Find(n => n.Id == SelectedNodeId);
+                DrawingData.Rebar selectedRebar = current.Rebars.Find(r => r.Id == SelectedRebarId);
                 if (group != null || node != null)
                 {
                     if (node != null) nodeName.Text = node.Name;
                     if (group != null) groupName.Text = group.Name;
-                    cover.Text = (group == null ? node.Cover : group.Cover).ToString(CultureInfo.CurrentCulture);
-                    diameter.Text = (group == null ? node.Diameter : group.Diameter).ToString(CultureInfo.CurrentCulture);
+                    cover.Text = (selectedRebar == null ? group == null ? node.Cover : group.Cover : selectedRebar.Cover).ToString(CultureInfo.CurrentCulture);
+                    diameter.Text = (selectedRebar == null ? group == null ? node.Diameter : group.Diameter : selectedRebar.Diameter).ToString(CultureInfo.CurrentCulture);
                 }
-            };
+                if (selectedRebar != null && !selectedRebar.EntityId.IsNull && !selectedRebar.EntityId.IsErased)
+                {
+                    Document doc = CadApplication.DocumentManager.MdiActiveDocument;
+                    using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+                    {
+                        Polyline steel = tr.GetObject(selectedRebar.EntityId, OpenMode.ForRead) as Polyline;
+                        if (steel != null)
+                        {
+                            layer.Text = steel.Layer;
+                            if (selectedRebar.Mode == "Free" || (selectedRebar.GeometryHash != "" && selectedRebar.GeometryHash != DrawingData.GeometryHash(steel)))
+                                ShowStatus("这条钢筋的路径已在 CAD 中手工调整。修改保护层会预览替换后的形状。");
+                            else if (RebarPalette.WidthChanged(steel, selectedRebar.Diameter * Commands.MillimetresToDrawingUnits(doc.Database)))
+                                ShowStatus("这条钢筋的宽度已在 CAD 中手工调整；只改图层会保留该宽度。");
+                            else ShowStatus("已选中钢筋。修改尺寸或图层后先预览，再确认。");
+                        }
+                    }
+                }
         }
 
         private void ParametersChanged(object sender, EventArgs args)
         {
             RebarPalette.ClearPreview();
-            ShowStatus("参数已变化；请重新选择轮廓并预览。");
+            ShowStatus("尺寸或图层已变化；请重新预览后确认。");
         }
 
         internal void ReadParameters(out double coverMm, out double diameterMm)
@@ -407,7 +458,34 @@ namespace WallDetailTool
             UnitsValue drawingUnits = document.Database.Insunits;
             units.Text = drawingUnits == UnitsValue.Undefined ? "未设置图纸单位：按毫米处理" :
                 "图纸单位：" + drawingUnits + "；输入仍为毫米";
+            RefreshLayers();
             RefreshTree();
+        }
+
+        internal void RefreshLayers()
+        {
+            Document doc = CadApplication.DocumentManager.MdiActiveDocument;
+            if (doc == null) { layerDocument = null; layer.Items.Clear(); layer.Text = ""; return; }
+            string desired = ReferenceEquals(doc, layerDocument) ? layer.Text : "";
+            using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+            {
+                layer.Items.Clear();
+                foreach (string name in LayerTools.Names(doc.Database, tr)) layer.Items.Add(name);
+                if (string.IsNullOrWhiteSpace(desired))
+                    desired = ((LayerTableRecord)tr.GetObject(doc.Database.Clayer, OpenMode.ForRead)).Name;
+            }
+            layerDocument = doc;
+            layer.Text = desired;
+        }
+
+        internal string LayerName { get { return layer.Text; } }
+        internal Guid SelectedRebarId
+        {
+            get
+            {
+                Guid id = hierarchy.SelectedNode == null ? Guid.Empty : (Guid)hierarchy.SelectedNode.Tag;
+                return current.Rebars.Exists(r => r.Id == id) ? id : Guid.Empty;
+            }
         }
 
         internal string NodeName { get { return nodeName.Text; } }
@@ -480,7 +558,13 @@ namespace WallDetailTool
                             foreach (DrawingData.Rebar rebar in current.Rebars.FindAll(r => r.GroupId == group.Id))
                             {
                                 bool erased = rebar.EntityId.IsNull || rebar.EntityId.IsErased;
-                                TreeNode leaf = branch.Nodes.Add((erased ? "已删除 " : "钢筋 ") + rebar.Id.ToString("N").Substring(0, 8)
+                                bool manual = rebar.Mode == "Free";
+                                if (!erased && !string.IsNullOrEmpty(rebar.GeometryHash))
+                                {
+                                    Polyline steel = tr.GetObject(rebar.EntityId, OpenMode.ForRead) as Polyline;
+                                    manual = manual || (steel != null && rebar.GeometryHash != DrawingData.GeometryHash(steel));
+                                }
+                                TreeNode leaf = branch.Nodes.Add((erased ? "已删除 " : manual ? "手工调整 " : "钢筋 ") + rebar.Id.ToString("N").Substring(0, 8)
                                     + "  Φ" + rebar.Diameter.ToString("g", CultureInfo.CurrentCulture));
                                 leaf.Tag = rebar.Id;
                                 if (rebar.Id == selected) wanted = leaf;
@@ -490,17 +574,19 @@ namespace WallDetailTool
                     }
                     if (wanted != null) { wanted.EnsureVisible(); hierarchy.SelectedNode = wanted; }
                 }
-                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = true;
+                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = true;
             }
             catch (System.Exception ex)
             {
-                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = false;
+                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = false;
                 ShowStatus("图纸关联数据无法读取：" + ex.Message);
             }
             finally { populating = false; }
+            if (hierarchy.SelectedNode != null) ApplySelection();
         }
 
         internal void SetPreviewAvailable(bool value) { confirm.Enabled = value; cancel.Enabled = value; }
+        internal void SetEditPreviewAvailable(bool value) { editConfirm.Enabled = value; cancel.Enabled = value || confirm.Enabled; }
         internal void ShowStatus(string message) { status.Text = message; }
     }
 
@@ -526,5 +612,11 @@ namespace WallDetailTool
 
         [CommandMethod("WDTUPDATE", CommandFlags.Modal)]
         public void UpdateGroupDefaults() { RebarPalette.UpdateDefaults(); }
+
+        [CommandMethod("WDTEDITPREVIEW", CommandFlags.Modal)]
+        public void PreviewRebarEdit() { RebarPalette.PreviewEdit(); }
+
+        [CommandMethod("WDTEDITCONFIRM", CommandFlags.Modal)]
+        public void ConfirmRebarEdit() { RebarPalette.ConfirmEdit(); }
     }
 }
