@@ -5,10 +5,11 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <PlatformTarget>x64</PlatformTarget>
     <OutputPath>bin\</OutputPath>
+    <PluginDir Condition="'$(PluginDir)' == ''">..\bin\Phase2\</PluginDir>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="WallDetailTool"><HintPath>..\bin\Rebar\WallDetailTool.dll</HintPath><Private>True</Private></Reference>
+    <Reference Include="WallDetailTool"><HintPath>$(PluginDir)WallDetailTool.dll</HintPath><Private>True</Private></Reference>
     <Reference Include="AcMgd"><HintPath>D:\Software\AutoCAD 2023\AcMgd.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="AcDbMgd"><HintPath>D:\Software\AutoCAD 2023\AcDbMgd.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="AcCoreMgd"><HintPath>D:\Software\AutoCAD 2023\AcCoreMgd.dll</HintPath><Private>False</Private></Reference>

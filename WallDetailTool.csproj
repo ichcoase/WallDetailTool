@@ -16,6 +16,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="AcMgd">
       <HintPath>$(AutoCADDir)\AcMgd.dll</HintPath>
       <Private>False</Private>
@@ -30,6 +32,7 @@
     </Reference>
     <Compile Include="Commands.cs" />
     <Compile Include="RebarCommands.cs" />
+    <Compile Include="RebarPalette.cs" />
   </ItemGroup>
   <Target Name="CheckAutoCADReferences" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(AutoCADDir)\AcMgd.dll')" Text="Missing $(AutoCADDir)\AcMgd.dll. Set AutoCADDir to your AutoCAD 2023/2024 installation directory." />

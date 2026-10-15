@@ -10,6 +10,11 @@ WDTGEOMETRYTEST
 (setq wdtBefore (entget wdtSource))
 (command "WDTREBAR" wdtSource "" "" '(500.0 50.0 0.0))
 (if (and (not (eq (entlast) wdtSource)) (equal wdtBefore (entget wdtSource)) (equal (cdr (assoc 10 (entget (entlast)))) '(0.0 31.0) 0.000001)) (princ "WDT_COMMAND_TEST_PASS") (princ "WDT_COMMAND_TEST_FAIL"))
+WDTVERIFYDRAWN
+(setq wdtResult (entlast))
+_.U
+_.U
+(if (and (null (entget wdtResult)) (equal wdtBefore (entget wdtSource))) (princ "WDT_UNDO_PASS") (princ "WDT_UNDO_FAIL"))
 WDTTEST
 _.QUIT
 _Y

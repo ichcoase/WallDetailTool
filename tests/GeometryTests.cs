@@ -56,6 +56,31 @@ public class GeometryTests
                 object[] corner = { p, new Point3d(950, 50, 0), 31.0, 0.0 };
                 Require(!(bool)Call("TryDirection", corner), "Ambiguous corner accepted");
                 Require(p.StartPoint.DistanceTo(Point3d.Origin) < 1e-6 && p.NumberOfVertices == 3, "Source changed");
+                using (var wide = (Polyline)Call("CreateRebar", p, 31.0, 31.0, 12.0,
+                    Application.DocumentManager.MdiActiveDocument.Database))
+                {
+                    Require(Math.Abs(wide.ConstantWidth - 12.0) < 1e-9, "Constant width wrong");
+                    for (int i = 0; i < wide.NumberOfVertices - 1; i++)
+                        Require(Math.Abs(wide.GetStartWidthAt(i) - 12.0) < 1e-9 &&
+                                Math.Abs(wide.GetEndWidthAt(i) - 12.0) < 1e-9, "Segment width wrong");
+                    Require(Math.Abs(Math.Abs(wide.StartPoint.Y) - 31.0) < 1e-6, "Width changed centerline offset");
+                    Require(p.ConstantWidth == 0.0 && p.GetStartWidthAt(0) == 0.0, "Source width changed");
+                }
+                Database database = Application.DocumentManager.MdiActiveDocument.Database;
+                UnitsValue originalUnits = database.Insunits;
+                try
+                {
+                    database.Insunits = UnitsValue.Meters;
+                    double scale = (double)Call("MillimetresToDrawingUnits", database);
+                    Require(Math.Abs(scale - 0.001) < 1e-12, "Metre conversion wrong");
+                    using (var metres = (Polyline)Call("CreateRebar", p, 31 * scale, 31 * scale,
+                        12 * scale, database))
+                    {
+                        Require(Math.Abs(metres.ConstantWidth - 0.012) < 1e-9, "Metre width wrong");
+                        Require(Math.Abs(Math.Abs(metres.StartPoint.Y) - 0.031) < 1e-9, "Metre offset wrong");
+                    }
+                }
+                finally { database.Insunits = originalUnits; }
                 using (var old = p.ConvertTo(false))
                 using (var copy = (Polyline)Call("CopyContour", old))
                 {
@@ -87,5 +112,23 @@ public class GeometryTests
             ed.WriteMessage("\nWDT_GEOMETRY_TESTS_PASS\n");
         }
         catch (System.Exception ex) { ed.WriteMessage("\nWDT_GEOMETRY_TESTS_FAIL: " + ex + "\n"); }
+    }
+
+    [CommandMethod("WDTVERIFYDRAWN")]
+    public void VerifyDrawn()
+    {
+        var doc = Application.DocumentManager.MdiActiveDocument;
+        bool pass = false;
+        using (var transaction = doc.Database.TransactionManager.StartTransaction())
+        {
+            var space = (BlockTableRecord)transaction.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForRead);
+            Polyline last = null;
+            foreach (ObjectId id in space) last = transaction.GetObject(id, OpenMode.ForRead) as Polyline;
+            if (last != null && last.NumberOfVertices == 2 && Math.Abs(last.StartPoint.Y - 31) < 1e-6 &&
+                Math.Abs(last.ConstantWidth - 12) < 1e-6 &&
+                Math.Abs(last.GetStartWidthAt(0) - 12) < 1e-6 && Math.Abs(last.GetEndWidthAt(0) - 12) < 1e-6)
+                pass = true;
+        }
+        doc.Editor.WriteMessage(pass ? "\nWDT_DRAWN_WIDTH_PASS\n" : "\nWDT_DRAWN_WIDTH_FAIL\n");
     }
 }
