@@ -2,10 +2,9 @@ bin/
 obj/
 .vs/
 *.user
-
 tests/profile*/
+tests/*profile*/
 tests/*.log
-
 *.dwg
 *.dwl
 *.dwl2

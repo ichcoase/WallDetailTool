@@ -72,3 +72,19 @@
 |复制、自动清理、标注跟随钢筋、点筋及项目统一显示宽度|未实现|未实现|复制规则尚待用户确认；本次不声称支持|
 
 测试仅使用新建图及专用测试DWG，不修改用户图纸。日志、测试DWG及隔离配置均由 `.gitignore` 排除，不上传。TSSD_25尺寸样式和S-THIN标高图层不用于本次直径文字，未检验其效果。
+
+## 2026-10-16 线筋直角引线与交接斜杠
+
+AutoCAD 2023/2024、.NET Framework 4.8/x64；DLL：`D:\Waste\WallDtailTool\bin\Phase6\WallDetailTool.dll`，SHA-256：`7384861D74CCC2D701A6A82F29B573EDB43F0E438B101142EEC206369D6425BE`。本节是本次源码及隔离控制台测试；上一节为历史 Phase5 记录。
+
+|检查项|2023|2024|证据与限制|
+|---|---|---|---|
+|水平直引线、竖直后水平的直角引线、文字右端对齐、40×150 mm交接斜杠；毫米/米换算|通过|通过|`phase6_label_*.log`：`WDT_LABEL_GEOM_PASS`；隔离测试几何与记录，并非真实图面视觉验收|
+|文字/引线/斜杠均在 S-TEXT；文字 TSSD、62.5 mm；钢筋不变|通过|通过|`phase6_label_*.log`：`WDT_LABEL_CREATE_PASS`、`WDT_LABEL_EDIT_PASS`|
+|已有标注重新布局替换旧引线/斜杠，文字与关联同一事务|通过|通过|`phase6_label_*.log`：`WDT_LABEL_LAYOUT_PASS`|
+|撤销、重做、删除钢筋后关联状态|通过|通过|`phase6_undo_*.log`、`phase6_redo_*.log`、`phase6_delete_*.log` 对应 PASS 标记；删除仍保留标注待处理|
+|专用新图保存及新进程重开|通过|通过|`phase6_save_*.log` 创建专用DWG；`phase6_reopenB_*.log`：`WDT_LABEL_VERIFY_PASS`|
+|读取旧版直径标注、旧直线引线升级布局、版本1升级到4|通过|通过|旧 Phase5 专用测试DWG 的 `phase6_legacy_*.log`：`WDT_LABEL_VERIFY_PASS`，`phase6_legacylayout_*.log`：`WDT_LABEL_LAYOUT_PASS`；旧 Phase3 专用测试DWG 的 `phase6_migrateB_*.log`：`WDT_OLD_MIGRATE_PASS`；原文件未覆盖|
+|图形界面实际预览、取消、TSSD字形、样图观感|待用户验收|待用户验收|控制台不验证真实 Palette 点击与文字显示|
+
+本次不包含点筋、尺寸标注、自动清理或钢筋实体宽度统一设置。TSSD_25、s-floor_de_dim 和 S-THIN 暂不用于此直径标注。

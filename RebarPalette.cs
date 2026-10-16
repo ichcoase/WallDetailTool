@@ -357,6 +357,7 @@ namespace WallDetailTool
         private readonly Button editConfirm = new Button { Text = "确认修改", Width = 220, Height = 34, Enabled = false };
         private readonly TextBox annotation = new TextBox { Text = "Φ12", Width = 190 };
         private readonly Button annotationSelect = new Button { Text = "预览直径标注", Width = 220, Height = 34 };
+        private readonly Button annotationLayout = new Button { Text = "调整已有标注引线", Width = 220, Height = 34 };
         private readonly Button annotationConfirm = new Button { Text = "确认直径标注", Width = 220, Height = 34, Enabled = false };
         private bool populating;
         private Document layerDocument;
@@ -392,6 +393,7 @@ namespace WallDetailTool
             layout.Controls.Add(new Label { Text = "钢筋直径标注文字（只改文字）", AutoSize = true });
             layout.Controls.Add(annotation);
             layout.Controls.Add(annotationSelect);
+            layout.Controls.Add(annotationLayout);
             layout.Controls.Add(annotationConfirm);
             layout.Controls.Add(status);
             Controls.Add(layout);
@@ -410,6 +412,7 @@ namespace WallDetailTool
             editPreview.Click += (sender, args) => RebarPalette.Queue("WDTEDITPREVIEW");
             editConfirm.Click += (sender, args) => RebarPalette.Queue("WDTEDITCONFIRM");
             annotationSelect.Click += (sender, args) => RebarPalette.Queue("WDTLABELPREVIEW");
+            annotationLayout.Click += (sender, args) => RebarPalette.Queue("WDTLABELAYOUT");
             annotationConfirm.Click += (sender, args) => RebarPalette.Queue("WDTLABELCONFIRM");
             hierarchy.AfterSelect += (sender, args) => { if (!populating) ApplySelection(); };
         }
@@ -568,7 +571,7 @@ namespace WallDetailTool
                 current = new DrawingData.Index();
                 if (doc == null)
                 {
-                    addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = annotationSelect.Enabled = false;
+                    addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = annotationSelect.Enabled = annotationLayout.Enabled = false;
                     return;
                 }
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
@@ -621,11 +624,11 @@ namespace WallDetailTool
                     }
                     if (wanted != null) { wanted.EnsureVisible(); hierarchy.SelectedNode = wanted; }
                 }
-                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = annotationSelect.Enabled = true;
+                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = annotationSelect.Enabled = annotationLayout.Enabled = true;
             }
             catch (System.Exception ex)
             {
-                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = annotationSelect.Enabled = false;
+                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = annotationSelect.Enabled = annotationLayout.Enabled = false;
                 ShowStatus("图纸关联数据无法读取：" + ex.Message);
             }
             finally { populating = false; }
