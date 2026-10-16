@@ -43,6 +43,12 @@ public class EditTests
         catch (System.Exception ex) { Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + name + "_FAIL: " + ex + "\n"); }
     }
     private static object Command(string name, params object[] args) { return Call(typeof(WallDetailTool.Commands), name, args); }
+    private static double DisplayWidth()
+    {
+        Type settings = Plugin.GetType("WallDetailTool.PluginSettings", true);
+        return (double)settings.GetMethod("ReadLineWidthMillimetres", BindingFlags.NonPublic | BindingFlags.Static,
+            null, Type.EmptyTypes, null).Invoke(null, null);
+    }
 
     [CommandMethod("WDTEDITCREATE")]
     public void Create()
@@ -61,7 +67,8 @@ public class EditTests
                 object[] args = { source, new Point3d(500, 50, 0), 31.0, 0.0 };
                 Require((bool)Command("TryDirection", args), "Direction failed");
                 double side = Math.Sign((double)args[3]);
-                using (var steel = (Polyline)Command("CreateRebar", source, side * 31, 31.0, 12.0, db))
+                using (var steel = (Polyline)Command("CreateRebar", source, side * 31, 31.0,
+                    DisplayWidth() * (double)Command("MillimetresToDrawingUnits", db), db))
                 {
                     Call(Layers, "Ensure", db, tr, "WDT_TEST_STEEL");
                     steel.Layer = "WDT_TEST_STEEL";
@@ -107,7 +114,7 @@ public class EditTests
                 var newId = (ObjectId)Field(updated, "EntityId");
                 var steel = (Polyline)tr.GetObject(newId, OpenMode.ForRead);
                 Require(newId != oldId && Math.Abs(Math.Abs(steel.StartPoint.Y) - 38) < 1e-6, "Offset not updated");
-                Require(Math.Abs(steel.ConstantWidth - 16) < 1e-9 && steel.Layer == "WDT_TEST_EDITED", "Width/layer not updated");
+                Require(Math.Abs(steel.ConstantWidth - DisplayWidth()) < 1e-9 && steel.Layer == "WDT_TEST_EDITED", "Width/layer not updated");
                 Require(source.StartPoint.Y == 0, "Source changed");
                 tr.Commit();
             }
@@ -193,7 +200,7 @@ public class EditTests
                 var steel = (Polyline)tr.GetObject((ObjectId)Field(data, "EntityId"), OpenMode.ForRead);
                 Require((double)Field(data, "Cover") == 25 && (double)Field(data, "Diameter") == 12,
                     "Metadata not undone");
-                Require(steel.Layer == "WDT_TEST_STEEL" && Math.Abs(steel.ConstantWidth - 12) < 1e-9 &&
+                Require(steel.Layer == "WDT_TEST_STEEL" && Math.Abs(steel.ConstantWidth - DisplayWidth()) < 1e-9 &&
                     Math.Abs(Math.Abs(steel.StartPoint.Y) - 31) < 1e-6, "Entity not undone");
             }
         });
@@ -211,7 +218,7 @@ public class EditTests
                 var steel = (Polyline)tr.GetObject((ObjectId)Field(data, "EntityId"), OpenMode.ForRead);
                 Require((double)Field(data, "Cover") == 30 && (double)Field(data, "Diameter") == 16,
                     "Metadata not redone");
-                Require(steel.Layer == "WDT_TEST_EDITED" && Math.Abs(steel.ConstantWidth - 16) < 1e-9 &&
+                Require(steel.Layer == "WDT_TEST_EDITED" && Math.Abs(steel.ConstantWidth - DisplayWidth()) < 1e-9 &&
                     Math.Abs(Math.Abs(steel.StartPoint.Y) - 38) < 1e-6, "Entity not redone");
             }
         });

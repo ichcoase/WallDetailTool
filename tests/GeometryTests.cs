@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -21,6 +22,40 @@ public class GeometryTests
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
+    }
+    private static double DisplayWidthMillimetres()
+    {
+        Type settings = typeof(WallDetailTool.Commands).Assembly.GetType("WallDetailTool.PluginSettings");
+        return (double)settings.GetMethod("ReadLineWidthMillimetres", BindingFlags.NonPublic | BindingFlags.Static,
+            null, Type.EmptyTypes, null)
+            .Invoke(null, null);
+    }
+    [CommandMethod("WDTSETTINGSTEST")]
+    public void Settings()
+    {
+        var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+        string path = Path.Combine(Path.GetDirectoryName(typeof(GeometryTests).Assembly.Location),
+            "settings_test_" + Guid.NewGuid().ToString("N") + ".ini");
+        bool created = false;
+        try
+        {
+            Type settings = typeof(WallDetailTool.Commands).Assembly.GetType("WallDetailTool.PluginSettings");
+            MethodInfo save = settings.GetMethod("SaveLineWidthMillimetres", BindingFlags.NonPublic | BindingFlags.Static,
+                null, new[] { typeof(string), typeof(double) }, null);
+            MethodInfo read = settings.GetMethod("ReadLineWidthMillimetres", BindingFlags.NonPublic | BindingFlags.Static,
+                null, new[] { typeof(string) }, null);
+            save.Invoke(null, new object[] { path, 8.5 });
+            created = true;
+            Require(Math.Abs((double)read.Invoke(null, new object[] { path }) - 8.5) < 1e-9,
+                "User-wide display setting did not persist");
+            bool rejected = false;
+            try { save.Invoke(null, new object[] { path, 0.0 }); }
+            catch (TargetInvocationException ex) { rejected = ex.InnerException is InvalidOperationException; }
+            Require(rejected, "Invalid display width was accepted");
+            ed.WriteMessage("\nWDT_SETTINGS_TEST_PASS\n");
+        }
+        catch (System.Exception ex) { ed.WriteMessage("\nWDT_SETTINGS_TEST_FAIL: " + ex + "\n"); }
+        finally { if (created && File.Exists(path)) File.Delete(path); }
     }
     private static void Invalid(Polyline p)
     {
@@ -67,6 +102,16 @@ public class GeometryTests
                     Require(p.ConstantWidth == 0.0 && p.GetStartWidthAt(0) == 0.0, "Source width changed");
                 }
                 Database database = Application.DocumentManager.MdiActiveDocument.Database;
+                double configuredWidth = DisplayWidthMillimetres();
+                using (var diameter12 = (Polyline)Call("CreateRebar", p, 31.0, 31.0, configuredWidth, database))
+                using (var diameter14 = (Polyline)Call("CreateRebar", p, 32.0, 32.0, configuredWidth, database))
+                {
+                    Require(Math.Abs(diameter12.ConstantWidth - diameter14.ConstantWidth) < 1e-9,
+                        "Display width changed with annotation diameter");
+                    Require(Math.Abs(Math.Abs(diameter12.StartPoint.Y) - 31) < 1e-6 &&
+                            Math.Abs(Math.Abs(diameter14.StartPoint.Y) - 32) < 1e-6,
+                        "Diameter no longer controls centreline offset");
+                }
                 UnitsValue originalUnits = database.Insunits;
                 try
                 {
@@ -74,9 +119,9 @@ public class GeometryTests
                     double scale = (double)Call("MillimetresToDrawingUnits", database);
                     Require(Math.Abs(scale - 0.001) < 1e-12, "Metre conversion wrong");
                     using (var metres = (Polyline)Call("CreateRebar", p, 31 * scale, 31 * scale,
-                        12 * scale, database))
+                        configuredWidth * scale, database))
                     {
-                        Require(Math.Abs(metres.ConstantWidth - 0.012) < 1e-9, "Metre width wrong");
+                        Require(Math.Abs(metres.ConstantWidth - configuredWidth * scale) < 1e-9, "Metre width wrong");
                         Require(Math.Abs(Math.Abs(metres.StartPoint.Y) - 0.031) < 1e-9, "Metre offset wrong");
                     }
                 }
@@ -124,9 +169,10 @@ public class GeometryTests
             var space = (BlockTableRecord)transaction.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForRead);
             Polyline last = null;
             foreach (ObjectId id in space) last = transaction.GetObject(id, OpenMode.ForRead) as Polyline;
+            double expectedWidth = DisplayWidthMillimetres();
             if (last != null && last.NumberOfVertices == 2 && Math.Abs(last.StartPoint.Y - 31) < 1e-6 &&
-                Math.Abs(last.ConstantWidth - 12) < 1e-6 &&
-                Math.Abs(last.GetStartWidthAt(0) - 12) < 1e-6 && Math.Abs(last.GetEndWidthAt(0) - 12) < 1e-6)
+                Math.Abs(last.ConstantWidth - expectedWidth) < 1e-6 &&
+                Math.Abs(last.GetStartWidthAt(0) - expectedWidth) < 1e-6 && Math.Abs(last.GetEndWidthAt(0) - expectedWidth) < 1e-6)
                 pass = true;
         }
         doc.Editor.WriteMessage(pass ? "\nWDT_DRAWN_WIDTH_PASS\n" : "\nWDT_DRAWN_WIDTH_FAIL\n");

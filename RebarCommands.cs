@@ -52,14 +52,15 @@ namespace WallDetailTool
                             ed.WriteMessage("\n方向不明确：请在线段旁点选，不要点在线上、端部或拐角等距处。");
                         }
 
-                        using (Polyline result = CreateRebar(source, signedDistance, distance, diameter * scale, doc.Database))
+                        double displayWidth = PluginSettings.ReadLineWidthMillimetres();
+                        using (Polyline result = CreateRebar(source, signedDistance, distance, displayWidth * scale, doc.Database))
                         {
                             var space = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
                             space.AppendEntity(result);
                             tr.AddNewlyCreatedDBObject(result, true);
                             tr.Commit();
                         }
-                        ed.WriteMessage("\n钢筋已生成：宽度 {0:g} mm，中心线偏移 {1:g} mm。原轮廓未修改。", diameter, cover + diameter / 2.0);
+                        ed.WriteMessage("\n钢筋已生成：统一显示宽度 {0:g} mm，中心线偏移 {1:g} mm。原轮廓未修改。", displayWidth, cover + diameter / 2.0);
                     }
                 }
             }
