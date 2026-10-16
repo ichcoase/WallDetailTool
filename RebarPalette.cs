@@ -59,13 +59,15 @@ namespace WallDetailTool
         private static void OnDocumentChanging(object sender, DocumentCollectionEventArgs args)
         {
             if ((preview != null && ReferenceEquals(preview.Document, args.Document)) ||
-                (editPreview != null && ReferenceEquals(editPreview.Document, args.Document))) ClearPreview();
+                (editPreview != null && ReferenceEquals(editPreview.Document, args.Document)) ||
+                (annotationPreview != null && ReferenceEquals(annotationPreview.Document, args.Document))) ClearPreview();
         }
 
         private static void OnDocumentActivated(object sender, DocumentCollectionEventArgs args)
         {
             if ((preview != null && !ReferenceEquals(preview.Document, args.Document)) ||
-                (editPreview != null && !ReferenceEquals(editPreview.Document, args.Document))) ClearPreview();
+                (editPreview != null && !ReferenceEquals(editPreview.Document, args.Document)) ||
+                (annotationPreview != null && !ReferenceEquals(annotationPreview.Document, args.Document))) ClearPreview();
             if (panel != null) panel.RefreshDocument();
         }
 
@@ -79,6 +81,7 @@ namespace WallDetailTool
         internal static void ClearPreview()
         {
             ClearEditPreview();
+            ClearAnnotationPreview();
             PreviewState old = preview;
             preview = null;
             if (old != null)
@@ -352,6 +355,9 @@ namespace WallDetailTool
         private readonly ComboBox layer = new ComboBox { Width = 230, DropDownStyle = ComboBoxStyle.DropDown };
         private readonly Button editPreview = new Button { Text = "预览修改所选钢筋", Width = 220, Height = 34 };
         private readonly Button editConfirm = new Button { Text = "确认修改", Width = 220, Height = 34, Enabled = false };
+        private readonly TextBox annotation = new TextBox { Text = "Φ12", Width = 190 };
+        private readonly Button annotationSelect = new Button { Text = "预览直径标注", Width = 220, Height = 34 };
+        private readonly Button annotationConfirm = new Button { Text = "确认直径标注", Width = 220, Height = 34, Enabled = false };
         private bool populating;
         private Document layerDocument;
         private DrawingData.Index current = new DrawingData.Index();
@@ -383,11 +389,16 @@ namespace WallDetailTool
             layout.Controls.Add(cancel);
             layout.Controls.Add(editPreview);
             layout.Controls.Add(editConfirm);
+            layout.Controls.Add(new Label { Text = "钢筋直径标注文字（只改文字）", AutoSize = true });
+            layout.Controls.Add(annotation);
+            layout.Controls.Add(annotationSelect);
+            layout.Controls.Add(annotationConfirm);
             layout.Controls.Add(status);
             Controls.Add(layout);
             cover.TextChanged += ParametersChanged;
             diameter.TextChanged += ParametersChanged;
             layer.TextChanged += ParametersChanged;
+            annotation.TextChanged += ParametersChanged;
             select.Click += (sender, args) => RebarPalette.Queue("WDTSELECT");
             confirm.Click += (sender, args) => RebarPalette.Queue("WDTCONFIRM");
             cancel.Click += (sender, args) => { RebarPalette.ClearPreview(); ShowStatus("预览已取消，没有生成图形。"); };
@@ -398,6 +409,8 @@ namespace WallDetailTool
             saveDefaults.Click += (sender, args) => RebarPalette.Queue("WDTUPDATE");
             editPreview.Click += (sender, args) => RebarPalette.Queue("WDTEDITPREVIEW");
             editConfirm.Click += (sender, args) => RebarPalette.Queue("WDTEDITCONFIRM");
+            annotationSelect.Click += (sender, args) => RebarPalette.Queue("WDTLABELPREVIEW");
+            annotationConfirm.Click += (sender, args) => RebarPalette.Queue("WDTLABELCONFIRM");
             hierarchy.AfterSelect += (sender, args) => { if (!populating) ApplySelection(); };
         }
 
@@ -408,6 +421,22 @@ namespace WallDetailTool
                 DrawingData.Group group = current.Groups.Find(g => g.Id == groupId);
                 DrawingData.Node node = current.Nodes.Find(n => n.Id == SelectedNodeId);
                 DrawingData.Rebar selectedRebar = current.Rebars.Find(r => r.Id == SelectedRebarId);
+                if (selectedRebar != null)
+                {
+                    DrawingData.Annotation savedLabel = current.Annotations.Find(a => a.RebarId == selectedRebar.Id);
+                    string currentLabel = savedLabel == null
+                        ? "Φ" + selectedRebar.Diameter.ToString("g", CultureInfo.CurrentCulture) : savedLabel.Label;
+                    if (savedLabel != null && !savedLabel.TextId.IsNull && !savedLabel.TextId.IsErased)
+                    {
+                        Document labelDoc = CadApplication.DocumentManager.MdiActiveDocument;
+                        using (Transaction labelRead = labelDoc.Database.TransactionManager.StartTransaction())
+                        {
+                            DBText actual = labelRead.GetObject(savedLabel.TextId, OpenMode.ForRead) as DBText;
+                            if (actual != null) currentLabel = RebarPalette.DisplayLabel(actual.TextString);
+                        }
+                    }
+                    annotation.Text = currentLabel;
+                }
                 if (group != null || node != null)
                 {
                     if (node != null) nodeName.Text = node.Name;
@@ -428,7 +457,7 @@ namespace WallDetailTool
                                 ShowStatus("这条钢筋的路径已在 CAD 中手工调整。修改保护层会预览替换后的形状。");
                             else if (RebarPalette.WidthChanged(steel, selectedRebar.Diameter * Commands.MillimetresToDrawingUnits(doc.Database)))
                                 ShowStatus("这条钢筋的宽度已在 CAD 中手工调整；只改图层会保留该宽度。");
-                            else ShowStatus("已选中钢筋。修改尺寸或图层后先预览，再确认。");
+                            else ShowStatus("已选中钢筋。修改尺寸、图层或标注文字后先预览，再确认；改标注只改文字。");
                         }
                     }
                 }
@@ -479,6 +508,7 @@ namespace WallDetailTool
         }
 
         internal string LayerName { get { return layer.Text; } }
+        internal string AnnotationLabel { get { return annotation.Text; } }
         internal Guid SelectedRebarId
         {
             get
@@ -538,7 +568,7 @@ namespace WallDetailTool
                 current = new DrawingData.Index();
                 if (doc == null)
                 {
-                    addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = false;
+                    addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = annotationSelect.Enabled = false;
                     return;
                 }
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
@@ -564,8 +594,25 @@ namespace WallDetailTool
                                     Polyline steel = tr.GetObject(rebar.EntityId, OpenMode.ForRead) as Polyline;
                                     manual = manual || (steel != null && rebar.GeometryHash != DrawingData.GeometryHash(steel));
                                 }
+                                DrawingData.Annotation mark = current.Annotations.Find(a => a.RebarId == rebar.Id);
+                                string markText = mark == null ? null : mark.Label;
+                                bool annotationChanged = false;
+                                bool annotationLost = mark != null && (mark.TextId.IsNull || mark.TextId.IsErased ||
+                                    mark.LeaderId.IsNull || mark.LeaderId.IsErased);
+                                if (mark != null && !mark.TextId.IsNull && !mark.TextId.IsErased)
+                                {
+                                    DBText actual = tr.GetObject(mark.TextId, OpenMode.ForRead) as DBText;
+                                    if (actual != null)
+                                    {
+                                        markText = RebarPalette.DisplayLabel(actual.TextString);
+                                        annotationChanged = markText != mark.Label;
+                                    }
+                                }
                                 TreeNode leaf = branch.Nodes.Add((erased ? "已删除 " : manual ? "手工调整 " : "钢筋 ") + rebar.Id.ToString("N").Substring(0, 8)
-                                    + "  Φ" + rebar.Diameter.ToString("g", CultureInfo.CurrentCulture));
+                                    + (mark == null ? "  Φ" + rebar.Diameter.ToString("g", CultureInfo.CurrentCulture) : "  " + markText)
+                                    + (annotationChanged ? "（文字已手改）" : "")
+                                    + (annotationLost ? "（标注已删除）" : "")
+                                    + (erased && mark != null ? "（标注待处理）" : ""));
                                 leaf.Tag = rebar.Id;
                                 if (rebar.Id == selected) wanted = leaf;
                             }
@@ -574,11 +621,11 @@ namespace WallDetailTool
                     }
                     if (wanted != null) { wanted.EnsureVisible(); hierarchy.SelectedNode = wanted; }
                 }
-                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = true;
+                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = annotationSelect.Enabled = true;
             }
             catch (System.Exception ex)
             {
-                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = false;
+                addNode.Enabled = addGroup.Enabled = locate.Enabled = saveDefaults.Enabled = select.Enabled = editPreview.Enabled = annotationSelect.Enabled = false;
                 ShowStatus("图纸关联数据无法读取：" + ex.Message);
             }
             finally { populating = false; }
@@ -587,6 +634,7 @@ namespace WallDetailTool
 
         internal void SetPreviewAvailable(bool value) { confirm.Enabled = value; cancel.Enabled = value; }
         internal void SetEditPreviewAvailable(bool value) { editConfirm.Enabled = value; cancel.Enabled = value || confirm.Enabled; }
+        internal void SetAnnotationPreviewAvailable(bool value) { annotationConfirm.Enabled = value; cancel.Enabled = value || confirm.Enabled || editConfirm.Enabled; }
         internal void ShowStatus(string message) { status.Text = message; }
     }
 

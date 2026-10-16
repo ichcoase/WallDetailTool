@@ -1,0 +1,15 @@
+_.TRUSTEDPATHS
+D:/Waste/WallDtailTool/tests/bin
+_.NETLOAD
+D:/Waste/WallDtailTool/tests/bin/WallDetailTool.dll
+_.NETLOAD
+D:/Waste/WallDtailTool/tests/bin/WallDetailTool.GeometryTests.dll
+WDTEDITCREATE
+WDTLABELCREATECHECK
+WDTLABELEDITCHECK
+_.FILEDIA
+0
+_.QSAVE
+D:/Waste/WallDtailTool/tests/phase5_label_saved_2024.dwg
+_.QUIT
+_N
