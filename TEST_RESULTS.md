@@ -88,3 +88,18 @@ AutoCAD 2023/2024、.NET Framework 4.8/x64；DLL：`D:\Waste\WallDtailTool\bin\P
 |图形界面实际预览、取消、TSSD字形、样图观感|待用户验收|待用户验收|控制台不验证真实 Palette 点击与文字显示|
 
 本次不包含点筋、尺寸标注、自动清理或钢筋实体宽度统一设置。TSSD_25、s-floor_de_dim 和 S-THIN 暂不用于此直径标注。
+
+## 2026-10-16 线筋方向与斜杠尺寸修正（当前 Phase7）
+
+AutoCAD 2023/2024、.NET Framework 4.8/x64；DLL：`D:\Waste\WallDtailTool\bin\Phase7\WallDetailTool.dll`，SHA-256：`66F60047BD9C77CEEA6EE5B360B4E231E8EA709EDF21E6E9C8AFAF0594FB76FB`。上节 Phase6 的 40×150 mm 为历史结果，不是当前行为。
+
+|检查项|2023|2024|证据与限制|
+|---|---|---|---|
+|竖向段水平直引、水平段竖直后水平；正反线段与左右标注；毫米/米；斜杠 10×37.5 mm；无效位置和零长度线段拒绝、源钢筋不变|通过|通过|`phase7_label_*.log`：`WDT_LABEL_GEOM_PASS`；几何和记录检查，非图形界面验收|
+|文字、引线、斜杠在 S-TEXT；改字不改钢筋；调整已有标注|通过|通过|`phase7_label_*.log`：`WDT_LABEL_CREATE_PASS`、`WDT_LABEL_EDIT_PASS`、`WDT_LABEL_LAYOUT_PASS`|
+|原有钢筋偏移、宽度及加载回归|通过|通过|`phase7_geometry_*.log`：`WDT_GEOMETRY_TESTS_PASS`、`WDT_COMMAND_TEST_PASS`、`WDT_DRAWN_WIDTH_PASS`；加载消息另见 `phase7_label_*.log`|
+|改字及调整引线后的撤销/重做、保存并在新进程重开|通过|通过|`phase7_undo_*.log`、`phase7_redo_*.log`、`phase7_layout_undo_*.log`、`phase7_layout_undo_redo_*.log`、`phase7_save_*.log`、`phase7_reopen_*.log` 对应 PASS 标记；撤销与重做分别连续测试，不在两者之间执行其他命令|
+|旧版标注重新布局兼容|通过|通过|旧 Phase5 专用测试DWG 的 `phase7_legacy_*.log`：`WDT_LABEL_LAYOUT_PASS`、`WDT_LABEL_VERIFY_PASS`；未覆盖旧图|
+|真实面板点选、预览取消、TSSD字形、样图观感|待用户验收|待用户验收|隔离控制台无法替代图形界面；取消路径未在真实面板操作|
+
+测试只在隔离 AutoCAD 控制台及专用新图/旧测试图进行。日志、测试DWG、隔离配置、DLL不上传仓库。项目统一显示宽度与点筋仍未实现。

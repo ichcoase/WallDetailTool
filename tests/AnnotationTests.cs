@@ -13,6 +13,7 @@ public class AnnotationTests
     private static readonly Type Data = Plugin.GetType("WallDetailTool.DrawingData", true);
     private static readonly Type Service = Plugin.GetType("WallDetailTool.AnnotationService", true);
     private static readonly Type Geometry = Plugin.GetType("WallDetailTool.AnnotationGeometry", true);
+    private static ObjectId layoutBeforeLeader, layoutBeforeSlash, layoutAfterLeader, layoutAfterSlash;
     private static object Call(Type type, string name, params object[] args)
     {
         try { return type.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, args); }
@@ -49,36 +50,66 @@ public class AnnotationTests
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 object rebar = Rebar(db, tr);
-                Polyline steel = (Polyline)tr.GetObject((ObjectId)Field(rebar, "EntityId"), OpenMode.ForRead);
-                Point3d a = steel.GetPoint3dAt(0), b = steel.GetPoint3dAt(1);
-                Point3d anchor = new Point3d((a.X + b.X) / 2, (a.Y + b.Y) / 2, a.Z);
+                Polyline source = (Polyline)tr.GetObject((ObjectId)Field(rebar, "EntityId"), OpenMode.ForRead);
+                string before = (string)Call(Data, "GeometryHash", source);
                 TextStyleTable styles = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
                 ObjectId style = styles.Has("TSSD") ? styles["TSSD"] : db.Textstyle;
-                foreach (bool elbow in new[] { false, true })
+                foreach (bool vertical in new[] { true, false })
+                foreach (bool reversed in new[] { false, true })
                 foreach (double scale in new[] { 1.0, .001 })
+                foreach (int side in new[] { -1, 1 })
                 {
-                    Point3d end = new Point3d(anchor.X + 400 * scale,
-                        anchor.Y + (elbow ? 200 * scale : 0), anchor.Z);
-                    object[] args = { db, steel, anchor, end, "%%c12", style, 62.5 * scale, null, null, null };
-                    Call(Geometry, "Build", args);
-                    using (var text = (DBText)args[7])
-                    using (var leader = (Polyline)args[8])
-                    using (var slash = (Polyline)args[9])
+                    using (var steel = new Polyline())
                     {
-                        Require(text.HorizontalMode == TextHorizontalMode.TextRight &&
-                            Math.Abs(text.AlignmentPoint.X - end.X) < 1e-7,
-                            "Text must end at underline endpoint");
-                        Require(leader.NumberOfVertices == (elbow ? 3 : 2) &&
-                            Math.Abs(leader.GetPoint2dAt(leader.NumberOfVertices - 1).Y - end.Y) < 1e-7,
-                            "Leader shape wrong");
-                        if (elbow) Require(Math.Abs(leader.GetPoint2dAt(0).X - leader.GetPoint2dAt(1).X) < 1e-7 &&
-                            Math.Abs(leader.GetPoint2dAt(1).Y - leader.GetPoint2dAt(2).Y) < 1e-7,
-                            "Leader is not orthogonal");
-                        Require(Math.Abs(slash.GetStartWidthAt(0) - 40 * scale) < 1e-7 &&
-                            Math.Abs(slash.GetPoint2dAt(0).GetDistanceTo(slash.GetPoint2dAt(1)) - 150 * scale) < 1e-7,
-                            "Slash size wrong");
+                        Point2d first = vertical ? new Point2d(100, 0) : new Point2d(0, 100);
+                        Point2d second = vertical ? new Point2d(100, 200) : new Point2d(200, 100);
+                        steel.AddVertexAt(0, reversed ? second : first, 0, 0, 0);
+                        steel.AddVertexAt(1, reversed ? first : second, 0, 0, 0);
+                        Point3d anchor = new Point3d(100, 100, 0);
+                        Point3d clicked = new Point3d(anchor.X + side * 400 * scale,
+                            anchor.Y + 200 * scale, 0);
+                        object[] args = { db, steel, anchor, clicked, "%%c12", style,
+                            62.5 * scale, null, null, null };
+                        Call(Geometry, "Build", args);
+                        using (var text = (DBText)args[7])
+                        using (var leader = (Polyline)args[8])
+                        using (var slash = (Polyline)args[9])
+                        {
+                            double expectedY = vertical ? anchor.Y : clicked.Y;
+                            Require(text.HorizontalMode == TextHorizontalMode.TextRight &&
+                                Math.Abs(text.AlignmentPoint.X - clicked.X) < 1e-7 &&
+                                Math.Abs(leader.GetPoint2dAt(leader.NumberOfVertices - 1).Y - expectedY) < 1e-7,
+                                "Text must end at underline endpoint");
+                            Require(leader.NumberOfVertices == (vertical ? 2 : 3), "Leader shape wrong");
+                            if (vertical) Require(Math.Abs(leader.GetPoint2dAt(0).Y -
+                                leader.GetPoint2dAt(1).Y) < 1e-7, "Vertical steel needs horizontal leader");
+                            else Require(Math.Abs(leader.GetPoint2dAt(0).X - leader.GetPoint2dAt(1).X) < 1e-7 &&
+                                Math.Abs(leader.GetPoint2dAt(1).Y - leader.GetPoint2dAt(2).Y) < 1e-7,
+                                "Horizontal steel needs orthogonal elbow");
+                            Require(Math.Abs(slash.GetStartWidthAt(0) - 10 * scale) < 1e-7 &&
+                                Math.Abs(slash.GetPoint2dAt(0).GetDistanceTo(slash.GetPoint2dAt(1)) - 37.5 * scale) < 1e-7,
+                                "Slash size wrong");
+                        }
                     }
                 }
+                using (var horizontal = new Polyline())
+                {
+                    horizontal.AddVertexAt(0, new Point2d(0, 100), 0, 0, 0);
+                    horizontal.AddVertexAt(1, new Point2d(200, 100), 0, 0, 0);
+                    object[] invalid = { db, horizontal, new Point3d(100, 100, 0),
+                        new Point3d(500, 100, 0), "%%c12", style, 62.5, null, null, null };
+                    bool rejected = false;
+                    try { Call(Geometry, "Build", invalid); }
+                    catch (InvalidOperationException) { rejected = true; }
+                    Require(rejected, "Horizontal steel without an elbow was accepted");
+                    horizontal.AddVertexAt(2, new Point2d(200, 100), 0, 0, 0);
+                    invalid[3] = new Point3d(500, 300, 0);
+                    rejected = false;
+                    try { Call(Geometry, "Build", invalid); }
+                    catch (InvalidOperationException) { rejected = true; }
+                    Require(rejected, "Zero-length steel segment was accepted");
+                }
+                Require(before == (string)Call(Data, "GeometryHash", source), "Source steel changed");
             }
         });
     }
@@ -109,8 +140,9 @@ public class AnnotationTests
                     leader.AddVertexAt(0, new Point2d(400, 31), 0, 0, 0);
                     leader.AddVertexAt(1, new Point2d(400, 135), 0, 0, 0);
                     leader.AddVertexAt(2, new Point2d(800, 135), 0, 0, 0);
-                    slash.AddVertexAt(0, new Point2d(347, -22), 0, 40, 40);
-                    slash.AddVertexAt(1, new Point2d(453, 84), 0, 0, 0);
+                    double half = 37.5 / (2 * Math.Sqrt(2));
+                    slash.AddVertexAt(0, new Point2d(400 - half, 31 - half), 0, 10, 10);
+                    slash.AddVertexAt(1, new Point2d(400 + half, 31 + half), 0, 0, 0);
                     Call(Service, "Create", db, tr, Field(rebar, "Id"), db.CurrentSpaceId, label, leader, slash, "Φ12");
                 }
                 tr.Commit();
@@ -128,8 +160,8 @@ public class AnnotationTests
                     Math.Abs(text.Height - 62.5) < 1e-9, "Annotation style, layer or height wrong");
                 Require(leader.NumberOfVertices == 3 && leader.GetPoint2dAt(0).X == leader.GetPoint2dAt(1).X &&
                     leader.GetPoint2dAt(1).Y == leader.GetPoint2dAt(2).Y &&
-                    Math.Abs(slash.GetStartWidthAt(0) - 40) < 1e-9 &&
-                    Math.Abs(slash.GetPoint2dAt(0).GetDistanceTo(slash.GetPoint2dAt(1)) - 150) < 1,
+                    Math.Abs(slash.GetStartWidthAt(0) - 10) < 1e-9 &&
+                    Math.Abs(slash.GetPoint2dAt(0).GetDistanceTo(slash.GetPoint2dAt(1)) - 37.5) < 1e-7,
                     "Leader elbow or slash dimension wrong");
                 Require(steel != null && Math.Abs(steel.ConstantWidth - 12) < 1e-9 &&
                     (double)Field(rebar, "Diameter") == 12, "Steel changed by annotation");
@@ -192,6 +224,8 @@ public class AnnotationTests
                 Call(Geometry, "Build", args);
                 oldLeader = (ObjectId)Field(annotation, "LeaderId");
                 oldSlash = (ObjectId)Field(annotation, "SlashId");
+                layoutBeforeLeader = oldLeader;
+                layoutBeforeSlash = oldSlash;
                 using (var text = (DBText)args[7])
                 using (var leader = (Polyline)args[8])
                 using (var slash = (Polyline)args[9])
@@ -208,6 +242,46 @@ public class AnnotationTests
                     !((ObjectId)Field(annotation, "SlashId")).IsErased &&
                     text.HorizontalMode == TextHorizontalMode.TextRight,
                     "Relayout did not replace geometry atomically");
+                layoutAfterLeader = (ObjectId)Field(annotation, "LeaderId");
+                layoutAfterSlash = (ObjectId)Field(annotation, "SlashId");
+            }
+        });
+    }
+
+    [CommandMethod("WDTLABELLAYOUTUNDOCHECK")]
+    public void LayoutUndo()
+    {
+        Report("WDT_LABEL_LAYOUT_UNDO", () =>
+        {
+            Database db = Application.DocumentManager.MdiActiveDocument.Database;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                object annotation = Annotation(db, tr);
+                Require((ObjectId)Field(annotation, "LeaderId") == layoutBeforeLeader &&
+                    (ObjectId)Field(annotation, "SlashId") == layoutBeforeSlash &&
+                    !layoutBeforeLeader.IsErased &&
+                    (layoutBeforeSlash.IsNull || !layoutBeforeSlash.IsErased) &&
+                    layoutAfterLeader.IsErased && layoutAfterSlash.IsErased,
+                    "Layout undo did not restore the previous entities and links");
+            }
+        });
+    }
+
+    [CommandMethod("WDTLABELLAYOUTREDOCHECK")]
+    public void LayoutRedo()
+    {
+        Report("WDT_LABEL_LAYOUT_REDO", () =>
+        {
+            Database db = Application.DocumentManager.MdiActiveDocument.Database;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                object annotation = Annotation(db, tr);
+                Require((ObjectId)Field(annotation, "LeaderId") == layoutAfterLeader &&
+                    (ObjectId)Field(annotation, "SlashId") == layoutAfterSlash &&
+                    layoutBeforeLeader.IsErased &&
+                    (layoutBeforeSlash.IsNull || layoutBeforeSlash.IsErased) &&
+                    !layoutAfterLeader.IsErased && !layoutAfterSlash.IsErased,
+                    "Layout redo did not restore the new entities and links");
             }
         });
     }
