@@ -5,7 +5,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <PlatformTarget>x64</PlatformTarget>
     <OutputPath>bin\</OutputPath>
-    <PluginDir Condition="'$(PluginDir)' == ''">..\bin\Phase5\</PluginDir>
+    <PluginDir Condition="'$(PluginDir)' == ''">..\bin\Phase7\</PluginDir>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

@@ -130,7 +130,7 @@ namespace WallDetailTool
                             var anchorPrompt = new PromptPointOptions("\n点选钢筋上的引出位置: ");
                             PromptPointResult anchor = editor.GetPoint(anchorPrompt);
                             if (anchor.Status != PromptStatus.OK) throw new OperationCanceledException();
-                            PromptPointResult location = editor.GetPoint("\n指定文字下方横线的末端（文字右端）: ");
+                            PromptPointResult location = editor.GetPoint("\n指定文字下方横线的末端（竖向钢筋会自动对齐引出点高度）: ");
                             if (location.Status != PromptStatus.OK) throw new OperationCanceledException();
                             Point3d onSteel = steel.GetClosestPointTo(anchor.Value, false);
                             double height = AnnotationHeightMm * Commands.MillimetresToDrawingUnits(doc.Database);
@@ -293,17 +293,22 @@ namespace WallDetailTool
                 if (Math.Abs(steel.GetBulgeAt(i)) > 1e-10 || a.GetDistanceTo(b) < 1e-8)
                     throw new InvalidOperationException("钢筋含圆弧或零长度线段，不能标注。");
             }
-            double dx = textEnd.X - anchor.X, dy = textEnd.Y - anchor.Y;
-            if (Math.Abs(dx) < height * .3)
-                throw new InvalidOperationException("文字右端与引出点的水平距离太小，请向左或向右移开。");
-            if (!Commands.Finite(dx) || !Commands.Finite(dy))
-                throw new InvalidOperationException("标注位置无效。");
             Vector3d tangent = steel.GetFirstDerivative(anchor);
             double tangentLength = Math.Sqrt(tangent.X * tangent.X + tangent.Y * tangent.Y);
             if (tangentLength < 1e-8)
                 throw new InvalidOperationException("引出点位于无法确定方向的位置，请在线段中间重选。");
+            bool vertical = Math.Abs(tangent.X) <= tangentLength * .01;
+            double dx = textEnd.X - anchor.X;
+            double labelY = vertical ? anchor.Y : textEnd.Y;
+            double dy = labelY - anchor.Y;
+            if (!Commands.Finite(dx) || !Commands.Finite(dy))
+                throw new InvalidOperationException("标注位置无效。");
+            if (Math.Abs(dx) < height * .3)
+                throw new InvalidOperationException("文字右端与引出点的水平距离太小，请向左或向右移开。");
+            if (!vertical && Math.Abs(dy) < height * .3)
+                throw new InvalidOperationException("水平或斜向钢筋的文字请放在引出点上方或下方，以形成直角折线。");
             double scale = height / 62.5;
-            double slashLength = 150 * scale, slashWidth = 40 * scale;
+            double slashLength = 37.5 * scale, slashWidth = 10 * scale;
             // Rotate the local steel tangent 45 degrees so the short mark crosses it.
             double ux = (tangent.X - tangent.Y) / (tangentLength * Math.Sqrt(2));
             double uy = (tangent.X + tangent.Y) / (tangentLength * Math.Sqrt(2));
@@ -312,17 +317,17 @@ namespace WallDetailTool
                 text = new DBText(); text.SetDatabaseDefaults(db);
                 text.TextStyleId = styleId; text.Height = height; text.TextString = label;
                 text.HorizontalMode = TextHorizontalMode.TextRight;
-                text.AlignmentPoint = new Point3d(textEnd.X, textEnd.Y + height * .12, anchor.Z);
+                text.AlignmentPoint = new Point3d(textEnd.X, labelY + height * .12, anchor.Z);
                 text.Position = text.AlignmentPoint;
                 text.AdjustAlignment(db);
                 leader = new Polyline(); leader.SetDatabaseDefaults(db); leader.Elevation = anchor.Z;
                 leader.AddVertexAt(0, new Point2d(anchor.X, anchor.Y), 0, 0, 0);
                 int last = 1;
-                if (Math.Abs(dy) > height * .01)
+                if (!vertical)
                 {
-                    leader.AddVertexAt(last++, new Point2d(anchor.X, textEnd.Y), 0, 0, 0);
+                    leader.AddVertexAt(last++, new Point2d(anchor.X, labelY), 0, 0, 0);
                 }
-                leader.AddVertexAt(last, new Point2d(textEnd.X, textEnd.Y), 0, 0, 0);
+                leader.AddVertexAt(last, new Point2d(textEnd.X, labelY), 0, 0, 0);
                 slash = new Polyline(); slash.SetDatabaseDefaults(db); slash.Elevation = anchor.Z;
                 slash.AddVertexAt(0, new Point2d(anchor.X - ux * slashLength / 2,
                     anchor.Y - uy * slashLength / 2), 0, slashWidth, slashWidth);

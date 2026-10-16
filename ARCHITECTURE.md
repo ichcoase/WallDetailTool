@@ -2,7 +2,7 @@
 
 ## 当前实现（已检查源码）
 单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs完成原生偏移、校验与宽度。RebarPalette.cs、RebarEditing.cs及RebarAnnotations.cs使用WinForms PaletteSet、AutoCAD命令上下文和TransientManager显示生成/修改/标注预览；切换图纸或关闭面板清除预览。RebarEditService.cs和AnnotationService把实体与关联放在同一事务；LayerTools.cs负责图层列表、名称校验及新图层确认。DrawingData.cs保存DWG关联。项目显式列出Compile文件，新增源码必须加入项目。
-build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase6；后续构建仍应指定新输出路径并核对DLL。
+build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase7；后续构建仍应指定新输出路径并核对DLL。
 tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔离控制台验证宽度、单位和撤销。PersistenceTests.cs及AnnotationTests.cs在两版隔离控制台验证层级与标注创建、文字修改、实体删除、撤销重做、旧版本兼容与保存重开。图形界面交互尚待人工验收。不要把以下未来设计描述成现有实现。
 
 ## 拟议分层（按需要逐步拆分）

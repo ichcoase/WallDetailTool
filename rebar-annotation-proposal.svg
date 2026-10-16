@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 700" width="1280" height="700" role="img" aria-labelledby="title desc">
   <title id="title">钢筋直径标注引线方案示意</title>
-  <desc id="desc">左侧是水平引线，右侧是先竖直后水平的直角引线。标注文字在引线上方；引线水平段到文字末端。钢筋交接处有一条宽约40毫米、长约150毫米的短粗斜杠。</desc>
+  <desc id="desc">竖向钢筋使用水平直引线，水平钢筋使用先竖直后水平的直角引线。标注文字在引线上方；水平段到文字末端。钢筋交接处有一条宽10毫米、长37.5毫米的短粗斜杠。</desc>
   <defs>
     <style>
       .bg { fill:#10151a; }
@@ -9,7 +9,7 @@
       .sub { fill:#aebcc3; font: 19px "Microsoft YaHei", sans-serif; }
       .rebar { stroke:#e45353; stroke-width:16; fill:none; stroke-linecap:round; }
       .leader { stroke:#a9d86f; stroke-width:4; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-      .slash { stroke:#c7ef83; stroke-width:20; fill:none; stroke-linecap:butt; }
+      .slash { stroke:#c7ef83; stroke-width:5; fill:none; stroke-linecap:butt; }
       .label { fill:#c7ef83; font: 42px "Microsoft YaHei", sans-serif; }
       .callout { fill:#d4e1e4; font: 18px "Microsoft YaHei", sans-serif; }
       .guide { stroke:#8ca1aa; stroke-width:2; fill:none; stroke-dasharray:6 6; }
@@ -24,24 +24,24 @@
   <text x="52" y="92" class="sub">按你给的样图理解；绿色为 S-TEXT 图层，红色仅表示钢筋。此图是形状草案，不代表 TSSD 字体的实际字形。</text>
 
   <rect x="40" y="128" width="590" height="494" rx="18" class="panel"/>
-  <text x="70" y="176" class="heading">方案 A｜直接水平</text>
+  <text x="70" y="176" class="heading">竖向钢筋｜直接水平</text>
   <text x="70" y="207" class="sub">钢筋交接处 → 水平段 → 文字末端</text>
   <path class="rebar" d="M215 270 V500"/>
-  <path class="slash" d="M194 394 L236 326"/>
+  <path class="slash" d="M209 368 L221 352"/>
   <path class="leader" d="M215 360 H535"/>
   <text x="353" y="348" class="label" textLength="182" lengthAdjust="spacingAndGlyphs">Φ8@200</text>
   <path class="guide" d="M535 354 V388"/>
   <text x="420" y="418" class="callout">水平线到文字右端</text>
   <path class="guide" d="M493 398 L530 367" marker-end="url(#arrow)"/>
-  <text x="70" y="536" class="callout">短粗斜杠：宽约 40 mm，长约 150 mm</text>
+  <text x="70" y="536" class="callout">短粗斜杠：宽 10 mm，长 37.5 mm</text>
   <path class="guide" d="M245 504 L217 389" marker-end="url(#arrow)"/>
   <text x="70" y="586" class="note">文字位于引线上方，水平线就在文字下沿。</text>
 
   <rect x="650" y="128" width="590" height="494" rx="18" class="panel"/>
-  <text x="680" y="176" class="heading">方案 B｜直角折线</text>
+  <text x="680" y="176" class="heading">水平钢筋｜直角折线</text>
   <text x="680" y="207" class="sub">钢筋交接处 → 竖直段 → 水平段 → 文字末端</text>
   <path class="rebar" d="M750 350 H1010"/>
-  <path class="slash" d="M848 384 L890 316"/>
+  <path class="slash" d="M863 358 L875 342"/>
   <path class="leader" d="M869 350 V278 H1164"/>
   <text x="982" y="266" class="label" textLength="182" lengthAdjust="spacingAndGlyphs">Φ10@150</text>
   <path class="guide" d="M945 268 V308"/>
