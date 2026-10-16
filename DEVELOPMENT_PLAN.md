@@ -75,7 +75,7 @@
 
 阶段一当前状态（2026-10-16）：本轮限定开发项已实现并编译。`PluginSettings.cs` 将线筋统一宽度保存在当前Windows用户的 `%LOCALAPPDATA%\WallDetailTool\settings.ini`，默认12 mm，所有该用户的DWG共用；WDTREBAR、侧边栏新建预览和确认重生成使用它。保护层+计算直径/2仍决定路径偏移；新设置只对新建/重生成实体生效，不批量改已有DWG。标注保存后的“核对计算直径”提示已删除，文字服务不改钢筋记录、实体宽度、路径或参数。N1计划中单位确认/覆盖、点筋大小及新版图形界面验收不在本轮范围或尚未验收。
 
-编译：使用本机AutoCAD 2023托管程序集和VS2022 MSBuild，Release/x64/.NET Framework 4.8成功输出 `D:\Waste\WallDtailTool\bin\Phase8\WallDetailTool.dll`；测试程序集亦编译成功至 `tests\bin\Phase8\WallDetailTool.GeometryTests.dll`。SHA-256及源码提交标识在交付前核验。
+编译：使用本机AutoCAD 2023托管程序集和VS2022 MSBuild，Release/x64/.NET Framework 4.8成功输出 `D:\Waste\WallDtailTool\bin\Phase8\WallDetailTool.dll`；SHA-256：`684CFBE6A84188F17338AAA81AC1E1E15C8CBB46C3867AE4392ED6579600E944`。阶段源码、测试及文档提交：`077a8ae`。测试程序集亦编译成功至 `tests\bin\Phase8\WallDetailTool.GeometryTests.dll`。
 
 自动测试状态：新增的几何测试覆盖φ12/φ14保持统一显示宽度而偏移分别为31/32 mm，并覆盖统一设置读写/非法值。测试源码编译通过。运行AutoCAD 2023隔离Core Console失败：隔离环境不能访问/创建 `HKCU\Software\Autodesk\AutoCAD\R24.2`，因此本轮AutoCAD命令测试未执行；未改为非隔离方式。AutoCAD 2024的托管程序集和Core Console未安装，本轮未验证。历史Phase7测试结果只代表旧源码，未视作本轮通过。
 
