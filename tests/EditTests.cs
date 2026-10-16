@@ -241,7 +241,7 @@ public class EditTests
                 var named = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
                 var root = (DBDictionary)tr.GetObject(named.GetAt("WDT_DATA"), OpenMode.ForRead);
                 var schema = (Xrecord)tr.GetObject(root.GetAt("SCHEMA"), OpenMode.ForRead);
-                Require(Convert.ToInt32(schema.Data.AsArray()[0].Value) == 3, "Schema not upgraded");
+                Require(Convert.ToInt32(schema.Data.AsArray()[0].Value) == 4, "Schema not upgraded");
             }
         });
     }

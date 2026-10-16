@@ -2,7 +2,7 @@
 
 ## 当前实现（已检查源码）
 单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs完成原生偏移、校验与宽度。RebarPalette.cs、RebarEditing.cs及RebarAnnotations.cs使用WinForms PaletteSet、AutoCAD命令上下文和TransientManager显示生成/修改/标注预览；切换图纸或关闭面板清除预览。RebarEditService.cs和AnnotationService把实体与关联放在同一事务；LayerTools.cs负责图层列表、名称校验及新图层确认。DrawingData.cs保存DWG关联。项目显式列出Compile文件，新增源码必须加入项目。
-build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase5；后续构建仍应指定新输出路径并核对DLL。
+build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。本次明确输出bin/Phase6；后续构建仍应指定新输出路径并核对DLL。
 tests/GeometryTests.cs通过反射调用现有几何方法；geometry.scr在隔离控制台验证宽度、单位和撤销。PersistenceTests.cs及AnnotationTests.cs在两版隔离控制台验证层级与标注创建、文字修改、实体删除、撤销重做、旧版本兼容与保存重开。图形界面交互尚待人工验收。不要把以下未来设计描述成现有实现。
 
 ## 拟议分层（按需要逐步拆分）
@@ -21,7 +21,7 @@ DetailNode：稳定GUID、名称、轮廓引用、子组；RebarGroup：GUID、�
 2026-10-16 新确认的后续边界：直径标注文字独立于用于现有偏移计算的直径参数；改文字不改实体或几何。钢筋实体宽度和未来点筋图形大小改为项目统一显示设置，不能继续让每条标注文字驱动实体宽度。现有源码尚将输入直径同时用于偏移和宽度，后续实现须显式解耦，并确定项目设置跨 DWG 的保存范围。
 
 ## 计划持久化
-在DWG命名对象字典WDT_DATA内使用Xrecord：SCHEMA当前版本3，N_/G_/R_/A_分别记录节点、组、单筋及直径标注；每项有GUID。钢筋记录含原生实体和源轮廓软指针、方向、实际尺寸、图层、生成/自由编辑状态及路径指纹。标注记录保存所属钢筋GUID、文字及引线软指针和文字值；修改文字时与记录同事务更新，不修改钢筋。版本1、2的记录仍可读取，首次新写入时升级到版本3；旧记录缺少源轮廓时须重新选择，不能猜测。ObjectId只在CAD读取时使用，不作为跨会话稳定标识；复制/跨图复制语义仍未定义。
+在DWG命名对象字典WDT_DATA内使用Xrecord：SCHEMA当前版本4，N_/G_/R_/A_分别记录节点、组、单筋及直径标注；每项有GUID。钢筋记录含原生实体和源轮廓软指针、方向、实际尺寸、图层、生成/自由编辑状态及路径指纹。标注记录保存所属钢筋GUID、文字、引线、交接斜杠的软指针和文字值；旧版五字段标注仍可读取，缺少斜杠指针。修改文字或经预览确认调整布局时与记录同事务更新，不修改钢筋。版本1至3的记录仍可读取，首次新写入时升级到版本4；旧记录缺少源轮廓时须重新选择，不能猜测。ObjectId只在CAD读取时使用，不作为跨会话稳定标识；复制/跨图复制语义仍未定义。
 复制/跨图复制的ID、归组和关联策略暂缓决定，实施前与用户确认；仅预留处理入口，不提前承诺具体行为。删除形成失联待处理；另存保持内部一致；未知版本以只读或可恢复错误处理。迁移前备份，失败不破坏原数据。验证保存重开、撤销重做、删除恢复、多文档隔离；复制测试待规则确认后补充。
 
 ## 计划双向同步及预览

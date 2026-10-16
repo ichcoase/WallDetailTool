@@ -13,7 +13,7 @@ namespace WallDetailTool
     {
         private const string RootKey = "WDT_DATA";
         private const string VersionKey = "SCHEMA";
-        private const int Version = 3;
+        private const int Version = 4;
 
         internal sealed class Node
         {
@@ -50,6 +50,7 @@ namespace WallDetailTool
             internal Guid RebarId;
             internal ObjectId TextId;
             internal ObjectId LeaderId;
+            internal ObjectId SlashId;
             internal string Label;
         }
         internal sealed class Index
@@ -209,13 +210,19 @@ namespace WallDetailTool
                 }
                 else if (entry.Key.StartsWith("A_", StringComparison.Ordinal))
                 {
-                    if (schema < 3 || v.Length != 5 ||
+                    if (schema < 3 || (v.Length != 5 && !(schema >= 4 && v.Length == 6)) ||
                         v[2].TypeCode != Code(DxfCode.SoftPointerId) ||
                         v[3].TypeCode != Code(DxfCode.SoftPointerId))
                         throw new InvalidOperationException("钢筋标注关联记录损坏。");
                     var a = new Annotation { Id = Id(v[0]), RebarId = Id(v[1]),
                         TextId = (ObjectId)v[2].Value, LeaderId = (ObjectId)v[3].Value,
                         Label = Label(v[4]) };
+                    if (v.Length == 6)
+                    {
+                        if (v[5].TypeCode == Code(DxfCode.SoftPointerId)) a.SlashId = (ObjectId)v[5].Value;
+                        else if (OptionalText(v[5]) != "")
+                            throw new InvalidOperationException("钢筋标注斜杠关联记录损坏。");
+                    }
                     if (entry.Key != "A_" + a.Id.ToString("N") || !ids.Add(a.Id) ||
                         a.TextId.IsNull || a.LeaderId.IsNull)
                         throw new InvalidOperationException("钢筋标注标识损坏或重复。");
@@ -312,20 +319,22 @@ namespace WallDetailTool
         }
 
         internal static Guid AddAnnotation(Database database, Transaction tr, Guid rebarId,
-            DBText textEntity, Line leader, string label)
+            DBText textEntity, Polyline leader, Polyline slash, string label)
         {
             label = Name(label);
             Index index = Read(database, tr);
             if (!index.Rebars.Exists(r => r.Id == rebarId) ||
                 index.Annotations.Exists(a => a.RebarId == rebarId) ||
-                textEntity == null || leader == null || textEntity.ObjectId.IsNull || leader.ObjectId.IsNull)
+                textEntity == null || leader == null || slash == null ||
+                textEntity.ObjectId.IsNull || leader.ObjectId.IsNull || slash.ObjectId.IsNull)
                 throw new InvalidOperationException("该钢筋不存在、已有标注或标注实体无效。");
             Upgrade(database, tr);
             Guid id = Guid.NewGuid();
             Add(Root(database, tr, true), "A_" + id.ToString("N"), tr,
                 Text(id.ToString("D")), Text(rebarId.ToString("D")),
                 new TypedValue(Code(DxfCode.SoftPointerId), textEntity.ObjectId),
-                new TypedValue(Code(DxfCode.SoftPointerId), leader.ObjectId), Text(label));
+                new TypedValue(Code(DxfCode.SoftPointerId), leader.ObjectId), Text(label),
+                new TypedValue(Code(DxfCode.SoftPointerId), slash.ObjectId));
             return id;
         }
 
@@ -334,14 +343,15 @@ namespace WallDetailTool
             Index index = Read(database, tr);
             Annotation existing = index.Annotations.Find(a => a.Id == annotation.Id);
             if (existing == null || existing.RebarId != annotation.RebarId ||
-                existing.TextId != annotation.TextId || existing.LeaderId != annotation.LeaderId)
+                existing.TextId != annotation.TextId)
                 throw new InvalidOperationException("标注关联已变化，请刷新。");
             Upgrade(database, tr);
             DBDictionary root = Root(database, tr, true);
             Xrecord record = (Xrecord)tr.GetObject(root.GetAt("A_" + annotation.Id.ToString("N")), OpenMode.ForWrite);
             record.Data = new ResultBuffer(Text(annotation.Id.ToString("D")), Text(annotation.RebarId.ToString("D")),
                 new TypedValue(Code(DxfCode.SoftPointerId), annotation.TextId),
-                new TypedValue(Code(DxfCode.SoftPointerId), annotation.LeaderId), Text(Name(annotation.Label)));
+                new TypedValue(Code(DxfCode.SoftPointerId), annotation.LeaderId), Text(Name(annotation.Label)),
+                Source(annotation.SlashId));
         }
 
         internal static void UpdateDefaults(Database database, Transaction tr, Guid id, string name, double cover, double diameter)
