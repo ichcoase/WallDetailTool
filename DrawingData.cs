@@ -13,7 +13,7 @@ namespace WallDetailTool
     {
         private const string RootKey = "WDT_DATA";
         private const string VersionKey = "SCHEMA";
-        private const int Version = 2;
+        private const int Version = 3;
 
         internal sealed class Node
         {
@@ -44,11 +44,20 @@ namespace WallDetailTool
             internal string Layer;
             internal string Mode;
         }
+        internal sealed class Annotation
+        {
+            internal Guid Id;
+            internal Guid RebarId;
+            internal ObjectId TextId;
+            internal ObjectId LeaderId;
+            internal string Label;
+        }
         internal sealed class Index
         {
             internal readonly List<Node> Nodes = new List<Node>();
             internal readonly List<Group> Groups = new List<Group>();
             internal readonly List<Rebar> Rebars = new List<Rebar>();
+            internal readonly List<Annotation> Annotations = new List<Annotation>();
         }
 
         private static int Code(DxfCode code) { return (int)code; }
@@ -150,7 +159,7 @@ namespace WallDetailTool
             if (!root.Contains(VersionKey)) throw new InvalidOperationException("缺少 WallDetailTool 数据版本，已禁止写入。");
             TypedValue[] version = Values(root, VersionKey, tr);
             if (version.Length != 1 || version[0].TypeCode != Code(DxfCode.Int32) ||
-                (Convert.ToInt32(version[0].Value) != 1 && Convert.ToInt32(version[0].Value) != Version))
+                (Convert.ToInt32(version[0].Value) < 1 || Convert.ToInt32(version[0].Value) > Version))
                 throw new InvalidOperationException("WallDetailTool 图纸数据版本未知，已禁止写入。请保留图纸副本。");
             int schema = Convert.ToInt32(version[0].Value);
             var ids = new HashSet<Guid>();
@@ -176,7 +185,7 @@ namespace WallDetailTool
                 }
                 else if (entry.Key.StartsWith("R_", StringComparison.Ordinal))
                 {
-                    if ((v.Length != 5 && !(schema == 2 && v.Length == 11)) || v[2].TypeCode != Code(DxfCode.SoftPointerId))
+                    if ((v.Length != 5 && !(schema >= 2 && v.Length == 11)) || v[2].TypeCode != Code(DxfCode.SoftPointerId))
                         throw new InvalidOperationException("钢筋关联记录损坏。");
                     var r = new Rebar { Id = Id(v[0]), GroupId = Id(v[1]), EntityId = (ObjectId)v[2].Value,
                         Cover = Number(v[3]), Diameter = Number(v[4]) };
@@ -198,12 +207,28 @@ namespace WallDetailTool
                     if (entry.Key != "R_" + r.Id.ToString("N") || !ids.Add(r.Id)) throw new InvalidOperationException("钢筋标识损坏或重复。");
                     index.Rebars.Add(r);
                 }
+                else if (entry.Key.StartsWith("A_", StringComparison.Ordinal))
+                {
+                    if (schema < 3 || v.Length != 5 ||
+                        v[2].TypeCode != Code(DxfCode.SoftPointerId) ||
+                        v[3].TypeCode != Code(DxfCode.SoftPointerId))
+                        throw new InvalidOperationException("钢筋标注关联记录损坏。");
+                    var a = new Annotation { Id = Id(v[0]), RebarId = Id(v[1]),
+                        TextId = (ObjectId)v[2].Value, LeaderId = (ObjectId)v[3].Value,
+                        Label = Label(v[4]) };
+                    if (entry.Key != "A_" + a.Id.ToString("N") || !ids.Add(a.Id) ||
+                        a.TextId.IsNull || a.LeaderId.IsNull)
+                        throw new InvalidOperationException("钢筋标注标识损坏或重复。");
+                    index.Annotations.Add(a);
+                }
                 else throw new InvalidOperationException("图纸含未知 WallDetailTool 记录，已禁止写入。");
             }
             foreach (Group g in index.Groups)
                 if (!index.Nodes.Exists(n => n.Id == g.NodeId)) throw new InvalidOperationException("钢筋组缺少所属节点。");
             foreach (Rebar r in index.Rebars)
                 if (!index.Groups.Exists(g => g.Id == r.GroupId)) throw new InvalidOperationException("钢筋缺少所属组。");
+            foreach (Annotation a in index.Annotations)
+                if (!index.Rebars.Exists(r => r.Id == a.RebarId)) throw new InvalidOperationException("标注缺少所属钢筋。");
             return index;
         }
 
@@ -242,7 +267,7 @@ namespace WallDetailTool
             Xrecord schema = (Xrecord)tr.GetObject(root.GetAt(VersionKey), OpenMode.ForWrite);
             TypedValue[] values = schema.Data.AsArray();
             if (values.Length != 1 || values[0].TypeCode != Code(DxfCode.Int32) ||
-                (Convert.ToInt32(values[0].Value) != 1 && Convert.ToInt32(values[0].Value) != Version))
+                (Convert.ToInt32(values[0].Value) < 1 || Convert.ToInt32(values[0].Value) > Version))
                 throw new InvalidOperationException("未知图纸数据版本，拒绝更新。");
             schema.Data = new ResultBuffer(new TypedValue(Code(DxfCode.Int32), Version));
         }
@@ -284,6 +309,39 @@ namespace WallDetailTool
             DBDictionary root = Root(database, tr, true);
             Xrecord record = (Xrecord)tr.GetObject(root.GetAt("R_" + rebar.Id.ToString("N")), OpenMode.ForWrite);
             record.Data = RebarValues(rebar);
+        }
+
+        internal static Guid AddAnnotation(Database database, Transaction tr, Guid rebarId,
+            DBText textEntity, Line leader, string label)
+        {
+            label = Name(label);
+            Index index = Read(database, tr);
+            if (!index.Rebars.Exists(r => r.Id == rebarId) ||
+                index.Annotations.Exists(a => a.RebarId == rebarId) ||
+                textEntity == null || leader == null || textEntity.ObjectId.IsNull || leader.ObjectId.IsNull)
+                throw new InvalidOperationException("该钢筋不存在、已有标注或标注实体无效。");
+            Upgrade(database, tr);
+            Guid id = Guid.NewGuid();
+            Add(Root(database, tr, true), "A_" + id.ToString("N"), tr,
+                Text(id.ToString("D")), Text(rebarId.ToString("D")),
+                new TypedValue(Code(DxfCode.SoftPointerId), textEntity.ObjectId),
+                new TypedValue(Code(DxfCode.SoftPointerId), leader.ObjectId), Text(label));
+            return id;
+        }
+
+        internal static void UpdateAnnotation(Database database, Transaction tr, Annotation annotation)
+        {
+            Index index = Read(database, tr);
+            Annotation existing = index.Annotations.Find(a => a.Id == annotation.Id);
+            if (existing == null || existing.RebarId != annotation.RebarId ||
+                existing.TextId != annotation.TextId || existing.LeaderId != annotation.LeaderId)
+                throw new InvalidOperationException("标注关联已变化，请刷新。");
+            Upgrade(database, tr);
+            DBDictionary root = Root(database, tr, true);
+            Xrecord record = (Xrecord)tr.GetObject(root.GetAt("A_" + annotation.Id.ToString("N")), OpenMode.ForWrite);
+            record.Data = new ResultBuffer(Text(annotation.Id.ToString("D")), Text(annotation.RebarId.ToString("D")),
+                new TypedValue(Code(DxfCode.SoftPointerId), annotation.TextId),
+                new TypedValue(Code(DxfCode.SoftPointerId), annotation.LeaderId), Text(Name(annotation.Label)));
         }
 
         internal static void UpdateDefaults(Database database, Transaction tr, Guid id, string name, double cover, double diameter)

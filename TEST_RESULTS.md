@@ -54,3 +54,21 @@
 |实际多文档切换、另存、批量和实时关联更新|待验证/未实现|待验证/未实现|切换时清理预览及重置目标图层已有代码；尚无图形界面验证|
 
 测试使用新图和 `tests` 下专用DWG，不修改用户图纸。自动日志与测试DWG保留在本机且由 `.gitignore` 排除，不上传GitHub。层级/编辑/图层代码均已写入，以上自动测试不等于结构设计审核或新版界面验收。
+
+## 2026-10-16 直径文字标注首版
+
+目标 .NET Framework 4.8 / x64，引用本机 AutoCAD 2023 托管程序集；最终 DLL：`D:\Waste\WallDtailTool\bin\Phase5\WallDetailTool.dll`，SHA-256：`C00C30E00DD3FB5BBC3D3A3C569652BCE83D14F0D17EE07D6EC111C32FEC2E93`。源码提交标识见本次交付。
+
+|检查项|AutoCAD 2023|AutoCAD 2024|证据与限制|
+|---|---|---|---|
+|最终DLL几何回归、WDTTEST|通过|通过|`phase5_final2_2023.log` / `phase5_final2_2024.log` 中 `WDT_GEOMETRY_TESTS_PASS` 与成功加载消息|
+|直径文字、引线、样式名、字高62.5和指定图层|通过|通过|同上日志 `WDT_LABEL_CREATE_PASS`；隔离测试图仅创建名为TSSD的测试文字样式，未验证真实字体外观|
+|文字Φ12→Φ16，钢筋直径记录、宽度和中心线不变|通过|通过|`WDT_LABEL_EDIT_PASS`、`WDT_LABEL_VERIFY_PASS`|
+|撤销/重做同时还原文字与关联记录|通过|通过|`phase5_label_undo_*.log` 中 `WDT_LABEL_UNDO_PASS`、`phase5_label_redo_*.log` 中 `WDT_LABEL_REDO_PASS`；服务代码在最终UI提示调整前通过|
+|保存专用DWG，并在新隔离进程重开|通过|通过|`phase5_label_reopen_*.log` 中 `WDT_LABEL_VERIFY_PASS`；服务代码在最终UI提示调整前通过|
+|删除钢筋后的关联状态、独立图纸隔离|通过|通过|`phase5_delete_*.log` 中 `WDT_LABEL_DELETE_PASS`；`WDT_LABEL_CREATE_PASS` 内检查独立数据库不含标注。当前保留标注并提示待处理，不等于自动清理|
+|旧版本1、2关联读取及版本1升级到3|通过|通过|`phase5_migrate_*.log` 中 `WDT_OLD_MIGRATE_PASS`、`phase5_schema2_*.log` 中 `WDT_EDIT_VERIFY_PASS`；旧测试DWG未被覆盖|
+|真实面板点击、临时预览/取消、TSSD真实字形、样图布局及多活动图切换|待用户验收|待用户验收|隔离控制台不能替代图形界面；暂无用户样图DWG，仅参照截图|
+|复制、自动清理、标注跟随钢筋、点筋及项目统一显示宽度|未实现|未实现|复制规则尚待用户确认；本次不声称支持|
+
+测试仅使用新建图及专用测试DWG，不修改用户图纸。日志、测试DWG及隔离配置均由 `.gitignore` 排除，不上传。TSSD_25尺寸样式和S-THIN标高图层不用于本次直径文字，未检验其效果。
