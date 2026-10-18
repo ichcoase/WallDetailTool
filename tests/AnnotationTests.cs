@@ -23,6 +23,12 @@ public class AnnotationTests
     {
         return value.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(value);
     }
+    private static double DisplayWidth()
+    {
+        Type settings = Plugin.GetType("WallDetailTool.PluginSettings", true);
+        return (double)settings.GetMethod("ReadLineWidthMillimetres", BindingFlags.NonPublic | BindingFlags.Static,
+            null, Type.EmptyTypes, null).Invoke(null, null);
+    }
     private static object First(IList items)
     {
         if (items.Count != 1) throw new InvalidOperationException("Expected one item, got " + items.Count);
@@ -163,7 +169,7 @@ public class AnnotationTests
                     Math.Abs(slash.GetStartWidthAt(0) - 10) < 1e-9 &&
                     Math.Abs(slash.GetPoint2dAt(0).GetDistanceTo(slash.GetPoint2dAt(1)) - 37.5) < 1e-7,
                     "Leader elbow or slash dimension wrong");
-                Require(steel != null && Math.Abs(steel.ConstantWidth - 12) < 1e-9 &&
+                Require(steel != null && Math.Abs(steel.ConstantWidth - DisplayWidth()) < 1e-9 &&
                     (double)Field(rebar, "Diameter") == 12, "Steel changed by annotation");
             }
             using (var other = new Database(true, true))
@@ -196,7 +202,7 @@ public class AnnotationTests
                 DBText text = (DBText)tr.GetObject((ObjectId)Field(annotation, "TextId"), OpenMode.ForRead);
                 Polyline steel = (Polyline)tr.GetObject((ObjectId)Field(rebar, "EntityId"), OpenMode.ForRead);
                 Require(text.TextString == "%%c16" && (string)Field(annotation, "Label") == "Φ16", "Text not updated");
-                Require((double)Field(rebar, "Diameter") == 12 && Math.Abs(steel.ConstantWidth - 12) < 1e-9 &&
+                Require((double)Field(rebar, "Diameter") == 12 && Math.Abs(steel.ConstantWidth - DisplayWidth()) < 1e-9 &&
                     Math.Abs(Math.Abs(steel.StartPoint.Y) - 31) < 1e-6, "Steel changed by text edit");
             }
         });

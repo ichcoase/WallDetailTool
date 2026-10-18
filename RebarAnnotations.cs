@@ -265,7 +265,7 @@ namespace WallDetailTool
                 }
                 ClearPreview();
                 panel.RefreshTree(state.RebarId);
-                panel.ShowStatus("直径标注已保存；钢筋实体及几何未修改。请人工核对文字与钢筋计算直径。");
+                panel.ShowStatus("直径标注文字已保存；钢筋图形及布置参数未修改。");
             }
             catch (System.Exception ex)
             {

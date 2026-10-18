@@ -21,7 +21,8 @@ namespace WallDetailTool
                 saved = (Polyline)proposed.Clone();
                 saved.SetPropertiesFrom(current);
                 saved.Layer = layer;
-                Commands.SetRebarWidth(saved, diameter * Commands.MillimetresToDrawingUnits(database));
+                Commands.SetRebarWidth(saved, PluginSettings.ReadLineWidthMillimetres() *
+                    Commands.MillimetresToDrawingUnits(database));
                 BlockTableRecord space = (BlockTableRecord)tr.GetObject(current.OwnerId, OpenMode.ForWrite);
                 space.AppendEntity(saved);
                 tr.AddNewlyCreatedDBObject(saved, true);

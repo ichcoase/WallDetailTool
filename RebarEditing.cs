@@ -24,6 +24,7 @@ namespace WallDetailTool
             internal Polyline Result;
             internal double Cover;
             internal double Diameter;
+            internal double DisplayWidthMillimetres;
             internal double Side;
             internal string SourceHash;
             internal string Layer;
@@ -83,9 +84,10 @@ namespace WallDetailTool
                     bool layerChange = steel.Layer != layer;
                     if (!geometryChange && !layerChange) throw new InvalidOperationException("尺寸和图层没有变化。");
                     double scale = Commands.MillimetresToDrawingUnits(doc.Database);
+                    double displayWidth = PluginSettings.ReadLineWidthMillimetres();
                     bool manualPath = data.Mode == "Free" || (!string.IsNullOrEmpty(data.GeometryHash) &&
                         data.GeometryHash != DrawingData.GeometryHash(steel));
-                    bool manualWidth = WidthChanged(steel, data.Diameter * scale);
+                    bool manualWidth = WidthChanged(steel, displayWidth * scale);
                     Polyline result = null, original = null, sourceSnapshot = null;
                     ObjectId sourceId = data.SourceId;
                     double side = data.Side;
@@ -132,7 +134,7 @@ namespace WallDetailTool
                                         break;
                                     }
                                 }
-                                result = Commands.CreateRebar(source, side * distance, distance, diameter * scale, doc.Database);
+                                result = Commands.CreateRebar(source, side * distance, distance, displayWidth * scale, doc.Database);
                             }
                         }
                         else result = (Polyline)steel.Clone();
@@ -145,6 +147,7 @@ namespace WallDetailTool
                             Document = doc, RebarId = rebarId, EntityId = data.EntityId, SpaceId = steel.OwnerId,
                             SourceId = sourceId, Units = doc.Database.Insunits, Original = original,
                             SourceSnapshot = sourceSnapshot, Result = result, Cover = cover, Diameter = diameter,
+                            DisplayWidthMillimetres = displayWidth,
                             Side = side, SourceHash = sourceHash, Layer = layer, ReplacePath = geometryChange,
                             ManualPath = manualPath, ManualWidth = manualWidth, PreviousLayer = steel.Layer,
                             PreviousCover = data.Cover, PreviousDiameter = data.Diameter,
@@ -203,6 +206,7 @@ namespace WallDetailTool
                 panel.ReadParameters(out cover, out diameter);
                 if (!ReferenceEquals(doc, state.Document) || panel.SelectedRebarId != state.RebarId ||
                     cover != state.Cover || diameter != state.Diameter || panel.LayerName != state.Layer ||
+                    PluginSettings.ReadLineWidthMillimetres() != state.DisplayWidthMillimetres ||
                     doc.Database.Insunits != state.Units)
                     throw new InvalidOperationException("图纸、选择、参数或单位已变化，请重新预览。");
                 if (!LayerTools.ConfirmNew(doc.Database, doc.Editor, state.Layer))

@@ -32,6 +32,7 @@ namespace WallDetailTool
             internal Polyline Result;
             internal double Cover;
             internal double Diameter;
+            internal double DisplayWidthMillimetres;
             internal Guid GroupId;
             internal double Side;
             internal string Layer;
@@ -103,6 +104,7 @@ namespace WallDetailTool
             {
                 double cover, diameter;
                 panel.ReadParameters(out cover, out diameter);
+                double displayWidth = PluginSettings.ReadLineWidthMillimetres();
                 string layer = LayerTools.CheckName(panel.LayerName);
                 Guid groupId = panel.SelectedGroupId;
                 if (groupId == Guid.Empty) throw new InvalidOperationException("请先在侧边栏创建并选中一个钢筋组。");
@@ -135,7 +137,7 @@ namespace WallDetailTool
                         if (Commands.TryDirection(source, side.Value, distance, out signedDistance)) break;
                         editor.WriteMessage("\n方向不明确，请避开轮廓、端点和拐角后重新点选。");
                     }
-                    Polyline result = Commands.CreateRebar(source, signedDistance, distance, diameter * scale, document.Database);
+                    Polyline result = Commands.CreateRebar(source, signedDistance, distance, displayWidth * scale, document.Database);
                     Polyline snapshot = null;
                     bool displayed = false;
                     try
@@ -150,7 +152,7 @@ namespace WallDetailTool
                             Document = document, SourceId = selection.ObjectId,
                             SpaceId = document.Database.CurrentSpaceId, Units = document.Database.Insunits,
                             SourceSnapshot = snapshot, Result = result,
-                            Cover = cover, Diameter = diameter, GroupId = groupId,
+                            Cover = cover, Diameter = diameter, DisplayWidthMillimetres = displayWidth, GroupId = groupId,
                             Side = Math.Sign(signedDistance), Layer = layer
                         };
                         panel.SetPreviewAvailable(true);
@@ -187,6 +189,7 @@ namespace WallDetailTool
                 double cover, diameter;
                 panel.ReadParameters(out cover, out diameter);
                 if (cover != state.Cover || diameter != state.Diameter ||
+                    PluginSettings.ReadLineWidthMillimetres() != state.DisplayWidthMillimetres ||
                     panel.SelectedGroupId != state.GroupId ||
                     panel.LayerName != state.Layer ||
                     document.Database.Insunits != state.Units || document.Database.CurrentSpaceId != state.SpaceId)
@@ -214,7 +217,7 @@ namespace WallDetailTool
                         result.SetDatabaseDefaults(document.Database);
                         result.ColorIndex = 256;
                         result.Layer = state.Layer;
-                        Commands.SetRebarWidth(result, state.Result.ConstantWidth);
+                        Commands.SetRebarWidth(result, state.DisplayWidthMillimetres * Commands.MillimetresToDrawingUnits(document.Database));
                         BlockTableRecord space = (BlockTableRecord)transaction.GetObject(state.SpaceId, OpenMode.ForWrite);
                         space.AppendEntity(result);
                         transaction.AddNewlyCreatedDBObject(result, true);
@@ -227,7 +230,7 @@ namespace WallDetailTool
                 ClearPreview();
                 panel.RefreshTree();
                 panel.ShowStatus("钢筋已生成。可用 AutoCAD 撤销命令移除。");
-                document.Editor.WriteMessage("\n钢筋已生成：宽度 {0:g} mm，中心线偏移 {1:g} mm。", diameter, cover + diameter / 2.0);
+                document.Editor.WriteMessage("\n钢筋已生成：统一显示宽度 {0:g} mm，中心线偏移 {1:g} mm。", state.DisplayWidthMillimetres, cover + diameter / 2.0);
             }
             catch (System.Exception ex)
             {
@@ -339,6 +342,7 @@ namespace WallDetailTool
     {
         private readonly TextBox cover = new TextBox { Text = "25", Width = 190 };
         private readonly TextBox diameter = new TextBox { Text = "12", Width = 190 };
+        private readonly TextBox lineDisplayWidth = new TextBox { Width = 110 };
         private readonly Label units = new Label { AutoSize = true };
         private readonly Label status = new Label { AutoSize = true, MaximumSize = new Size(245, 0), Text = "选择轮廓后显示临时预览。" };
         private readonly Button select = new Button { Text = "选择轮廓并预览", Width = 220, Height = 34 };
@@ -352,6 +356,7 @@ namespace WallDetailTool
         private readonly Button locate = new Button { Text = "在列表定位钢筋", Width = 220 };
         private readonly Button refresh = new Button { Text = "刷新列表", Width = 220 };
         private readonly Button saveDefaults = new Button { Text = "保存所选节点/组的名称与默认尺寸", Width = 250 };
+        private readonly Button saveLineDisplayWidth = new Button { Text = "保存插件统一线筋宽度", Width = 220 };
         private readonly ComboBox layer = new ComboBox { Width = 230, DropDownStyle = ComboBoxStyle.DropDown };
         private readonly Button editPreview = new Button { Text = "预览修改所选钢筋", Width = 220, Height = 34 };
         private readonly Button editConfirm = new Button { Text = "确认修改", Width = 220, Height = 34, Enabled = false };
@@ -379,8 +384,11 @@ namespace WallDetailTool
             layout.Controls.Add(addGroup);
             layout.Controls.Add(new Label { Text = "混凝土保护层（mm）", AutoSize = true });
             layout.Controls.Add(cover);
-            layout.Controls.Add(new Label { Text = "钢筋直径（mm）", AutoSize = true, Margin = new Padding(3, 12, 3, 3) });
+            layout.Controls.Add(new Label { Text = "计算用钢筋直径（mm）", AutoSize = true, Margin = new Padding(3, 12, 3, 3) });
             layout.Controls.Add(diameter);
+            layout.Controls.Add(new Label { Text = "插件统一线筋显示宽度（mm，所有图纸共用）", AutoSize = true, Margin = new Padding(3, 12, 3, 3) });
+            layout.Controls.Add(lineDisplayWidth);
+            layout.Controls.Add(saveLineDisplayWidth);
             layout.Controls.Add(units);
             layout.Controls.Add(new Label { Text = "目标钢筋图层（可选已有或输入新名称）", AutoSize = true });
             layout.Controls.Add(layer);
@@ -399,6 +407,7 @@ namespace WallDetailTool
             Controls.Add(layout);
             cover.TextChanged += ParametersChanged;
             diameter.TextChanged += ParametersChanged;
+            lineDisplayWidth.TextChanged += LineDisplayWidthChanged;
             layer.TextChanged += ParametersChanged;
             annotation.TextChanged += ParametersChanged;
             select.Click += (sender, args) => RebarPalette.Queue("WDTSELECT");
@@ -409,6 +418,7 @@ namespace WallDetailTool
             locate.Click += (sender, args) => RebarPalette.Queue("WDTLOCATE");
             refresh.Click += (sender, args) => RefreshTree();
             saveDefaults.Click += (sender, args) => RebarPalette.Queue("WDTUPDATE");
+            saveLineDisplayWidth.Click += (sender, args) => SaveLineDisplayWidth();
             editPreview.Click += (sender, args) => RebarPalette.Queue("WDTEDITPREVIEW");
             editConfirm.Click += (sender, args) => RebarPalette.Queue("WDTEDITCONFIRM");
             annotationSelect.Click += (sender, args) => RebarPalette.Queue("WDTLABELPREVIEW");
@@ -458,8 +468,8 @@ namespace WallDetailTool
                             layer.Text = steel.Layer;
                             if (selectedRebar.Mode == "Free" || (selectedRebar.GeometryHash != "" && selectedRebar.GeometryHash != DrawingData.GeometryHash(steel)))
                                 ShowStatus("这条钢筋的路径已在 CAD 中手工调整。修改保护层会预览替换后的形状。");
-                            else if (RebarPalette.WidthChanged(steel, selectedRebar.Diameter * Commands.MillimetresToDrawingUnits(doc.Database)))
-                                ShowStatus("这条钢筋的宽度已在 CAD 中手工调整；只改图层会保留该宽度。");
+                            else if (RebarPalette.WidthChanged(steel, PluginSettings.ReadLineWidthMillimetres() * Commands.MillimetresToDrawingUnits(doc.Database)))
+                                ShowStatus("这条钢筋的宽度与当前插件统一设置不同；只改图层会保留现有宽度，重生成将预览统一宽度。");
                             else ShowStatus("已选中钢筋。修改尺寸、图层或标注文字后先预览，再确认；改标注只改文字。");
                         }
                     }
@@ -470,6 +480,29 @@ namespace WallDetailTool
         {
             RebarPalette.ClearPreview();
             ShowStatus("尺寸或图层已变化；请重新预览后确认。");
+        }
+
+        private void LineDisplayWidthChanged(object sender, EventArgs args)
+        {
+            RebarPalette.ClearPreview();
+            ShowStatus("统一显示宽度仅在保存到插件设置后用于新生成或重新生成的线筋。");
+        }
+
+        private void SaveLineDisplayWidth()
+        {
+            double width;
+            if (!double.TryParse(lineDisplayWidth.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out width) ||
+                !Commands.Finite(width) || width <= 0 || width > 1000)
+            {
+                ShowStatus("统一线筋宽度请输入大于0且不超过1000的毫米数。");
+                return;
+            }
+            try
+            {
+                PluginSettings.SaveLineWidthMillimetres(width);
+                ShowStatus("插件统一线筋宽度已保存，适用于当前Windows用户打开的所有图纸。");
+            }
+            catch (System.Exception ex) { ShowStatus("保存统一线筋宽度失败：" + ex.Message); }
         }
 
         internal void ReadParameters(out double coverMm, out double diameterMm)
@@ -484,6 +517,12 @@ namespace WallDetailTool
 
         internal void RefreshDocument()
         {
+            try { lineDisplayWidth.Text = PluginSettings.ReadLineWidthMillimetres().ToString("g", CultureInfo.CurrentCulture); }
+            catch (System.Exception ex)
+            {
+                lineDisplayWidth.Text = PluginSettings.DefaultLineWidthMillimetres.ToString("g", CultureInfo.CurrentCulture);
+                ShowStatus("统一宽度设置无法读取，请保存有效宽度后继续：" + ex.Message);
+            }
             Document document = CadApplication.DocumentManager.MdiActiveDocument;
             select.Enabled = document != null;
             if (document == null) { units.Text = "请先打开图纸。"; SetPreviewAvailable(false); RefreshTree(); return; }
