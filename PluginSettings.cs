@@ -9,6 +9,7 @@ namespace WallDetailTool
     internal static class PluginSettings
     {
         internal const double DefaultLineWidthMillimetres = 12.0;
+        internal const double DefaultDotDiameterMillimetres = 12.0;
         private const double MaximumLineWidthMillimetres = 1000.0;
 
         private static string SettingsPath
@@ -52,6 +53,27 @@ namespace WallDetailTool
         private static bool ValidWidth(double value)
         {
             return Commands.Finite(value) && value > 0 && value <= MaximumLineWidthMillimetres;
+        }
+
+        internal static double ReadDotDiameterMillimetres()
+        {
+            string root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string path = Path.Combine(root, "WallDetailTool", "dot-size.ini");
+            if (!File.Exists(path)) return DefaultDotDiameterMillimetres;
+            double value;
+            if (!double.TryParse(File.ReadAllText(path, Encoding.UTF8).Trim(), NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out value) || !ValidWidth(value))
+                throw new InvalidOperationException("圆点筋显示直径设置无效。");
+            return value;
+        }
+
+        internal static void SaveDotDiameterMillimetres(double value)
+        {
+            if (!ValidWidth(value)) throw new InvalidOperationException("圆点筋显示直径须大于0且不超过1000毫米。");
+            string root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string path = Path.Combine(root, "WallDetailTool", "dot-size.ini");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, value.ToString("R", CultureInfo.InvariantCulture), new UTF8Encoding(false));
         }
     }
 }

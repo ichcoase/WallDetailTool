@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 梁上反坎 P0 增量（2026-10-18）
+
+`UpstandDetail.cs` 在现有 `Commands` 中新增 `WDTUPCONTOUR`、`WDTUPDRAW`、`WDTUPDOTSIZE`，不更改旧命令。提取器只读选区中的闭合轴对齐矩形多段线或四直线闭环，并创建三条带类型颜色的独立工作轮廓；原图不建关联。用户在两个命令之间用 CAD 原生编辑修正工作轮廓。生成器读取三个确认后的矩形，按毫米换算和独立显示设置计算 U 筋及点筋；整套结果用临时图元预览，确认后在一个事务中写实体、图层及当前 DWG 的 `WDT_UPSTAND_LAST` 参数 Xrecord。锚固长度为用户明确输入的设计值。此增量与原有节点/组关联数据相互独立；关联标注驱动、已有大样更新和块智能编辑待后续设计。
+
 ## 当前实现（已检查源码）
 单个旧式C#项目，.NET Framework 4.8/x64。Commands.cs定义WDTTEST；RebarCommands.cs完成原生偏移、校验与宽度。RebarPalette.cs、RebarEditing.cs及RebarAnnotations.cs使用WinForms PaletteSet、AutoCAD命令上下文和TransientManager显示生成/修改/标注预览；切换图纸或关闭面板清除预览。RebarEditService.cs和AnnotationService把实体与关联放在同一事务；LayerTools.cs负责图层列表、名称校验及新图层确认。DrawingData.cs保存DWG关联。项目显式列出Compile文件，新增源码必须加入项目。
 build.ps1使用本机VS2022 Community MSBuild，默认引用D:\Software\AutoCAD 2023内三个托管程序集，Private=False。历史最新输出bin/Phase7；本轮仅更新文档，没有构建。后续构建仍应指定新输出路径并核对DLL。
