@@ -175,6 +175,7 @@ namespace WallDetailTool
         private static Rect PickRect(Document doc, string name)
         {
             var options = new PromptEntityOptions("\n选择" + name + "（闭合矩形多段线）: ");
+            options.SetRejectMessage("\n请选择闭合矩形二维多段线。由四条直线组成的矩形请先用 PEDIT/JOIN 转成闭合多段线。");
             options.AddAllowedClass(typeof(Polyline), true);
             PromptEntityResult result = doc.Editor.GetEntity(options);
             if (result.Status != PromptStatus.OK) return null;

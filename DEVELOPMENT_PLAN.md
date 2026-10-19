@@ -10,6 +10,8 @@
 
 用户反馈框选三个矩形仍报未识别。源码原因是自动角色判断要求梁顶/板顶/反坎底精确重合、板完整跨梁；这对现场线位差异过于严格。现改为相对尺寸容差，并在框选到至少三个有效矩形但不能唯一分类时，提示用户依次指定梁、板、反坎。`WDTUPDRAW` 复用相同关系校验。Release/x64 编译成功；AutoCAD 未运行，需用户用旧场景验证。修正版 DLL：`D:\Waste\WallDtailTool\bin\UpstandV2\WallDetailTool.dll`；SHA-256：`D3F51F675DB028F7FD5DF7BB88F34C0DC5B34C0A7933F40F105B6B23AC4E2AAA`。
 
+同日用户在手动指定入口实际遇到 `Use SetRejectMessage first.`，证实 `PromptEntityOptions` 调用顺序有误。已在 `AddAllowedClass` 前设置拒选提示。Release/x64 使用 AutoCAD 2023 托管引用编译成功；输出 `D:\Waste\WallDtailTool\bin\UpstandV3\WallDetailTool.dll`，SHA-256 `D46111CFD734939483976D5E4D366AD9D3064CB171DB447878887D7206BB52A8`。本次未启动 CAD/Core Console；手动点选、完整生成、保存与撤销仍待用户验证。
+
 2026-10-15建立，2026-10-16持续更新。阶段1、2、3首版及4首版“修改预览＋基础图层”已有源码；直径标注已提前实现。当前阶段一（统一线筋宽度与标注解耦）代码及AutoCAD 2023编译完成。2023隔离Core Console因HKCU注册表访问失败未能启动，自动测试命令未运行；2024安装依赖不可用。新版侧边栏界面仍待用户验收。本轮输出及限制见“阶段一实现记录”。后续仍按N2→N3执行，不重做已完成范围。
 
 ## 阶段0：接手基线
