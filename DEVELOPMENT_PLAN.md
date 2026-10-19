@@ -1,5 +1,9 @@
 # 分阶段开发计划
 
+## 2026-10-19 `eKeyNotFound` 预览修正
+
+用户在原场景运行 `WDTUPDRAW` 时报告“未生成梁上反坎大样：eKeyNotFound”。静态检查发现 `BuildDetail` 在预览阶段给临时实体指定了尚未创建的分类图层，而分类图层只在确认事务中创建。源码已改为预览全部使用现有 `0` 层，正式生成仍在确认事务中创建分类图层。Release/x64/.NET Framework 4.8 使用本机 AutoCAD 2023 托管程序集编译成功；DLL：`D:\Waste\WallDtailTool\bin\UpstandV5\WallDetailTool.dll`，SHA-256：`AA786B9660DDF999EA7B5BDBC5F34D99F03D605556711345509A1DF74AC2429D`。本轮未启动 CAD/Core Console；报错是否消失、预览/保存/UNDO 仍待用户实际验证。
+
 ## 2026-10-19 截图节点的配筋生成修正
 
 用户在图形界面确认上一版会把一侧板、窄深梁和等宽反坎的典型节点拒绝为“轮廓关系不符合”。本轮依据用户纠正取消人工指定后的梁板反坎关系门槛；自动角色判断不再要求梁宽大于梁高或板与梁边对齐。U 筋位置从反坎取值，锚入范围从所选梁取值；板只绘制轮廓。保留 U 筋两侧处于梁宽内、两侧直锚不超过梁高及点筋空间检查。Release/x64/.NET Framework 4.8 使用本机 AutoCAD 2023 托管程序集编译成功，DLL：`D:\Waste\WallDtailTool\bin\UpstandV4\WallDetailTool.dll`，SHA-256：`3AA60C4005450C036103CBF0D63D1E1E94A806EC02E9A90AE170D3D3A8FE909C`。本轮未启动 CAD/Core Console；仍需用户在原场景验证提示、预览、生成与保存。

@@ -131,7 +131,7 @@ namespace WallDetailTool
                 while (true)
                 {
                     if (!ReadParameters(ed, values)) return;
-                    List<Entity> preview = BuildDetail(doc.Database, beam, slab, upstand, values, scale);
+                    List<Entity> preview = BuildDetail(doc.Database, beam, slab, upstand, values, scale, true);
                     try
                     {
                         ShowPreview(preview);
@@ -153,7 +153,7 @@ namespace WallDetailTool
                             EnsureLayer(doc.Database, tr, DimensionLayer, 6);
                             BlockTableRecord space = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
                             // Regenerate as database entities; transient clones are never adopted by the DB.
-                            foreach (Entity entity in BuildDetail(doc.Database, beam, slab, upstand, values, scale))
+                            foreach (Entity entity in BuildDetail(doc.Database, beam, slab, upstand, values, scale, false))
                             {
                                 entity.TransformBy(Matrix3d.Displacement(shift));
                                 Append(space, tr, entity);
@@ -302,11 +302,18 @@ namespace WallDetailTool
             value=result.Value; return true;
         }
 
-        private static List<Entity> BuildDetail(Database db, Rect beam, Rect slab, Rect up, DetailParams p, double scale)
+        private static List<Entity> BuildDetail(Database db, Rect beam, Rect slab, Rect up, DetailParams p,
+            double scale, bool preview)
         {
             var entities = new List<Entity>();
             try
             {
+                // Previews must use an existing layer. Target layers are created only in the confirm transaction.
+                string concreteLayer = preview ? "0" : ConcreteLayer;
+                string lineLayer = preview ? "0" : LineLayer;
+                string dotLayer = preview ? "0" : DotLayer;
+                string labelLayer = preview ? "0" : LabelLayer;
+                string dimensionLayer = preview ? "0" : DimensionLayer;
                 double width = PluginSettings.ReadLineWidthMillimetres()*scale;
                 double dot = PluginSettings.ReadDotDiameterMillimetres()*scale;
                 double inset = p.Cover*scale + width/2; // This detail's approved display-based offset.
@@ -318,9 +325,9 @@ namespace WallDetailTool
                 Check(top > beamTop+dot+width+50*scale, "反坎高度不足，最下排圆点筋无法满足距梁顶50～150 mm。");
                 Check(p.LeftAnchor*scale <= beam.H+Epsilon && p.RightAnchor*scale <= beam.H+Epsilon,
                     "输入的直锚长度超过梁高；没有已审核的弯折规则，停止生成。");
-                entities.Add(Rectangle(beam,ConcreteLayer)); entities.Add(Rectangle(slab,ConcreteLayer));
-                entities.Add(Rectangle(up,ConcreteLayer));
-                var u = new Polyline(4) { Elevation=beam.Z, Layer=LineLayer };
+                entities.Add(Rectangle(beam,concreteLayer)); entities.Add(Rectangle(slab,concreteLayer));
+                entities.Add(Rectangle(up,concreteLayer));
+                var u = new Polyline(4) { Elevation=beam.Z, Layer=lineLayer };
                 u.AddVertexAt(0,new Point2d(left,beamTop-p.LeftAnchor*scale),0,width,width);
                 u.AddVertexAt(1,new Point2d(left,top),0,width,width);
                 u.AddVertexAt(2,new Point2d(right,top),0,width,width);
@@ -339,30 +346,31 @@ namespace WallDetailTool
                 for (int i=0;i<rows;i++)
                 {
                     double y=yFirst-i*actual;
-                    entities.Add(Dot(xLeft,y,beam.Z,dot)); entities.Add(Dot(xRight,y,beam.Z,dot));
+                    entities.Add(Dot(xLeft,y,beam.Z,dot,dotLayer));
+                    entities.Add(Dot(xRight,y,beam.Z,dot,dotLayer));
                 }
                 double labelHeight= Math.Max(2.5*scale, Math.Min(20*scale, up.W/16));
                 entities.Add(Text(db,"%%c"+p.LineDiameter.ToString("g")+"@"+p.LineSpacing.ToString("g"),
-                    new Point3d(up.R+20*scale,up.T,beam.Z),labelHeight,LabelLayer));
+                    new Point3d(up.R+20*scale,up.T,beam.Z),labelHeight,labelLayer));
                 entities.Add(Text(db,"%%c"+p.DotDiameter.ToString("g")+"@"+p.DotSpacing.ToString("g"),
-                    new Point3d(up.R+20*scale,up.T-3*labelHeight,beam.Z),labelHeight,LabelLayer));
+                    new Point3d(up.R+20*scale,up.T-3*labelHeight,beam.Z),labelHeight,labelLayer));
                 entities.Add(Text(db,"L="+p.LeftAnchor.ToString("g")+" / R="+p.RightAnchor.ToString("g")+" mm (审核)",
-                    new Point3d(up.R+20*scale,up.T-6*labelHeight,beam.Z),labelHeight,LabelLayer));
+                    new Point3d(up.R+20*scale,up.T-6*labelHeight,beam.Z),labelHeight,labelLayer));
                 entities.Add(Dimension(db,new Point3d(up.L,up.T,beam.Z),new Point3d(up.R,up.T,beam.Z),
-                    new Point3d((up.L+up.R)/2,up.T+30*scale,beam.Z),DimensionLayer));
+                    new Point3d((up.L+up.R)/2,up.T+30*scale,beam.Z),dimensionLayer));
                 entities.Add(Dimension(db,new Point3d(up.L,beamTop,beam.Z),new Point3d(up.L,up.T,beam.Z),
-                    new Point3d(up.L-30*scale,(beamTop+up.T)/2,beam.Z),DimensionLayer));
+                    new Point3d(up.L-30*scale,(beamTop+up.T)/2,beam.Z),dimensionLayer));
                 entities.Add(Dimension(db,new Point3d(beam.L,beam.B,beam.Z),new Point3d(beam.R,beam.B,beam.Z),
-                    new Point3d((beam.L+beam.R)/2,beam.B-30*scale,beam.Z),DimensionLayer));
+                    new Point3d((beam.L+beam.R)/2,beam.B-30*scale,beam.Z),dimensionLayer));
                 return entities;
             }
             catch { foreach (Entity e in entities) e.Dispose(); throw; }
         }
 
-        private static Polyline Dot(double x,double y,double z,double diameter)
+        private static Polyline Dot(double x,double y,double z,double diameter,string layer)
         {
             double r=diameter/2, bulge=Math.Tan(Math.PI/8);
-            var p=new Polyline(4) { Closed=true, Elevation=z, Layer=DotLayer };
+            var p=new Polyline(4) { Closed=true, Elevation=z, Layer=layer };
             p.AddVertexAt(0,new Point2d(x+r,y),bulge,0,0);
             p.AddVertexAt(1,new Point2d(x,y+r),bulge,0,0);
             p.AddVertexAt(2,new Point2d(x-r,y),bulge,0,0);
