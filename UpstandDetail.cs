@@ -95,7 +95,6 @@ namespace WallDetailTool
                     beam = PickRect(doc, "梁矩形"); if (beam == null) return;
                     slab = PickRect(doc, "板矩形"); if (slab == null) return;
                     upstand = PickRect(doc, "反坎矩形"); if (upstand == null) return;
-                    CheckRelations(beam, slab, upstand);
                 }
                 // This transaction is intentionally after all checks. A failed extraction leaves no work contours.
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
@@ -125,7 +124,6 @@ namespace WallDetailTool
                 Rect beam = PickRect(doc, "梁工作轮廓"); if (beam == null) return;
                 Rect slab = PickRect(doc, "板工作轮廓"); if (slab == null) return;
                 Rect upstand = PickRect(doc, "反坎工作轮廓"); if (upstand == null) return;
-                CheckRelations(beam, slab, upstand);
                 double scale = MillimetresToDrawingUnits(doc.Database);
                 if (doc.Database.Insunits == UnitsValue.Undefined)
                     ed.WriteMessage("\n无单位图纸按 1 图形单位 = 1 mm。所有输入均为 mm。");
@@ -260,16 +258,9 @@ namespace WallDetailTool
             double side = Math.Max(1e-3, b.W * .02);
             bool samePlane = Math.Abs(b.Z-s.Z) <= align && Math.Abs(b.Z-u.Z) <= align;
             bool upstandAboveBeam = Math.Abs(u.B-b.T) <= align && u.T > b.T+align
-                && u.L >= b.L-side && u.R <= b.R+side && u.W < b.W+side;
-            bool slabTouchesBeam = Math.Abs(s.T-b.T) <= align || Math.Abs(s.B-b.T) <= align
-                || Math.Abs(s.T-b.B) <= align || Math.Abs(s.B-b.B) <= align;
-            bool slabNearBeam = s.R >= b.L-side && s.L <= b.R+side;
-            return samePlane && b.W > b.H && u.W > Epsilon && u.H > Epsilon
-                && s.W > s.H && upstandAboveBeam && slabTouchesBeam && slabNearBeam;
-        }
-        private static void CheckRelations(Rect b, Rect s, Rect u)
-        {
-            Check(Relations(b,s,u), "轮廓关系仍不符合典型梁上反坎：反坎应位于梁顶附近且不宽于梁，板应在梁边附近相接。请检查是否选错轮廓或修正错位。");
+                && u.L >= b.L-side && u.R <= b.R+side;
+            // Slab position is not a precondition for placing steel in the chosen beam.
+            return samePlane && s.W > s.H && upstandAboveBeam;
         }
 
         private static Polyline Rectangle(Rect r, string layer)
@@ -321,6 +312,8 @@ namespace WallDetailTool
                 double inset = p.Cover*scale + width/2; // This detail's approved display-based offset.
                 double left=up.L+inset, right=up.R-inset, top=up.T-inset;
                 double beamTop=beam.T;
+                Check(left-width/2 >= beam.L-Epsilon && right+width/2 <= beam.R+Epsilon,
+                    "U筋两侧未落入所选梁的宽度范围，请检查梁和反坎的选择。");
                 Check(right-left > width+2*dot+Epsilon, "反坎过窄，U筋与两列圆点筋无法放下。");
                 Check(top > beamTop+dot+width+50*scale, "反坎高度不足，最下排圆点筋无法满足距梁顶50～150 mm。");
                 Check(p.LeftAnchor*scale <= beam.H+Epsilon && p.RightAnchor*scale <= beam.H+Epsilon,
