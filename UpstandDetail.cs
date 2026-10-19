@@ -86,7 +86,17 @@ namespace WallDetailTool
                     CollectLineRectangles(lines, rectangles);
                 }
                 Rect beam, slab, upstand;
-                Classify(rectangles, out beam, out slab, out upstand);
+                if (!TryClassify(rectangles, out beam, out slab, out upstand))
+                {
+                    if (rectangles.Count < 3)
+                        throw new InvalidOperationException("选区内只找到 " + rectangles.Count +
+                            " 个完整矩形；需要梁、板、反坎各一个。闭合矩形多段线及四条直线闭环均可识别。");
+                    ed.WriteMessage("\n自动判断梁板反坎关系不唯一或轮廓有错位，请按提示手动指定三个矩形。");
+                    beam = PickRect(doc, "梁矩形"); if (beam == null) return;
+                    slab = PickRect(doc, "板矩形"); if (slab == null) return;
+                    upstand = PickRect(doc, "反坎矩形"); if (upstand == null) return;
+                    CheckRelations(beam, slab, upstand);
+                }
                 // This transaction is intentionally after all checks. A failed extraction leaves no work contours.
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                 {
@@ -230,7 +240,7 @@ namespace WallDetailTool
             }
         }
 
-        private static void Classify(List<Rect> all, out Rect beam, out Rect slab, out Rect upstand)
+        private static bool TryClassify(List<Rect> all, out Rect beam, out Rect slab, out Rect upstand)
         {
             beam = slab = upstand = null;
             int count = 0;
@@ -240,20 +250,25 @@ namespace WallDetailTool
                 if (!Relations(b,s,u)) continue;
                 beam=b; slab=s; upstand=u; count++;
             }
-            Check(count == 1, count == 0 ? "未识别唯一的梁、板、反坎矩形关系；可直接运行 WDTUPDRAW 选择三条已修正轮廓。"
-                : "识别到多组可能的梁、板、反坎；请缩小框选范围，或用 WDTUPDRAW 手动选三条轮廓。");
+            return count == 1;
         }
 
         private static bool Relations(Rect b, Rect s, Rect u)
         {
-            return Near(b.Z,s.Z) && Near(b.Z,u.Z) && Near(b.T,s.T) && Near(b.T,u.B)
-                && b.B < b.T-Epsilon && s.B < s.T-Epsilon && u.T > u.B+Epsilon
-                && u.L >= b.L-Epsilon && u.R <= b.R+Epsilon && u.W < b.W-Epsilon
-                && s.L <= b.L+Epsilon && s.R >= b.R-Epsilon && s.W > b.W+Epsilon;
+            double align = Math.Max(1e-3, Math.Min(Math.Min(b.H,u.H), Math.Max(s.H,b.H)) * .05);
+            double side = Math.Max(1e-3, b.W * .02);
+            bool samePlane = Math.Abs(b.Z-s.Z) <= align && Math.Abs(b.Z-u.Z) <= align;
+            bool upstandAboveBeam = Math.Abs(u.B-b.T) <= align && u.T > b.T+align
+                && u.L >= b.L-side && u.R <= b.R+side && u.W < b.W+side;
+            bool slabTouchesBeam = Math.Abs(s.T-b.T) <= align || Math.Abs(s.B-b.T) <= align
+                || Math.Abs(s.T-b.B) <= align || Math.Abs(s.B-b.B) <= align;
+            bool slabNearBeam = s.R >= b.L-side && s.L <= b.R+side;
+            return samePlane && b.W > b.H && u.W > Epsilon && u.H > Epsilon
+                && s.W > s.H && upstandAboveBeam && slabTouchesBeam && slabNearBeam;
         }
         private static void CheckRelations(Rect b, Rect s, Rect u)
         {
-            Check(Relations(b,s,u), "轮廓关系无效：梁顶、板顶、反坎底须同高；板跨梁，反坎位于梁上且宽度小于梁。请先修正工作轮廓。");
+            Check(Relations(b,s,u), "轮廓关系仍不符合典型梁上反坎：反坎应位于梁顶附近且不宽于梁，板应在梁边附近相接。请检查是否选错轮廓或修正错位。");
         }
 
         private static Polyline Rectangle(Rect r, string layer)
