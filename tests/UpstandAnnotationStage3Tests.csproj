@@ -1,0 +1,11 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>UpstandAnnotationStage3Tests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><OutputPath>bin\Stage3\</OutputPath></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Compile Include="..\UpstandGeometry.cs"><Link>UpstandGeometry.cs</Link></Compile>
+    <Compile Include="..\UpstandRebarGeometry.cs"><Link>UpstandRebarGeometry.cs</Link></Compile>
+    <Compile Include="..\UpstandAnnotationGeometry.cs"><Link>UpstandAnnotationGeometry.cs</Link></Compile>
+    <Compile Include="UpstandAnnotationStage3Tests.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

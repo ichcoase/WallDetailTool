@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-21 V0.1 阶段 3 自动标注增量
+
+`UpstandAnnotationGeometry.cs` 以标准 `UpstandGeometry`、阶段 2 `UpstandRebarLayout` 和设计参数计算文字、接触点/普通直线引线、方向、局部避让与宽高尺寸定义点，不依赖 CAD。`UpstandDetail.cs` 的 CAD 适配层创建 MTEXT、LINE 和原生 RotatedDimension；预览使用临时图元，确认时先在父事务写关键钢筋，再以独立嵌套事务写每项非关键标注并记录失败，最后仅提交一次生成命令。新流程不创建普通块，也不修改源轮廓或当前层。旧 `BuildDetail` 是未调用的历史实现，其 `WDT-DIMENSION` 命名及排布规则不代表新流程。图形界面、UNDO/REDO 与部分成功 CAD 实测仍待验收。
+
 ## 2026-10-19 梁上反坎预览图层修正
 
 `WDTUPDRAW` 的临时图元在确认前统一使用图纸已有的 `0` 层，预览颜色由临时对象设置。确认后才在同一事务中建立分类图层、重建正式图元并保存参数。取消预览不因缺少目标图层而报错，也不会留下新图层。

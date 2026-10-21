@@ -43,6 +43,7 @@
     <Compile Include="UpstandDetail.cs" />
     <Compile Include="UpstandGeometry.cs" />
     <Compile Include="UpstandRebarGeometry.cs" />
+    <Compile Include="UpstandAnnotationGeometry.cs" />
   </ItemGroup>
   <Target Name="CheckAutoCADReferences" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(AutoCADDir)\AcMgd.dll')" Text="Missing $(AutoCADDir)\AcMgd.dll. Set AutoCADDir to your AutoCAD 2023/2024 installation directory." />

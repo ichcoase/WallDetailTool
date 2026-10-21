@@ -12,14 +12,14 @@ using TransientDrawingMode = Autodesk.AutoCAD.GraphicsInterface.TransientDrawing
 
 namespace WallDetailTool
 {
-    // V0.1 stages 1–2 share the same read-only contour selection and pure geometry.
+    // V0.1 stages 1–3 share read-only contour selection and separate geometry calculations.
     public partial class Commands
     {
         private const string ConcreteLayer = "WDT-CONCRETE";
         private const string LineLayer = "WDT-REBAR-LINE";
         private const string DotLayer = "WDT-REBAR-DOT";
         private const string LabelLayer = "WDT-REBAR-TEXT";
-        private const string DimensionLayer = "WDT-DIMENSION";
+        private const string DimensionLayer = "WDT-DIM";
         private const string ParamRecord = "WDT_UPSTAND_LAST";
         private const double Epsilon = 1e-6;
         private static readonly IntegerCollection PreviewViewports = new IntegerCollection();
@@ -157,15 +157,44 @@ namespace WallDetailTool
                         p.DotDisplayDiameter.ToString("g")+" mm。固定 1 CAD 单位 = 1 mm。");
                     UpstandRebarLayout layout=UpstandRebarGeometry.Calculate(geometry,p);
                     List<Entity> preview = BuildUpstandRebars(layout,"0","0");
+                    var annotationPreview=new List<Entity>();
+                    UpstandAnnotationLayout annotations=null;
+                    var annotationWarnings=new List<string>();
                     try
                     {
+                        try
+                        {
+                            using (ViewTableRecord view=ed.GetCurrentView())
+                            {
+                                double left=view.CenterPoint.X-view.Width/2;
+                                annotations=UpstandAnnotationGeometry.Calculate(geometry,layout,p,20,left,left+view.Width);
+                            }
+                            AddAnnotationPreview(annotationPreview,doc.Database,annotations);
+                            annotationWarnings.AddRange(annotations.Warnings);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            annotations=null;
+                            ed.WriteMessage("\n标注预览不可用，仍可生成有效钢筋："+ex.Message);
+                        }
                         ShowPreview(preview);
-                        var choice = new PromptKeywordOptions("\n检查红色钢筋预览 [确认(C)/修改(M)/取消(X)] <修改>: ");
+                        if (annotations!=null)
+                        {
+                            try { ShowPreview(annotationPreview); }
+                            catch (System.Exception ex)
+                            {
+                                annotations=null;
+                                annotationWarnings.Add("标注预览失败，本次仅生成钢筋："+ex.Message);
+                                HidePreview(annotationPreview);
+                            }
+                        }
+                        var choice = new PromptKeywordOptions("\n检查红色钢筋及标注预览 [确认(C)/修改(M)/取消(X)] <修改>: ");
                         choice.Keywords.Add("C"); choice.Keywords.Add("M"); choice.Keywords.Add("X");
                         choice.Keywords.Default = "M";
                         PromptResult result = ed.GetKeywords(choice);
                         if (result.Status != PromptStatus.OK || result.StringResult == "X") return;
                         if (result.StringResult == "M") continue;
+                        var failures=new List<string>();
                         using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                         {
                             EnsureLayer(doc.Database, tr, LineLayer, 1);
@@ -175,15 +204,38 @@ namespace WallDetailTool
                             try
                             {
                                 foreach (Entity entity in generated) Append(space, tr, entity);
+                                space.DowngradeOpen();
+                                if (annotations!=null)
+                                {
+                                    TryAppendAnnotation(doc.Database,LabelLayer,3,"线筋标注",failures,
+                                        () => BuildUpstandLabel(annotations.LineLabel,annotations,"0"));
+                                    TryAppendAnnotation(doc.Database,LabelLayer,3,"点筋标注",failures,
+                                        () => BuildUpstandLabel(annotations.DotLabel,annotations,"0"));
+                                    TryAppendAnnotation(doc.Database,DimensionLayer,4,"宽度尺寸",failures,
+                                        () => new List<Entity> { UpstandDimension(doc.Database,annotations.WidthA,
+                                            annotations.WidthB,annotations.WidthLine,annotations.Elevation,"0") });
+                                    TryAppendAnnotation(doc.Database,DimensionLayer,4,"高度尺寸",failures,
+                                        () => new List<Entity> { UpstandDimension(doc.Database,annotations.HeightA,
+                                            annotations.HeightB,annotations.HeightLine,annotations.Elevation,"0") });
+                                }
+                                else failures.Add("全部自动标注（预览布局失败）");
                                 WriteLast(doc.Database, tr, values);
                                 tr.Commit();
                             }
                             finally { foreach (Entity entity in generated) if (entity.ObjectId.IsNull) entity.Dispose(); }
                         }
-                        ed.WriteMessage("\n已生成线筋和点筋，无标注或块。锚固长度按输入值直线绘制，请审核实际构造；UNDO 可撤销本次生成。");
+                        ed.WriteMessage("\n已生成线筋和点筋；自动标注结果随同一次确认提交，未建立普通块。锚固长度请审核实际构造。");
+                        foreach (string warning in annotationWarnings) ed.WriteMessage("\n"+warning);
+                        foreach (string failure in failures) ed.WriteMessage("\n未完成："+failure);
                         return;
                     }
-                    finally { HidePreview(preview); foreach (Entity entity in preview) entity.Dispose(); }
+                    finally
+                    {
+                        HidePreview(annotationPreview);
+                        HidePreview(preview);
+                        foreach (Entity entity in annotationPreview) entity.Dispose();
+                        foreach (Entity entity in preview) entity.Dispose();
+                    }
                 }
             }
             catch (System.Exception ex) { ed.WriteMessage("\n未生成钢筋：" + ex.Message); }
@@ -228,6 +280,76 @@ namespace WallDetailTool
                 return dot;
             }
             catch { dot.Dispose(); throw; }
+        }
+
+        private static List<Entity> BuildUpstandLabel(UpstandLabelLayout label,UpstandAnnotationLayout layout,string layer)
+        {
+            var entities=new List<Entity>();
+            try
+            {
+                foreach (AnnotationSegment segment in label.Leaders)
+                    entities.Add(new Line(new Point3d(segment.A.X,segment.A.Y,layout.Elevation),
+                        new Point3d(segment.B.X,segment.B.Y,layout.Elevation)) { Layer=layer,ColorIndex=256 });
+                var text=new MText { Layer=layer,ColorIndex=256,Contents=label.Text,
+                    TextHeight=layout.TextHeight,Location=new Point3d(label.TextAnchor.X,
+                        label.TextAnchor.Y,layout.Elevation),
+                    Attachment=label.Rightward ? AttachmentPoint.BottomLeft : AttachmentPoint.BottomRight };
+                entities.Add(text);
+                return entities;
+            }
+            catch { foreach (Entity entity in entities) entity.Dispose(); throw; }
+        }
+
+        private static RotatedDimension UpstandDimension(Database db,AnnotationPoint a,AnnotationPoint b,
+            AnnotationPoint line,double z,string layer)
+        {
+            var dimension=Dimension(db,new Point3d(a.X,a.Y,z),new Point3d(b.X,b.Y,z),
+                new Point3d(line.X,line.Y,z),layer);
+            dimension.ColorIndex=256;
+            return dimension;
+        }
+
+        private static void AddAnnotationPreview(List<Entity> preview,Database db,UpstandAnnotationLayout layout)
+        {
+            var added=new List<Entity>();
+            try
+            {
+                added.AddRange(BuildUpstandLabel(layout.LineLabel,layout,"0"));
+                added.AddRange(BuildUpstandLabel(layout.DotLabel,layout,"0"));
+                added.Add(UpstandDimension(db,layout.WidthA,layout.WidthB,layout.WidthLine,layout.Elevation,"0"));
+                added.Add(UpstandDimension(db,layout.HeightA,layout.HeightB,layout.HeightLine,layout.Elevation,"0"));
+                preview.AddRange(added);
+            }
+            catch { foreach (Entity entity in added) entity.Dispose(); throw; }
+        }
+
+        private static void TryAppendAnnotation(Database db,string layer,short color,string name,
+            List<string> failures,Func<List<Entity>> build)
+        {
+            List<Entity> entities=null;
+            try
+            {
+                // Nested transaction rolls back an incomplete optional group while retaining steel
+                // in the parent transaction. The command's final commit is still one UNDO step.
+                using (Transaction optional=db.TransactionManager.StartTransaction())
+                {
+                    EnsureLayer(db,optional,layer,color);
+                    BlockTableRecord space=(BlockTableRecord)optional.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);
+                    entities=build();
+                    foreach (Entity entity in entities)
+                    {
+                        entity.Layer=layer;
+                        Append(space,optional,entity);
+                    }
+                    optional.Commit();
+                }
+            }
+            catch (System.Exception ex) { failures.Add(name+"："+ex.Message); }
+            finally
+            {
+                if (entities!=null) foreach (Entity entity in entities)
+                    if (entity.ObjectId.IsNull) entity.Dispose();
+            }
         }
 
         private static Rect PickRect(Document doc, string name)

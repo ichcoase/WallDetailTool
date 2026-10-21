@@ -1,5 +1,13 @@
 # 分阶段开发计划
 
+## 2026-10-21 V0.1 阶段 3：自动标注（源码与纯计算已完成，CAD 验收待验证）
+
+依据完整需求 4.32–4.38、4.56–4.57、4.61。新增独立纯计算 `UpstandAnnotationGeometry`；现有 `WDTUPDRAW` 预览并生成倒 U 线筋/点筋文字、普通 LINE 引线、MTEXT 及混凝土宽高 RotatedDimension。四个目标层为 `WDT-REBAR-LINE`、`WDT-REBAR-DOT`、`WDT-REBAR-TEXT`、`WDT-DIM`。旧 `WDT-DIMENSION` 和旧三矩形 `BuildDetail` 仅作历史兼容说明，不是本阶段路径。关键钢筋仍在父事务；四项非关键标注各在可回滚嵌套事务，失败逐项报告并保留有效钢筋。一次命令/事务的 UNDO 行为仍需 CAD 实测。阶段 4 的“每次一个普通块”和面板整合未实现。
+
+用户在启动本阶段时反馈**阶段 2 钢筋绘图人工检查结果正常**；这仅记为用户反馈，不能代替阶段 2 自动测试结果，也不是本阶段 CAD 验收。阶段 3 的纯计算测试、CAD 版本、图形界面、DLL 路径及 SHA-256 以本节后续验证记录和 `tests/STAGE3_CHECKLIST.md` 为准。旧测试产物清理见 `tests/STAGE3_CLEANUP.md`；阶段 1/2 标准 DWG 均保留，新阶段 3 DWG 是阶段 2 图的本地副本。
+
+本次验证：Release/x64/.NET Framework 4.8 编译通过；DLL `D:\Waste\WallDtailTool\bin\V01AnnotationStage3Final2\WallDetailTool.dll`，SHA-256 `64F16D9F7872CEB6015F1637B9AF1F8F642F699AF53E59D3BCCC44EA36DB81B0`。纯计算标记 `UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。阶段 3 DWG `D:\Waste\WallDtailTool\tests\WallDetailTool_V01_Stage3_Annotation.dwg`，SHA-256 `A3382D88FB71EC217E1F8E205180028FEE5B0B59BEEDC33ED6D8B767810EA655`，为标准输入副本，未运行插件。AutoCAD 2023 插件实测：待验证；AutoCAD 2024 插件实测：待验证；图形界面标注及图层/撤销/重开：待验证。旧命令只确认源码保留及编译通过，本次 CAD 回归待验证。阶段 2 前次 Core Console 的 NETLOAD 受测试环境加载限制，不能作为阶段 3 结果。
+
 ## 2026-10-19 `eKeyNotFound` 预览修正
 
 用户在原场景运行 `WDTUPDRAW` 时报告“未生成梁上反坎大样：eKeyNotFound”。静态检查发现 `BuildDetail` 在预览阶段给临时实体指定了尚未创建的分类图层，而分类图层只在确认事务中创建。源码已改为预览全部使用现有 `0` 层，正式生成仍在确认事务中创建分类图层。Release/x64/.NET Framework 4.8 使用本机 AutoCAD 2023 托管程序集编译成功；DLL：`D:\Waste\WallDtailTool\bin\UpstandV5\WallDetailTool.dll`，SHA-256：`AA786B9660DDF999EA7B5BDBC5F34D99F03D605556711345509A1DF74AC2429D`。本轮未启动 CAD/Core Console；报错是否消失、预览/保存/UNDO 仍待用户实际验证。
