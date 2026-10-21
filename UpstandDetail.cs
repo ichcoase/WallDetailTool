@@ -12,14 +12,12 @@ using TransientDrawingMode = Autodesk.AutoCAD.GraphicsInterface.TransientDrawing
 
 namespace WallDetailTool
 {
-    // First version: an orthogonal, planar beam / slab / upstand section.
-    // Architectural entities are read only. WDTUPCONTOUR creates editable copies;
-    // WDTUPDRAW reads those copies and commits the complete detail in one transaction.
+    // V0.1 stages 1–2 share the same read-only contour selection and pure geometry.
     public partial class Commands
     {
         private const string ConcreteLayer = "WDT-CONCRETE";
-        private const string LineLayer = "WDT-LINE-REBAR";
-        private const string DotLayer = "WDT-DOT-REBAR";
+        private const string LineLayer = "WDT-REBAR-LINE";
+        private const string DotLayer = "WDT-REBAR-DOT";
         private const string LabelLayer = "WDT-REBAR-TEXT";
         private const string DimensionLayer = "WDT-DIMENSION";
         private const string ParamRecord = "WDT_UPSTAND_LAST";
@@ -39,6 +37,7 @@ namespace WallDetailTool
             internal double Cover = 25, LineDiameter = 8, LineSpacing = 150;
             internal double DotDiameter = 6, DotSpacing = 200;
             internal double LeftAnchor, RightAnchor;
+            internal double Radius = 20;
         }
 
         private static bool Near(double a, double b) { return Math.Abs(a-b) <= Epsilon; }
@@ -67,9 +66,20 @@ namespace WallDetailTool
             Editor ed = doc.Editor;
             try
             {
+                UpstandGeometry chosen=SelectUpstandGeometry(doc);
+                if (chosen==null) return;
+                ed.WriteMessage(string.Format("\n识别成功：{0}；左={1:g}，右={2:g}，顶={3:g}，梁顶={4:g}，宽={5:g} mm，高={6:g} mm，基点=({7:g},{8:g})。不生成钢筋或修改图元。",
+                    chosen.InputKind,chosen.Left,chosen.Right,chosen.Top,chosen.BeamTop,chosen.Width,chosen.Height,chosen.BaseX,chosen.BaseY));
+            }
+            catch (System.Exception ex) { ed.WriteMessage("\n未提取轮廓：" + ex.Message); }
+        }
+
+        private static UpstandGeometry SelectUpstandGeometry(Document doc)
+        {
+            Editor ed=doc.Editor;
                 ed.WriteMessage("\n点选或框选梁上反坎轮廓图元（LINE/LWPOLYLINE）；只识别所选对象，原图元不修改。");
                 PromptSelectionResult selected = ed.GetSelection();
-                if (selected.Status != PromptStatus.OK) return;
+                if (selected.Status != PromptStatus.OK) return null;
                 var segments = new List<ContourSegment>();
                 double? elevation = null;
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
@@ -109,7 +119,7 @@ namespace WallDetailTool
                 {
                     ed.WriteMessage("\n找到 " + candidates.Count + " 个有效反坎候选，请点选目标内部位置。");
                     PromptPointResult target=ed.GetPoint("\n点选目标反坎内部: ");
-                    if (target.Status!=PromptStatus.OK) return;
+                    if (target.Status!=PromptStatus.OK) return null;
                     chosen=UpstandRecognizer.SelectCandidate(candidates,target.Value.X,target.Value.Y);
                     // Re-run all checks after the manual decision, using only the selected input geometry.
                     candidates=UpstandRecognizer.Recognize(segments,elevation ?? 0);
@@ -118,10 +128,7 @@ namespace WallDetailTool
                         Math.Abs(c.BeamTop-chosen.BeamTop)<Epsilon))
                         throw new InvalidOperationException("目标反坎二次校验失败，请重选。");
                 }
-                ed.WriteMessage(string.Format("\n识别成功：{0}；左={1:g}，右={2:g}，顶={3:g}，梁顶={4:g}，宽={5:g} mm，高={6:g} mm，基点=({7:g},{8:g})。阶段 1 不生成钢筋或修改图元。",
-                    chosen.InputKind,chosen.Left,chosen.Right,chosen.Top,chosen.BeamTop,chosen.Width,chosen.Height,chosen.BaseX,chosen.BaseY));
-            }
-            catch (System.Exception ex) { ed.WriteMessage("\n未提取轮廓：" + ex.Message); }
+                return chosen;
         }
 
         private static void AddContourElevation(ref double? elevation,double a,double b)
@@ -139,53 +146,88 @@ namespace WallDetailTool
             Editor ed = doc.Editor;
             try
             {
-                Rect beam = PickRect(doc, "梁工作轮廓"); if (beam == null) return;
-                Rect slab = PickRect(doc, "板工作轮廓"); if (slab == null) return;
-                Rect upstand = PickRect(doc, "反坎工作轮廓"); if (upstand == null) return;
-                double scale = MillimetresToDrawingUnits(doc.Database);
-                if (doc.Database.Insunits == UnitsValue.Undefined)
-                    ed.WriteMessage("\n无单位图纸按 1 图形单位 = 1 mm。所有输入均为 mm。");
+                UpstandGeometry geometry=SelectUpstandGeometry(doc);
+                if (geometry==null) return;
                 DetailParams values = ReadLast(doc.Database);
                 while (true)
                 {
                     if (!ReadParameters(ed, values)) return;
-                    List<Entity> preview = BuildDetail(doc.Database, beam, slab, upstand, values, scale, true);
+                    UpstandRebarParameters p=RebarParameters(values);
+                    ed.WriteMessage("\n线筋显示宽度="+p.LineDisplayWidth.ToString("g")+" mm；点筋显示直径="+
+                        p.DotDisplayDiameter.ToString("g")+" mm。固定 1 CAD 单位 = 1 mm。");
+                    UpstandRebarLayout layout=UpstandRebarGeometry.Calculate(geometry,p);
+                    List<Entity> preview = BuildUpstandRebars(layout,"0","0");
                     try
                     {
                         ShowPreview(preview);
-                        var choice = new PromptKeywordOptions("\n检查红色预览 [确认(C)/修改(M)/取消(X)] <修改>: ");
+                        var choice = new PromptKeywordOptions("\n检查红色钢筋预览 [确认(C)/修改(M)/取消(X)] <修改>: ");
                         choice.Keywords.Add("C"); choice.Keywords.Add("M"); choice.Keywords.Add("X");
                         choice.Keywords.Default = "M";
                         PromptResult result = ed.GetKeywords(choice);
                         if (result.Status != PromptStatus.OK || result.StringResult == "X") return;
                         if (result.StringResult == "M") continue;
-                        PromptPointResult insertion = ed.GetPoint("\n指定新大样的梁左下角插入位置: ");
-                        if (insertion.Status != PromptStatus.OK) return;
-                        Vector3d shift = insertion.Value - new Point3d(beam.L, beam.B, beam.Z);
                         using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                         {
-                            EnsureLayer(doc.Database, tr, ConcreteLayer, 7);
                             EnsureLayer(doc.Database, tr, LineLayer, 1);
                             EnsureLayer(doc.Database, tr, DotLayer, 2);
-                            EnsureLayer(doc.Database, tr, LabelLayer, 4);
-                            EnsureLayer(doc.Database, tr, DimensionLayer, 6);
                             BlockTableRecord space = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
-                            // Regenerate as database entities; transient clones are never adopted by the DB.
-                            foreach (Entity entity in BuildDetail(doc.Database, beam, slab, upstand, values, scale, false))
+                            List<Entity> generated=BuildUpstandRebars(layout,LineLayer,DotLayer);
+                            try
                             {
-                                entity.TransformBy(Matrix3d.Displacement(shift));
-                                Append(space, tr, entity);
+                                foreach (Entity entity in generated) Append(space, tr, entity);
+                                WriteLast(doc.Database, tr, values);
+                                tr.Commit();
                             }
-                            WriteLast(doc.Database, tr, values);
-                            tr.Commit();
+                            finally { foreach (Entity entity in generated) if (entity.ObjectId.IsNull) entity.Dispose(); }
                         }
-                        ed.WriteMessage("\n完整大样已生成。锚固长度为您输入的设计值，请审核构造与尺寸。UNDO 可撤销本次生成。");
+                        ed.WriteMessage("\n已生成线筋和点筋，无标注或块。锚固长度按输入值直线绘制，请审核实际构造；UNDO 可撤销本次生成。");
                         return;
                     }
                     finally { HidePreview(preview); foreach (Entity entity in preview) entity.Dispose(); }
                 }
             }
-            catch (System.Exception ex) { ed.WriteMessage("\n未生成梁上反坎大样：" + ex.Message); }
+            catch (System.Exception ex) { ed.WriteMessage("\n未生成钢筋：" + ex.Message); }
+        }
+
+        private static UpstandRebarParameters RebarParameters(DetailParams v)
+        {
+            return new UpstandRebarParameters { Cover=v.Cover,LineDiameter=v.LineDiameter,
+                LineSpacing=v.LineSpacing,DotDiameter=v.DotDiameter,DotSpacing=v.DotSpacing,
+                LeftAnchor=v.LeftAnchor,RightAnchor=v.RightAnchor,Radius=v.Radius,
+                LineDisplayWidth=PluginSettings.ReadLineWidthMillimetres(),
+                DotDisplayDiameter=PluginSettings.ReadDotDiameterMillimetres() };
+        }
+
+        private static List<Entity> BuildUpstandRebars(UpstandRebarLayout layout,string lineLayer,string dotLayer)
+        {
+            var entities=new List<Entity>();
+            try
+            {
+                var line=new Polyline(layout.Line.Count) { Elevation=layout.Elevation,Layer=lineLayer };
+                entities.Add(line);
+                for (int i=0;i<layout.Line.Count;i++)
+                {
+                    RebarVertex v=layout.Line[i];
+                    line.AddVertexAt(i,new Point2d(v.X,v.Y),v.Bulge,layout.LineWidth,layout.LineWidth);
+                }
+                foreach (ContourPoint p in layout.LeftDots) entities.Add(UpstandDot(p,layout.Elevation,layout.DotDiameter,dotLayer));
+                foreach (ContourPoint p in layout.RightDots) entities.Add(UpstandDot(p,layout.Elevation,layout.DotDiameter,dotLayer));
+                return entities;
+            }
+            catch { foreach (Entity e in entities) e.Dispose(); throw; }
+        }
+
+        private static Polyline UpstandDot(ContourPoint center,double z,double diameter,string layer)
+        {
+            double pathRadius=diameter/4, width=diameter/2;
+            var dot=new Polyline(2) { Closed=true,Elevation=z,Layer=layer };
+            try
+            {
+                dot.AddVertexAt(0,new Point2d(center.X+pathRadius,center.Y),1,width,width);
+                dot.AddVertexAt(1,new Point2d(center.X-pathRadius,center.Y),1,width,width);
+                return dot;
+            }
+            catch { dot.Dispose(); throw; }
         }
 
         private static Rect PickRect(Document doc, string name)
@@ -300,12 +342,14 @@ namespace WallDetailTool
         }
         private static bool ReadParameters(Editor ed, DetailParams p)
         {
-            ed.WriteMessage("\n初始模板：U筋%%c8@150、点筋%%c6@200。两侧锚固长度须输入经设计确认的值，不自动推算La/LaE。");
-            if (!Ask(ed,"保护层",ref p.Cover,true) || !Ask(ed,"U筋规格直径",ref p.LineDiameter)
-                || !Ask(ed,"U筋标注间距",ref p.LineSpacing) || !Ask(ed,"点筋规格直径",ref p.DotDiameter)
-                || !Ask(ed,"点筋最大间距",ref p.DotSpacing)) return false;
-            if (!AskAnchor(ed,"左侧伸入梁内长度（设计确认）",ref p.LeftAnchor)
-                || !AskAnchor(ed,"右侧伸入梁内长度（设计确认）",ref p.RightAnchor)) return false;
+            ed.WriteMessage("\n默认实际直径/间距：线筋%%c8@150、点筋%%c6@200。锚固与 R 均为绘图输入值，不作规范计算。");
+            if (!Ask(ed,"保护层",ref p.Cover,true) || !Ask(ed,"线筋实际直径",ref p.LineDiameter)
+                || !Ask(ed,"线筋设计间距",ref p.LineSpacing) || !Ask(ed,"点筋实际直径",ref p.DotDiameter)
+                || !Ask(ed,"点筋中心间距",ref p.DotSpacing)) return false;
+            if (!AskAnchor(ed,"左侧伸入梁内长度（设计确认）",ref p.LeftAnchor)) return false;
+            if (p.RightAnchor<=0) p.RightAnchor=p.LeftAnchor;
+            if (!AskAnchor(ed,"右侧伸入梁内长度（默认与左侧相同）",ref p.RightAnchor)) return false;
+            if (!Ask(ed,"中心线圆弧半径 R（绘图值，默认20）",ref p.Radius)) return false;
             return true;
         }
 
@@ -454,13 +498,14 @@ namespace WallDetailTool
                 Xrecord record=tr.GetObject(nod.GetAt(ParamRecord),OpenMode.ForRead) as Xrecord;
                 if (record == null || record.Data == null) return p;
                 TypedValue[] v=record.Data.AsArray();
-                if (v.Length != 7) return p;
+                if (v.Length != 7 && v.Length != 8) return p;
                 try
                 {
                     p.Cover=Convert.ToDouble(v[0].Value); p.LineDiameter=Convert.ToDouble(v[1].Value);
                     p.LineSpacing=Convert.ToDouble(v[2].Value); p.DotDiameter=Convert.ToDouble(v[3].Value);
                     p.DotSpacing=Convert.ToDouble(v[4].Value); p.LeftAnchor=Convert.ToDouble(v[5].Value);
                     p.RightAnchor=Convert.ToDouble(v[6].Value);
+                    if (v.Length==8) p.Radius=Convert.ToDouble(v[7].Value);
                 }
                 catch { return new DetailParams(); }
                 return p;
@@ -475,7 +520,7 @@ namespace WallDetailTool
             record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.Cover),new TypedValue((int)DxfCode.Real,p.LineDiameter),
                 new TypedValue((int)DxfCode.Real,p.LineSpacing),new TypedValue((int)DxfCode.Real,p.DotDiameter),
                 new TypedValue((int)DxfCode.Real,p.DotSpacing),new TypedValue((int)DxfCode.Real,p.LeftAnchor),
-                new TypedValue((int)DxfCode.Real,p.RightAnchor));
+                new TypedValue((int)DxfCode.Real,p.RightAnchor),new TypedValue((int)DxfCode.Real,p.Radius));
         }
     }
 }

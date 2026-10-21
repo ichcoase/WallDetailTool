@@ -89,3 +89,8 @@ CAD事件只收集变化，命令结束后比较基线并形成影响预览；�
 新需求固定 1 CAD 单位 = 1 mm；历史代码中的 `MillimetresToDrawingUnits` 仍用于旧绘图命令，须在阶段 2 接入前处理。历史说明如下。
 
 \n
+# V0.1 阶段 2 钢筋几何（2026-10-21）
+
+`WDTUPDRAW` 现复用阶段 1 的 `SelectUpstandGeometry`，三类输入共用 `UpstandRebarGeometry.Calculate`。该纯几何函数只接收 `UpstandGeometry` 与 `UpstandRebarParameters`，输出 8 顶点线筋（两段 Bulge 四分之一圆弧）及左右点筋中心。CAD 适配器把线筋建为一条宽 LWPOLYLINE，把每根点筋建为两顶点、闭合、宽度等于显示直径一半的 LWPOLYLINE。参数按 1 图形单位 = 1 mm 计算，不读取 INSUNITS 作换算。确认前仅使用 transient 预览；确认后单事务写钢筋和参数，取消或异常不提交。阶段 3 标注、阶段 4 普通块仍未接入新流程。历史 `BuildDetail` 私有方法保留但不由 `WDTUPDRAW` 调用。
+
+\n

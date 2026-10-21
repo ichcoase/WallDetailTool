@@ -141,3 +141,13 @@
 阶段 2 接口：`UpstandRecognizer.Recognize` 的 `UpstandGeometry`（左/右/顶/梁顶/宽/高/左下基点/输入类型）；阶段 2 须以此替换历史 `PickRect` 三矩形输入，并按 V0.1 独立需求开发，不能直接把开放倒 U 传给 `PickRect`。
 
 \n
+# V0.1 阶段 2 钢筋生成记录（2026-10-21）
+
+依据为用户提供的完整说明书第 4 章与附录 A、C，仅实现阶段 2 钢筋几何、参数校验和预览。复用阶段 1 `UpstandGeometry`，`WDTUPDRAW` 现重新点选并识别三类输入；对多候选仍先点选并复核。线筋为一条 8 顶点宽多段线，顶部相切圆弧用负 Bulge，中心线 R 默认 20 mm；点筋每根为两顶点闭合宽多段线。实际直径/设计间距保留为参数，与图形显示尺寸独立。锚固按用户手动输入值向下直线绘制，不比较梁高、不计算或取整 La/LaE。确认前 transient 预览；确认只写钢筋，不写引线、MTEXT、尺寸或块。历史三矩形 `BuildDetail` 私有代码保留但当前命令不调用，旧生成行为不代表本次 V0.1 范围。
+
+验证：纯几何测试 `UPSTAND_STAGE2_GEOMETRY_PASS`，阶段 1 回归 `UPSTAND_STAGE1_GEOMETRY_PASS`；Release/x64/.NET Framework 4.8 使用 AutoCAD 2023 托管程序集编译成功，旧测试程序集也仅编译成功。AutoCAD 2023 Core Console 成功以原生命令建立并保存阶段 2 测试 DWG；插件功能测试未执行：本次 DLL 与旧版 `UpstandV5` 在同一 Core Console 环境均报“无法加载程序集合”，`WDTTEST` 未注册。只读检查 `SECURELOAD=1` 且项目输出目录不在 `TRUSTEDPATHS`；未更改这些设置。无法仅凭此断定源码注册有缺陷，图形界面加载、预览、取消、UNDO 和源图保护均待验证。AutoCAD 2024 本机依赖未找到，待验证。逐项见 `tests/STAGE2_CHECKLIST.md`。本次 DLL：`D:\Waste\WallDtailTool\bin\V01RebarStage2\WallDetailTool.dll`，SHA-256 `FD569E038194640E803CBFE3D96F65ACCFD1DDFC6B26F0D8B5A5CD202100AEA2`；测试 DWG `D:\Waste\WallDtailTool\tests\WallDetailTool_V01_Stage2_Rebar.dwg`，SHA-256 `A3382D88FB71EC217E1F8E205180028FEE5B0B59BEEDC33ED6D8B767810EA655`。阶段 2 尚不能标为 CAD 验收完成，整个 V0.1 仍未完成。
+
+阶段 3 接口：`UpstandRebarGeometry.Calculate` 返回的 `UpstandRebarLayout` 及保存在 DWG `WDT_UPSTAND_LAST` 中的设计参数；阶段 3 再增加引线、MTEXT 和构件尺寸。阶段 4 再组建普通块并完善面板。不得把当前独立钢筋图元说成最终块。
+
+\n
+\n
