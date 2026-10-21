@@ -130,3 +130,14 @@
 ## 本轮文档交付证据
 只更新PRD.md、ARCHITECTURE.md、AGENTS.md、DEVELOPMENT_PLAN.md，保留现有C#、项目和测试文件。源码基线886bfc3；文档变更提交以实际Git记录为准，不虚构已提交/推送。未新增DLL、未编译、未重跑测试或CAD。本轮核对状态、需求冲突、文档引用与差异。
 历史最新DLL：D:\Waste\WallDtailTool\bin\Phase7\WallDetailTool.dll；历史SHA-256：66F60047BD9C77CEEA6EE5B360B4E231E8EA709EDF21E6E9C8AFAF0594FB76FB。历史两版结果及具体边界见TEST_RESULTS.md，不把历史记录中的“本次”视为本轮运行。用户下一步只需确认文档中的后续阶段安排；明确启动后才修改功能代码。
+# V0.1 阶段 1：梁上反坎轮廓识别（2026-10-21）
+
+依据：用户提供的《完整产品需求说明书》第 4 章及附录 C。本轮仅阶段 1，不能标为整个 V0.1 完成。与旧范围差异：三类输入取代“三闭合矩形”前提；固定毫米单位取代 INSUNITS 换算；只读原图、无源轮廓关联；不以 `WDTUPDRAW` 的历史生成行为代表 V0.1 钢筋功能。
+
+已实现源码：`WDTUPCONTOUR` 仅分析选中 LINE/LWPOLYLINE；内部几何模块拼接乱序、反向、共线分段与混合输入，校验端点距离、轴向、重复/重叠、自交、断点、多余线及无效宽高；输出标准几何。完整截面有多个有效候选时要求点选并复核。源图不写入。旧 `WDTUPDRAW` 保留，未接入阶段 1 输出。钢筋、标注、块生成均不属于本轮实现。
+
+本次验证：Release/x64/.NET Framework 4.8 使用 AutoCAD 2023 托管程序集编译成功；纯几何测试程序运行并输出 `UPSTAND_STAGE1_GEOMETRY_PASS`。旧 `GeometryTests.csproj` 也以本次 DLL 编译成功，但未运行旧测试命令。AutoCAD 2023 Core Console 在一份旧测试 DWG 的临时副本内执行 `stage1_native.scr` 并 `QSAVE`，生成本地标准测试 `tests\WallDetailTool_V01_Stage1_Contour.dwg`；这只证明测试图生成。随后尝试 `NETLOAD` 本次 DLL 并运行 `WDTUPCONTOUR`，但命令未注册，尚无本次 CAD 插件功能通过证据。AutoCAD 2023 图形界面、2024、用户人工验收均待验证。逐项清单见 `tests/STAGE1_CHECKLIST.md`。本次 DLL：`D:\Waste\WallDtailTool\bin\V01ContourStage1\WallDetailTool.dll`；SHA-256：`0F294B2465BA21BC09E7AF17608018D7AB8EBC0FA169D310129970F17EC29DBD`。源码提交标识以实际 Git 提交结果为准。
+
+阶段 2 接口：`UpstandRecognizer.Recognize` 的 `UpstandGeometry`（左/右/顶/梁顶/宽/高/左下基点/输入类型）；阶段 2 须以此替换历史 `PickRect` 三矩形输入，并按 V0.1 独立需求开发，不能直接把开放倒 U 传给 `PickRect`。
+
+\n

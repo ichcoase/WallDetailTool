@@ -67,50 +67,68 @@ namespace WallDetailTool
             Editor ed = doc.Editor;
             try
             {
-                ed.WriteMessage("\n框选典型梁上反坎节点；支持闭合矩形多段线及四条直线组成的矩形。原图元不修改。");
+                ed.WriteMessage("\n点选或框选梁上反坎轮廓图元（LINE/LWPOLYLINE）；只识别所选对象，原图元不修改。");
                 PromptSelectionResult selected = ed.GetSelection();
                 if (selected.Status != PromptStatus.OK) return;
-                var rectangles = new List<Rect>();
-                var lines = new List<Line>();
+                var segments = new List<ContourSegment>();
+                double? elevation = null;
                 using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                 {
                     foreach (SelectedObject item in selected.Value)
                     {
                         if (item == null) continue;
                         Entity entity = tr.GetObject(item.ObjectId, OpenMode.ForRead) as Entity;
-                        Rect r = ReadRect(entity as Polyline);
-                        if (r != null) AddUnique(rectangles, r);
                         Line line = entity as Line;
-                        if (line != null) lines.Add(line);
+                        if (line != null)
+                        {
+                            AddContourElevation(ref elevation, line.StartPoint.Z, line.EndPoint.Z);
+                            segments.Add(new ContourSegment(new ContourPoint(line.StartPoint.X,line.StartPoint.Y),
+                                new ContourPoint(line.EndPoint.X,line.EndPoint.Y)));
+                            continue;
+                        }
+                        Polyline polyline = entity as Polyline;
+                        if (polyline == null) throw new InvalidOperationException("选区含不支持的图元（仅 LINE/LWPOLYLINE），请重选。");
+                        if (polyline.Normal.Z < 1-Epsilon || Math.Abs(polyline.Normal.X)>Epsilon || Math.Abs(polyline.Normal.Y)>Epsilon)
+                            throw new InvalidOperationException("轮廓不在 WCS 水平二维平面，请重选。");
+                        int count=polyline.NumberOfVertices;
+                        if (count<2) throw new InvalidOperationException("多段线顶点不足，请重选。");
+                        for (int i=0;i<(polyline.Closed ? count : count-1);i++)
+                        {
+                            if (Math.Abs(polyline.GetBulgeAt(i))>Epsilon) throw new InvalidOperationException("轮廓含圆弧；V0.1 只支持直线段，请重选。");
+                            Point3d a=polyline.GetPoint3dAt(i), b=polyline.GetPoint3dAt((i+1)%count);
+                            AddContourElevation(ref elevation,a.Z,b.Z);
+                            segments.Add(new ContourSegment(new ContourPoint(a.X,a.Y),new ContourPoint(b.X,b.Y)));
+                        }
                     }
-                    CollectLineRectangles(lines, rectangles);
                 }
-                Rect beam, slab, upstand;
-                if (!TryClassify(rectangles, out beam, out slab, out upstand))
+                if (doc.Database.Insunits != UnitsValue.Millimeters && doc.Database.Insunits != UnitsValue.Undefined)
+                    ed.WriteMessage("\n注意：V0.1 固定 1 CAD 单位 = 1 mm；当前 INSUNITS 不是毫米，不执行自动换算。请确认图纸实际尺寸。");
+                List<UpstandGeometry> candidates=UpstandRecognizer.Recognize(segments,elevation ?? 0);
+                UpstandGeometry chosen=candidates[0];
+                if (candidates.Count>1)
                 {
-                    if (rectangles.Count < 3)
-                        throw new InvalidOperationException("选区内只找到 " + rectangles.Count +
-                            " 个完整矩形；需要梁、板、反坎各一个。闭合矩形多段线及四条直线闭环均可识别。");
-                    ed.WriteMessage("\n自动判断梁板反坎关系不唯一或轮廓有错位，请按提示手动指定三个矩形。");
-                    beam = PickRect(doc, "梁矩形"); if (beam == null) return;
-                    slab = PickRect(doc, "板矩形"); if (slab == null) return;
-                    upstand = PickRect(doc, "反坎矩形"); if (upstand == null) return;
+                    ed.WriteMessage("\n找到 " + candidates.Count + " 个有效反坎候选，请点选目标内部位置。");
+                    PromptPointResult target=ed.GetPoint("\n点选目标反坎内部: ");
+                    if (target.Status!=PromptStatus.OK) return;
+                    chosen=UpstandRecognizer.SelectCandidate(candidates,target.Value.X,target.Value.Y);
+                    // Re-run all checks after the manual decision, using only the selected input geometry.
+                    candidates=UpstandRecognizer.Recognize(segments,elevation ?? 0);
+                    if (!candidates.Exists(c=>c.InputKind==chosen.InputKind && Math.Abs(c.Left-chosen.Left)<Epsilon &&
+                        Math.Abs(c.Right-chosen.Right)<Epsilon && Math.Abs(c.Top-chosen.Top)<Epsilon &&
+                        Math.Abs(c.BeamTop-chosen.BeamTop)<Epsilon))
+                        throw new InvalidOperationException("目标反坎二次校验失败，请重选。");
                 }
-                // This transaction is intentionally after all checks. A failed extraction leaves no work contours.
-                using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
-                {
-                    EnsureLayer(doc.Database, tr, "WDT-WORK-BEAM", 1);
-                    EnsureLayer(doc.Database, tr, "WDT-WORK-SLAB", 3);
-                    EnsureLayer(doc.Database, tr, "WDT-WORK-UPSTAND", 5);
-                    BlockTableRecord space = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
-                    Append(space, tr, Rectangle(beam, "WDT-WORK-BEAM"));
-                    Append(space, tr, Rectangle(slab, "WDT-WORK-SLAB"));
-                    Append(space, tr, Rectangle(upstand, "WDT-WORK-UPSTAND"));
-                    tr.Commit();
-                }
-                ed.WriteMessage("\n已生成红色梁、绿色板、蓝色反坎工作轮廓。可用 CAD 夹点/MOVE/STRETCH 修正，再运行 WDTUPDRAW。");
+                ed.WriteMessage(string.Format("\n识别成功：{0}；左={1:g}，右={2:g}，顶={3:g}，梁顶={4:g}，宽={5:g} mm，高={6:g} mm，基点=({7:g},{8:g})。阶段 1 不生成钢筋或修改图元。",
+                    chosen.InputKind,chosen.Left,chosen.Right,chosen.Top,chosen.BeamTop,chosen.Width,chosen.Height,chosen.BaseX,chosen.BaseY));
             }
             catch (System.Exception ex) { ed.WriteMessage("\n未提取轮廓：" + ex.Message); }
+        }
+
+        private static void AddContourElevation(ref double? elevation,double a,double b)
+        {
+            if (Math.Abs(a-b)>Epsilon || (elevation.HasValue && Math.Abs(elevation.Value-a)>Epsilon))
+                throw new InvalidOperationException("选中图元不在同一 WCS 二维平面，请重选。");
+            elevation=a;
         }
 
         [CommandMethod("WDTUPDRAW", CommandFlags.Modal)]
