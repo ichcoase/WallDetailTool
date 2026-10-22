@@ -52,11 +52,11 @@ namespace WallDetailTool
             if (!Valid(viewLeft) || !Valid(viewRight) || viewRight<=viewLeft)
                 throw new InvalidOperationException("当前视图范围无效。");
             var result=new UpstandAnnotationLayout { TextHeight=textHeight, Elevation=g.Elevation };
-            double offset=Math.Max(30,1.5*textHeight);
-            double run=Math.Max(100,6*textHeight);
+            double offset=Math.Max(20,.5*textHeight);
             string lineText=Spec(p.LineDiameter,p.LineSpacing);
             string dotText=steel.LeftDots.Count==1 ? "2φ"+Num(p.DotDiameter) : Spec(p.DotDiameter,p.DotSpacing);
-            double need=Math.Max(lineText.Length,dotText.Length)*textHeight*.8+run+offset;
+            double run=Math.Max(100,Math.Max(lineText.Length,dotText.Length)*textHeight*.8);
+            double need=run+offset;
             double freeLeft=g.Left-viewLeft, freeRight=viewRight-g.Right;
             bool right=freeRight>=freeLeft;
             if (right && freeRight<need && freeLeft>=need) right=false;
@@ -67,18 +67,21 @@ namespace WallDetailTool
             double side=right ? 1 : -1;
             double edge=right ? g.Right : g.Left;
             double labelX=edge+side*offset;
-            double lineY=g.Top+Math.Max(85,4*textHeight);
-            double dotY=g.Top-Math.Max(75,3.5*textHeight);
-            // The two text rectangles are on different levels and outside the concrete.
-            if (lineY-dotY < 2*textHeight)
+            // Place both labels beside the upstand, as in a structural detail drawing.
+            double lineY=g.BeamTop+.65*g.Height;
+            int last=steel.LeftDots.Count-1;
+            double dotY=steel.LeftDots[last].Y;
+            if (Math.Abs(dotY-lineY)<1.2*textHeight)
             {
-                lineY=dotY+2*textHeight;
-                result.Warnings.Add("标注使用备用高度；请人工检查局部碰撞。");
+                dotY=g.BeamTop+.22*g.Height;
+                result.Warnings.Add("点筋排位与线筋文字接近，点筋标注使用备用高度；请人工检查。");
             }
-            result.LineLabel=Label(lineText,right,labelX,lineY,run,
-                new AnnotationPoint((steel.Line[3].X+steel.Line[4].X)/2,steel.Line[3].Y));
-            ContourPoint dot=right ? steel.RightDots[0] : steel.LeftDots[0];
-            result.DotLabel=Label(dotText,right,labelX,dotY,run,new AnnotationPoint(dot.X,dot.Y));
+            var lineTouch=new AnnotationPoint(right ? steel.Line[5].X : steel.Line[2].X,
+                lineY+Math.Min(offset,20));
+            result.LineLabel=Label(lineText,right,labelX,lineY,run,lineTouch,
+                lineTouch.X+side*Math.Min(offset,20));
+            ContourPoint dot=right ? steel.LeftDots[last] : steel.RightDots[last];
+            result.DotLabel=Label(dotText,right,labelX,dotY,run,new AnnotationPoint(dot.X,dot.Y),labelX);
             var concrete=new Box(g.Left,g.Right,g.BeamTop,g.Top);
             Box lineBox=TextBounds(result.LineLabel,textHeight);
             Box dotBox=TextBounds(result.DotLabel,textHeight);
@@ -88,14 +91,14 @@ namespace WallDetailTool
             {
                 // One local fallback only; more complex global annotation packing belongs to later work.
                 dotY=g.BeamTop-Math.Max(45,2*textHeight);
-                result.DotLabel=Label(dotText,right,labelX,dotY,run,new AnnotationPoint(dot.X,dot.Y));
+                result.DotLabel=Label(dotText,right,labelX,dotY,run,new AnnotationPoint(dot.X,dot.Y),labelX);
                 result.Warnings.Add("局部标注发生碰撞，点筋标注改用备用位置；请人工检查。");
             }
             result.WidthA=new AnnotationPoint(g.Left,g.Top);
             result.WidthB=new AnnotationPoint(g.Right,g.Top);
-            result.WidthLine=new AnnotationPoint((g.Left+g.Right)/2,g.Top+Math.Max(35,1.5*textHeight));
+            result.WidthLine=new AnnotationPoint((g.Left+g.Right)/2,g.Top+Math.Max(50,1.5*textHeight));
             // Prefer the opposite side, but keep the dimension on the side with actual room.
-            double dimOffset=Math.Max(35,1.5*textHeight);
+            double dimOffset=Math.Max(50,1.5*textHeight);
             bool dimLeft=right;
             if (dimLeft && freeLeft<dimOffset+textHeight && freeRight>=dimOffset+textHeight) dimLeft=false;
             if (!dimLeft && freeRight<dimOffset+textHeight && freeLeft>=dimOffset+textHeight) dimLeft=true;
@@ -108,11 +111,12 @@ namespace WallDetailTool
             return result;
         }
 
-        private static UpstandLabelLayout Label(string value,bool right,double x,double y,double run,AnnotationPoint touch)
+        private static UpstandLabelLayout Label(string value,bool right,double x,double y,double run,
+            AnnotationPoint touch,double elbowX)
         {
             var label=new UpstandLabelLayout { Text=value,Rightward=right,
-                TextAnchor=new AnnotationPoint(x,y+3) };
-            var elbow=new AnnotationPoint(x,y);
+                TextAnchor=new AnnotationPoint(x,y+Math.Max(3,run/80)) };
+            var elbow=new AnnotationPoint(elbowX,y);
             label.Leaders.Add(new AnnotationSegment(touch,elbow));
             label.Leaders.Add(new AnnotationSegment(elbow,new AnnotationPoint(x+(right ? run : -run),y)));
             return label;

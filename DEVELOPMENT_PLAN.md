@@ -1,5 +1,11 @@
 # 分阶段开发计划
 
+## 2026-10-22 阶段 3 标注视觉修正
+
+依据用户提供的左右对比图及图层设置表：将 `WDTUPDRAW` 的两条钢筋文字/引线改为 `S-TEXT`（ACI 71）、尺寸改为 `s-floor_de_dim`（ACI 70）；复用图中现有 `TSSD`，MTEXT 与原生尺寸字高均设为 62.5 mm。反坎侧边水平引线布局替换顶部小字斜引线布局。旧 `WDT-REBAR-TEXT`/`WDT-DIM` 实体不迁移；线筋/点筋保持原有层。已存在的目标图层若颜色不同会随本次确认更新，影响同层的其他 ByLayer 图元。测试和新 DLL 证据见 `tests/STAGE3_CHECKLIST.md` 后续条目。AutoCAD 可视效果及用户验收仍须实际运行确认。
+
+本轮验证：Release/x64/.NET Framework 4.8 编译通过；新 DLL `D:\\Waste\\WallDtailTool\\bin\\V01AnnotationStyle20261022Final\\WallDetailTool.dll`，SHA-256 `8F7320D7A94CA98A61F27DE1B0059011AC102FD909437481B1720FB2BB62BA9F`。纯计算回归 `UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。AutoCAD 2023 插件实际绘图、AutoCAD 2024、图形界面字体/尺寸/颜色与左侧参考图的视觉对比：待验证。当前机器未发现运行中的 AutoCAD，未找到 AutoCAD 2024 安装；本轮未改任何全局信任/安全设置，也未触碰用户 DWG。
+
 ## 2026-10-21 V0.1 阶段 3：自动标注（源码与纯计算已完成，CAD 验收待验证）
 
 依据完整需求 4.32–4.38、4.56–4.57、4.61。新增独立纯计算 `UpstandAnnotationGeometry`；现有 `WDTUPDRAW` 预览并生成倒 U 线筋/点筋文字、普通 LINE 引线、MTEXT 及混凝土宽高 RotatedDimension。四个目标层为 `WDT-REBAR-LINE`、`WDT-REBAR-DOT`、`WDT-REBAR-TEXT`、`WDT-DIM`。旧 `WDT-DIMENSION` 和旧三矩形 `BuildDetail` 仅作历史兼容说明，不是本阶段路径。关键钢筋仍在父事务；四项非关键标注各在可回滚嵌套事务，失败逐项报告并保留有效钢筋。一次命令/事务的 UNDO 行为仍需 CAD 实测。阶段 4 的“每次一个普通块”和面板整合未实现。

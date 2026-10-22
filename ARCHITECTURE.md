@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-22 阶段 3 样式适配
+
+阶段 3 纯布局把两条规格标注移到反坎侧边，线筋引线从侧竖段引出，点筋多排时水平经过末排两侧点筋。CAD 适配层读取已有 `TSSD` 文字样式，给 MTEXT 与 RotatedDimension 分别指定 TextStyleId/62.5 mm 字高；尺寸线、界线和文字颜色采用 ByLayer。确认时 `S-TEXT` 与 `s-floor_de_dim` 的 ACI 颜色分别为 71、70，旧标注图层保留，原有实体不搬迁。缺 TSSD 时标注预览不可用，仍按非关键失败保留有效钢筋并提示。
+
 ## 2026-10-21 V0.1 阶段 3 自动标注增量
 
 `UpstandAnnotationGeometry.cs` 以标准 `UpstandGeometry`、阶段 2 `UpstandRebarLayout` 和设计参数计算文字、接触点/普通直线引线、方向、局部避让与宽高尺寸定义点，不依赖 CAD。`UpstandDetail.cs` 的 CAD 适配层创建 MTEXT、LINE 和原生 RotatedDimension；预览使用临时图元，确认时先在父事务写关键钢筋，再以独立嵌套事务写每项非关键标注并记录失败，最后仅提交一次生成命令。新流程不创建普通块，也不修改源轮廓或当前层。旧 `BuildDetail` 是未调用的历史实现，其 `WDT-DIMENSION` 命名及排布规则不代表新流程。图形界面、UNDO/REDO 与部分成功 CAD 实测仍待验收。

@@ -11,7 +11,7 @@ internal static class UpstandAnnotationStage3Tests
     private static UpstandRebarParameters Parameters()
     { return new UpstandRebarParameters { LeftAnchor=450,RightAnchor=450 }; }
     private static UpstandAnnotationLayout Calculate(UpstandGeometry g,UpstandRebarParameters p,double left,double right)
-    { return UpstandAnnotationGeometry.Calculate(g,UpstandRebarGeometry.Calculate(g,p),p,20,left,right); }
+    { return UpstandAnnotationGeometry.Calculate(g,UpstandRebarGeometry.Calculate(g,p),p,62.5,left,right); }
     private static void Main()
     {
         try { Run(); }
@@ -26,17 +26,23 @@ internal static class UpstandAnnotationStage3Tests
             Ok(layout.DotLabel.Text=="φ6@200","multiple dot rows");
             Ok(layout.LineLabel.Rightward && layout.DotLabel.Rightward,"equal space chooses right");
             Ok(layout.LineLabel.Leaders.Count==2 && layout.DotLabel.Leaders.Count==2,"ordinary line leaders");
+            Near(layout.TextHeight,62.5,"requested text height");
+            Ok(layout.LineLabel.TextAnchor.Y<300 && layout.DotLabel.TextAnchor.Y<300,
+                "both labels beside the upstand, not above its top");
+            Near(layout.LineLabel.Leaders[0].A.X,169,"line leader touches right upright");
+            Near(layout.DotLabel.Leaders[0].A.X,43,"dot leader crosses both dots from left");
+            Near(layout.DotLabel.Leaders[0].A.Y,57,"dot leader touches bottom dot row");
             Near(layout.LineLabel.Leaders[1].A.Y,layout.LineLabel.Leaders[1].B.Y,"horizontal leader");
             Ok(layout.LineLabel.TextAnchor.Y>layout.LineLabel.Leaders[1].A.Y,"text above leader");
             Near(layout.WidthB.X-layout.WidthA.X,200,"concrete width");
             Near(layout.HeightB.Y-layout.HeightA.Y,300,"concrete height");
-            Near(layout.HeightLine.X,-35,"height dimension opposite right label");
+            Near(layout.HeightLine.X,-93.75,"height dimension opposite right label");
         }
         var leftward=Calculate(Geometry(UpstandInputKind.OpenInvertedU),Parameters(),-900,250);
         Ok(!leftward.LineLabel.Rightward && !leftward.DotLabel.Rightward,"space chooses left");
-        Near(leftward.HeightLine.X,-35,"height dimension stays where space permits");
+        Near(leftward.HeightLine.X,-93.75,"height dimension stays where space permits");
         var crowdedLeft=Calculate(Geometry(UpstandInputKind.ClosedRectangle),Parameters(),-10,900);
-        Near(crowdedLeft.HeightLine.X,235,"height dimension chooses available right side");
+        Near(crowdedLeft.HeightLine.X,293.75,"height dimension chooses available right side");
         var single=Parameters(); single.DotSpacing=500;
         var one=Calculate(Geometry(UpstandInputKind.ClosedRectangle),single,-400,600);
         Ok(one.DotLabel.Text=="2φ6","single row both sides");
