@@ -1,5 +1,10 @@
 # WallDetailTool 产品需求
 
+## 2026-10-22 阶段 3 钢筋规格改为单行文字
+
+用户最新确认：`WDTUPDRAW` 的线筋、点筋规格标注使用 AutoCAD 原生单行 `TEXT`（DBText），不再创建 MTEXT；尺寸仍为原生 RotatedDimension。钢筋文字保持 TSSD、62.5 mm、`%%132`、S-TEXT/ByLayer 和左右对齐，普通 LINE 引线及交接斜杠保持。以下历史小节提到本流程使用 MTEXT 的描述不再适用。
+
+
 ## 2026-10-22 阶段 3 建筑标记失败修正与钢筋符号
 
 用户在图纸缺少 `TSSD_25` 时实测宽度尺寸未生成，提示 `eInvalidInput`。本轮按此反馈修正：确认后先由 AutoCAD 原生命令建立内置 `_ARCHTICK` 块并恢复原 `DIMBLK`，然后在标注事务内建立 `TSSD_25`；不再在打开的数据库事务内调用托管 `SetSystemVariable` 创建该块。新生成钢筋规格文字默认用 `%%132` 表示钢筋符号；读取旧 `%%c` 标注仍兼容。已有 `TSSD_25` 不改。该修正不代表 CAD 端已验收。

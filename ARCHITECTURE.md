@@ -1,5 +1,10 @@
 # WallDetailTool 架构
 
+## 2026-10-22 钢筋规格单行文字适配
+
+`BuildUpstandLabel` 生成 DBText，向右引线时左对齐、向左时右对齐，基线位于水平引线上方；预览与正式生成复用该构造。引线终点读取 DBText 几何边界，若未入库实体无法提供边界，则止于文字锚点以避免超出文字。宽高 RotatedDimension 仍独立创建。下文历史 MTEXT/ActualWidth 的适配描述已由本节取代。
+
+
 ## 2026-10-22 建筑标记创建顺序修正
 
 用户实测先前在可回滚标注子事务内执行 `Application.SetSystemVariable("DIMBLK", "_ARCHTICK")` 的路径出现宽度尺寸 `eInvalidInput`。现改为：用户确认后，父事务开始前，若缺内置箭头块，调用同步 `Editor.Command("_.SETVAR", "DIMBLK", "_ARCHTICK")`，随即恢复原 `DIMBLK`；后续子事务仅查 BlockTable 并在新 `TSSD_25` 中引用块 ID。准备失败逐项报告，钢筋仍可生成；取消预览不进入准备步骤。`RebarAnnotations` 和 `WDTUPDRAW` 的新钢筋文字均输出 `%%132`，旧 `%%c` 反读兼容。以下旧版“事务内临时设置 DIMBLK”说明已过时。

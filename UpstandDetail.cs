@@ -434,20 +434,32 @@ namespace WallDetailTool
             var entities=new List<Entity>();
             try
             {
-                var text=new MText();
+                var text=new DBText();
                 entities.Add(text);
                 text.SetDatabaseDefaults(db);
                 text.Layer=layer; text.ColorIndex=256;
-                text.Contents=label.Text.Replace("φ","%%132");
+                text.TextString=label.Text.Replace("φ","%%132");
                 text.TextStyleId=textStyleId;
-                text.TextHeight=layout.TextHeight;
-                text.Location=new Point3d(label.TextAnchor.X,label.TextAnchor.Y,layout.Elevation);
-                text.Attachment=label.Rightward ? AttachmentPoint.BottomLeft : AttachmentPoint.BottomRight;
-                double textWidth=0;
-                try { textWidth=text.ActualWidth; }
-                catch (Autodesk.AutoCAD.Runtime.Exception) { /* Pre-database MTEXT may not expose extents. */ }
-                if (Double.IsNaN(textWidth) || Double.IsInfinity(textWidth) || textWidth<0) textWidth=0;
-                double endX=label.TextAnchor.X+(label.Rightward ? 1 : -1)*textWidth;
+                text.Height=layout.TextHeight;
+                Point3d anchor=new Point3d(label.TextAnchor.X,label.TextAnchor.Y,layout.Elevation);
+                text.HorizontalMode=label.Rightward ? TextHorizontalMode.TextLeft : TextHorizontalMode.TextRight;
+                text.Position=anchor;
+                if (!label.Rightward)
+                {
+                    text.AlignmentPoint=anchor;
+                    text.AdjustAlignment(db);
+                }
+                // Use the actual TEXT extents. If an unappended preview has no extents,
+                // stop at the anchor rather than let the underline run past the text.
+                double endX=anchor.X;
+                try
+                {
+                    Extents3d bounds=text.GeometricExtents;
+                    double edge=label.Rightward ? bounds.MaxPoint.X : bounds.MinPoint.X;
+                    if (!Double.IsNaN(edge) && !Double.IsInfinity(edge) &&
+                        (label.Rightward ? edge>=anchor.X : edge<=anchor.X)) endX=edge;
+                }
+                catch (Autodesk.AutoCAD.Runtime.Exception) { /* Nonresident TEXT may have no extents yet. */ }
                 for (int i=0;i<label.Leaders.Count;i++)
                 {
                     AnnotationSegment segment=label.Leaders[i];

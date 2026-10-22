@@ -1,5 +1,12 @@
 # 分阶段开发计划
 
+## 2026-10-22 阶段 3 钢筋文字改为 DBText
+
+按用户最新要求，`WDTUPDRAW` 的两条钢筋规格文字由 MTEXT 改为单行 DBText，保留 TSSD、字高 62.5、`%%132`、ByLayer 及引线方向。尺寸仍为 RotatedDimension。单行文字的实际边界用于限制引线终点；边界不可用时停在锚点。AutoCAD 图形界面中的单行文字属性、引线长度与保存重开仍待验证。
+
+本轮 Release/x64/.NET Framework 4.8 编译通过：`D:\Waste\WallDtailTool\bin\V01AnnotationSingleLine20261022\WallDetailTool.dll`，SHA-256 `0F63ED4817DFDD7479DDA8D1767F36A285CA318A7136D0C1E79AA40589A911EE`。阶段 1、2、3 纯计算测试分别输出 `UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。纯计算测试不覆盖 DBText 的 CAD 实体创建与渲染。AutoCAD 2023、2024、图形界面和用户验收本轮待验证；上一轮用户报告的缺 TSSD_25 时宽度尺寸 `eInvalidInput` 也仍需用新 DLL 复验。
+
+
 ## 2026-10-22 阶段 3 宽度尺寸 eInvalidInput 修正
 
 用户报告：缺少 `TSSD_25` 时提示将创建，但确认后宽度尺寸失败 `eInvalidInput`、未生成。将建筑标记块准备改为确认后、钢筋父事务前运行 AutoCAD 原生 `SETVAR` 命令，恢复原 `DIMBLK` 后再建立尺寸样式；避免在打开的事务内调用托管 `SetSystemVariable`。默认新钢筋文字转为 `%%132`，旧 `%%c` 显示解析保留。空白 AutoCAD 2023 Core Console 脚本已验证 `SETVAR DIMBLK _ARCHTICK` 后块表含 `_ARCHTICK`，恢复 `DIMBLK` 后块仍存在；尝试 NETLOAD 诊断插件受到测试环境加载限制，未完成插件端实测。该控制台结果不代表用户报告的尺寸问题已在图形界面解决，需使用新 DLL 复验。
