@@ -21,6 +21,7 @@ namespace WallDetailTool
         private const string LabelLayer = "S-TEXT";
         private const string DimensionLayer = "s-floor_de_dim";
         private const string AnnotationTextStyle = "TSSD";
+        private const string AnnotationDimensionStyle = "TSSD_25";
         private const double AnnotationTextHeight = 62.5;
         private const string ParamRecord = "WDT_UPSTAND_LAST";
         private const double Epsilon = 1e-6;
@@ -162,19 +163,23 @@ namespace WallDetailTool
                     var annotationPreview=new List<Entity>();
                     UpstandAnnotationLayout annotations=null;
                     ObjectId textStyleId=ObjectId.Null;
+                    ObjectId dimStyleId=ObjectId.Null;
                     var annotationWarnings=new List<string>();
                     try
                     {
                         try
                         {
                             textStyleId=RequiredUpstandTextStyle(doc.Database);
+                            dimStyleId=UpstandDimensionStyle(doc.Database);
+                            if (dimStyleId.IsNull)
+                                annotationWarnings.Add("当前图纸缺少 TSSD_25 尺寸样式；宽高尺寸不会生成。");
                             using (ViewTableRecord view=ed.GetCurrentView())
                             {
                                 double left=view.CenterPoint.X-view.Width/2;
                                 annotations=UpstandAnnotationGeometry.Calculate(geometry,layout,p,
                                     AnnotationTextHeight,left,left+view.Width);
                             }
-                            AddAnnotationPreview(annotationPreview,doc.Database,annotations,textStyleId);
+                            AddAnnotationPreview(annotationPreview,doc.Database,annotations,textStyleId,dimStyleId);
                             annotationWarnings.AddRange(annotations.Warnings);
                         }
                         catch (System.Exception ex)
@@ -213,17 +218,17 @@ namespace WallDetailTool
                                 if (annotations!=null)
                                 {
                                     TryAppendAnnotation(doc.Database,LabelLayer,71,"线筋标注",failures,
-                                        () => BuildUpstandLabel(annotations.LineLabel,annotations,"0",textStyleId));
+                                        () => BuildUpstandLabel(doc.Database,annotations.LineLabel,annotations,"0",textStyleId));
                                     TryAppendAnnotation(doc.Database,LabelLayer,71,"点筋标注",failures,
-                                        () => BuildUpstandLabel(annotations.DotLabel,annotations,"0",textStyleId));
+                                        () => BuildUpstandLabel(doc.Database,annotations.DotLabel,annotations,"0",textStyleId));
                                     TryAppendAnnotation(doc.Database,DimensionLayer,70,"宽度尺寸",failures,
                                         () => new List<Entity> { UpstandDimension(doc.Database,annotations.WidthA,
                                             annotations.WidthB,annotations.WidthLine,annotations.Elevation,"0",
-                                            annotations.TextHeight,textStyleId) });
+                                            annotations.TextHeight,textStyleId,dimStyleId) });
                                     TryAppendAnnotation(doc.Database,DimensionLayer,70,"高度尺寸",failures,
                                         () => new List<Entity> { UpstandDimension(doc.Database,annotations.HeightA,
                                             annotations.HeightB,annotations.HeightLine,annotations.Elevation,"0",
-                                            annotations.TextHeight,textStyleId) });
+                                            annotations.TextHeight,textStyleId,dimStyleId) });
                                 }
                                 else failures.Add("全部自动标注（预览布局失败）");
                                 WriteLast(doc.Database, tr, values);
@@ -300,31 +305,69 @@ namespace WallDetailTool
             }
         }
 
-        private static List<Entity> BuildUpstandLabel(UpstandLabelLayout label,UpstandAnnotationLayout layout,
-            string layer,ObjectId textStyleId)
+        private static ObjectId UpstandDimensionStyle(Database db)
+        {
+            using (Transaction tr=db.TransactionManager.StartTransaction())
+            {
+                DimStyleTable styles=(DimStyleTable)tr.GetObject(db.DimStyleTableId,OpenMode.ForRead);
+                return styles.Has(AnnotationDimensionStyle) ? styles[AnnotationDimensionStyle] : ObjectId.Null;
+            }
+        }
+
+        private static List<Entity> BuildUpstandLabel(Database db,UpstandLabelLayout label,
+            UpstandAnnotationLayout layout,string layer,ObjectId textStyleId)
         {
             var entities=new List<Entity>();
             try
             {
-                foreach (AnnotationSegment segment in label.Leaders)
-                    entities.Add(new Line(new Point3d(segment.A.X,segment.A.Y,layout.Elevation),
-                        new Point3d(segment.B.X,segment.B.Y,layout.Elevation)) { Layer=layer,ColorIndex=256 });
-                var text=new MText { Layer=layer,ColorIndex=256,
-                    Contents=label.Text.Replace("φ","%%c"),TextStyleId=textStyleId,
-                    TextHeight=layout.TextHeight,Location=new Point3d(label.TextAnchor.X,
-                        label.TextAnchor.Y,layout.Elevation),
-                    Attachment=label.Rightward ? AttachmentPoint.BottomLeft : AttachmentPoint.BottomRight };
+                var text=new MText();
                 entities.Add(text);
+                text.SetDatabaseDefaults(db);
+                text.Layer=layer; text.ColorIndex=256;
+                text.Contents=label.Text.Replace("φ","%%c");
+                text.TextStyleId=textStyleId;
+                text.TextHeight=layout.TextHeight;
+                text.Location=new Point3d(label.TextAnchor.X,label.TextAnchor.Y,layout.Elevation);
+                text.Attachment=label.Rightward ? AttachmentPoint.BottomLeft : AttachmentPoint.BottomRight;
+                double textWidth=0;
+                try { textWidth=text.ActualWidth; }
+                catch (Autodesk.AutoCAD.Runtime.Exception) { /* Pre-database MTEXT may not expose extents. */ }
+                if (Double.IsNaN(textWidth) || Double.IsInfinity(textWidth) || textWidth<0) textWidth=0;
+                double endX=label.TextAnchor.X+(label.Rightward ? 1 : -1)*textWidth;
+                for (int i=0;i<label.Leaders.Count;i++)
+                {
+                    AnnotationSegment segment=label.Leaders[i];
+                    AnnotationPoint end=i==label.Leaders.Count-1 ?
+                        new AnnotationPoint(endX,segment.B.Y) : segment.B;
+                    if (Math.Abs(end.X-segment.A.X)<1e-8 && Math.Abs(end.Y-segment.A.Y)<1e-8) continue;
+                    entities.Add(new Line(new Point3d(segment.A.X,segment.A.Y,layout.Elevation),
+                        new Point3d(end.X,end.Y,layout.Elevation)) { Layer=layer,ColorIndex=256 });
+                }
+                if (label.HasSlash)
+                {
+                    var slash=new Polyline(2) { Layer=layer,ColorIndex=256,Elevation=layout.Elevation };
+                    entities.Add(slash);
+                    slash.AddVertexAt(0,new Point2d(label.SlashA.X,label.SlashA.Y),0,
+                        label.SlashWidth,label.SlashWidth);
+                    slash.AddVertexAt(1,new Point2d(label.SlashB.X,label.SlashB.Y),0,
+                        label.SlashWidth,label.SlashWidth);
+                }
                 return entities;
             }
             catch { foreach (Entity entity in entities) entity.Dispose(); throw; }
         }
 
         private static RotatedDimension UpstandDimension(Database db,AnnotationPoint a,AnnotationPoint b,
-            AnnotationPoint line,double z,string layer,double textHeight,ObjectId textStyleId)
+            AnnotationPoint line,double z,string layer,double textHeight,ObjectId textStyleId,
+            ObjectId dimStyleId)
         {
-            var dimension=Dimension(db,new Point3d(a.X,a.Y,z),new Point3d(b.X,b.Y,z),
-                new Point3d(line.X,line.Y,z),layer);
+            if (dimStyleId.IsNull)
+                throw new InvalidOperationException("当前图纸缺少 TSSD_25 尺寸样式。");
+            double angle=Math.Abs(a.Y-b.Y)>Math.Abs(a.X-b.X) ? Math.PI/2 : 0;
+            var dimension=new RotatedDimension(angle,new Point3d(a.X,a.Y,z),
+                new Point3d(b.X,b.Y,z),new Point3d(line.X,line.Y,z),"",dimStyleId);
+            dimension.SetDatabaseDefaults(db);
+            dimension.Layer=layer;
             dimension.ColorIndex=256;
             dimension.TextStyleId=textStyleId;
             dimension.Dimtxt=textHeight;
@@ -336,17 +379,20 @@ namespace WallDetailTool
         }
 
         private static void AddAnnotationPreview(List<Entity> preview,Database db,UpstandAnnotationLayout layout,
-            ObjectId textStyleId)
+            ObjectId textStyleId,ObjectId dimStyleId)
         {
             var added=new List<Entity>();
             try
             {
-                added.AddRange(BuildUpstandLabel(layout.LineLabel,layout,"0",textStyleId));
-                added.AddRange(BuildUpstandLabel(layout.DotLabel,layout,"0",textStyleId));
-                added.Add(UpstandDimension(db,layout.WidthA,layout.WidthB,layout.WidthLine,layout.Elevation,"0",
-                    layout.TextHeight,textStyleId));
-                added.Add(UpstandDimension(db,layout.HeightA,layout.HeightB,layout.HeightLine,layout.Elevation,"0",
-                    layout.TextHeight,textStyleId));
+                added.AddRange(BuildUpstandLabel(db,layout.LineLabel,layout,"0",textStyleId));
+                added.AddRange(BuildUpstandLabel(db,layout.DotLabel,layout,"0",textStyleId));
+                if (!dimStyleId.IsNull)
+                {
+                    added.Add(UpstandDimension(db,layout.WidthA,layout.WidthB,layout.WidthLine,layout.Elevation,"0",
+                        layout.TextHeight,textStyleId,dimStyleId));
+                    added.Add(UpstandDimension(db,layout.HeightA,layout.HeightB,layout.HeightLine,layout.Elevation,"0",
+                        layout.TextHeight,textStyleId,dimStyleId));
+                }
                 preview.AddRange(added);
             }
             catch { foreach (Entity entity in added) entity.Dispose(); throw; }

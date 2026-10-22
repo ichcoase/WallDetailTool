@@ -25,15 +25,27 @@ internal static class UpstandAnnotationStage3Tests
             Ok(layout.LineLabel.Text=="φ8@150","line specification");
             Ok(layout.DotLabel.Text=="φ6@200","multiple dot rows");
             Ok(layout.LineLabel.Rightward && layout.DotLabel.Rightward,"equal space chooses right");
-            Ok(layout.LineLabel.Leaders.Count==2 && layout.DotLabel.Leaders.Count==2,"ordinary line leaders");
+            Ok(layout.LineLabel.Leaders.Count==1 && layout.DotLabel.Leaders.Count==2,
+                "straight line leader and dot leader");
             Near(layout.TextHeight,62.5,"requested text height");
             Ok(layout.LineLabel.TextAnchor.Y<300 && layout.DotLabel.TextAnchor.Y<300,
                 "both labels beside the upstand, not above its top");
             Near(layout.LineLabel.Leaders[0].A.X,169,"line leader touches right upright");
+            Near(layout.LineLabel.Leaders[0].A.Y,layout.LineLabel.Leaders[0].B.Y,
+                "line leader is horizontal");
+            Near(layout.LineLabel.Leaders[0].B.X,layout.LineLabel.TextAnchor.X,
+                "pure leader stops at text start until CAD measures glyphs");
+            Ok(layout.LineLabel.HasSlash && !layout.DotLabel.HasSlash,"slash only on line rebar");
+            Near(layout.LineLabel.SlashCenter.X,169,"slash centered on line rebar");
+            Near(layout.LineLabel.SlashCenter.Y,layout.LineLabel.Leaders[0].A.Y,
+                "slash center on leader contact");
+            Near(Math.Sqrt(Math.Pow(layout.LineLabel.SlashB.X-layout.LineLabel.SlashA.X,2)+
+                Math.Pow(layout.LineLabel.SlashB.Y-layout.LineLabel.SlashA.Y,2)),36,"slash length");
+            Near(layout.LineLabel.SlashWidth,10,"slash width");
             Near(layout.DotLabel.Leaders[0].A.X,43,"dot leader crosses both dots from left");
             Near(layout.DotLabel.Leaders[0].A.Y,57,"dot leader touches bottom dot row");
-            Near(layout.LineLabel.Leaders[1].A.Y,layout.LineLabel.Leaders[1].B.Y,"horizontal leader");
-            Ok(layout.LineLabel.TextAnchor.Y>layout.LineLabel.Leaders[1].A.Y,"text above leader");
+            Near(layout.DotLabel.Leaders[0].A.Y,layout.DotLabel.Leaders[0].B.Y,"dot horizontal leader");
+            Ok(layout.LineLabel.TextAnchor.Y>layout.LineLabel.Leaders[0].A.Y,"text above leader");
             Near(layout.WidthB.X-layout.WidthA.X,200,"concrete width");
             Near(layout.HeightB.Y-layout.HeightA.Y,300,"concrete height");
             Near(layout.HeightLine.X,-93.75,"height dimension opposite right label");

@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-22 尺寸样式与线筋交接符号
+
+`WDTUPDRAW` 查找图纸现有 `TSSD_25` DimStyleTable 记录，并用它创建宽高 RotatedDimension；图层在确认事务中缺失则自动建立。`UpstandAnnotationGeometry` 输出线筋水平直引线和以线筋中心为中点的 36×10 mm 斜杠几何。CAD 适配层生成 MTEXT 后读取 `ActualWidth`，将末段 LINE 终点限制在文字实际宽度内；预览与正式生成共用同一构造代码。缺尺寸样式只影响尺寸，不阻断钢筋文字及钢筋成果。
+
 ## 2026-10-22 阶段 3 样式适配
 
 阶段 3 纯布局把两条规格标注移到反坎侧边，线筋引线从侧竖段引出，点筋多排时水平经过末排两侧点筋。CAD 适配层读取已有 `TSSD` 文字样式，给 MTEXT 与 RotatedDimension 分别指定 TextStyleId/62.5 mm 字高；尺寸线、界线和文字颜色采用 ByLayer。确认时 `S-TEXT` 与 `s-floor_de_dim` 的 ACI 颜色分别为 71、70，旧标注图层保留，原有实体不搬迁。缺 TSSD 时标注预览不可用，仍按非关键失败保留有效钢筋并提示。

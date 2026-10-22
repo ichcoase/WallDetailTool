@@ -21,6 +21,9 @@ namespace WallDetailTool
         internal string Text;
         internal AnnotationPoint TextAnchor;
         internal bool Rightward;
+        internal bool HasSlash;
+        internal AnnotationPoint SlashCenter, SlashA, SlashB;
+        internal double SlashWidth;
         internal readonly List<AnnotationSegment> Leaders=new List<AnnotationSegment>();
     }
 
@@ -68,7 +71,9 @@ namespace WallDetailTool
             double edge=right ? g.Right : g.Left;
             double labelX=edge+side*offset;
             // Place both labels beside the upstand, as in a structural detail drawing.
-            double lineY=g.BeamTop+.65*g.Height;
+            double lineY=Math.Min(g.BeamTop+.65*g.Height,steel.Line[2].Y-5);
+            if (lineY<=steel.Line[1].Y)
+                throw new InvalidOperationException("线筋竖段过短，无法将斜杠放在线筋中心线上。");
             int last=steel.LeftDots.Count-1;
             double dotY=steel.LeftDots[last].Y;
             if (Math.Abs(dotY-lineY)<1.2*textHeight)
@@ -76,12 +81,16 @@ namespace WallDetailTool
                 dotY=g.BeamTop+.22*g.Height;
                 result.Warnings.Add("点筋排位与线筋文字接近，点筋标注使用备用高度；请人工检查。");
             }
-            var lineTouch=new AnnotationPoint(right ? steel.Line[5].X : steel.Line[2].X,
-                lineY+Math.Min(offset,20));
-            result.LineLabel=Label(lineText,right,labelX,lineY,run,lineTouch,
-                lineTouch.X+side*Math.Min(offset,20));
+            var lineTouch=new AnnotationPoint(right ? steel.Line[5].X : steel.Line[2].X,lineY);
+            result.LineLabel=Label(lineText,right,labelX,lineY,lineTouch,lineTouch.X);
+            double slashHalf=36/(2*Math.Sqrt(2));
+            result.LineLabel.HasSlash=true;
+            result.LineLabel.SlashCenter=lineTouch;
+            result.LineLabel.SlashA=new AnnotationPoint(lineTouch.X-slashHalf,lineTouch.Y+slashHalf);
+            result.LineLabel.SlashB=new AnnotationPoint(lineTouch.X+slashHalf,lineTouch.Y-slashHalf);
+            result.LineLabel.SlashWidth=10;
             ContourPoint dot=right ? steel.LeftDots[last] : steel.RightDots[last];
-            result.DotLabel=Label(dotText,right,labelX,dotY,run,new AnnotationPoint(dot.X,dot.Y),labelX);
+            result.DotLabel=Label(dotText,right,labelX,dotY,new AnnotationPoint(dot.X,dot.Y),labelX);
             var concrete=new Box(g.Left,g.Right,g.BeamTop,g.Top);
             Box lineBox=TextBounds(result.LineLabel,textHeight);
             Box dotBox=TextBounds(result.DotLabel,textHeight);
@@ -91,7 +100,7 @@ namespace WallDetailTool
             {
                 // One local fallback only; more complex global annotation packing belongs to later work.
                 dotY=g.BeamTop-Math.Max(45,2*textHeight);
-                result.DotLabel=Label(dotText,right,labelX,dotY,run,new AnnotationPoint(dot.X,dot.Y),labelX);
+                result.DotLabel=Label(dotText,right,labelX,dotY,new AnnotationPoint(dot.X,dot.Y),labelX);
                 result.Warnings.Add("局部标注发生碰撞，点筋标注改用备用位置；请人工检查。");
             }
             result.WidthA=new AnnotationPoint(g.Left,g.Top);
@@ -111,14 +120,16 @@ namespace WallDetailTool
             return result;
         }
 
-        private static UpstandLabelLayout Label(string value,bool right,double x,double y,double run,
+        private static UpstandLabelLayout Label(string value,bool right,double x,double y,
             AnnotationPoint touch,double elbowX)
         {
             var label=new UpstandLabelLayout { Text=value,Rightward=right,
-                TextAnchor=new AnnotationPoint(x,y+Math.Max(3,run/80)) };
+                TextAnchor=new AnnotationPoint(x,y+4) };
             var elbow=new AnnotationPoint(elbowX,y);
-            label.Leaders.Add(new AnnotationSegment(touch,elbow));
-            label.Leaders.Add(new AnnotationSegment(elbow,new AnnotationPoint(x+(right ? run : -run),y)));
+            if (Math.Abs(touch.X-elbow.X)>1e-8 || Math.Abs(touch.Y-elbow.Y)>1e-8)
+                label.Leaders.Add(new AnnotationSegment(touch,elbow));
+            // The CAD adapter extends this endpoint to the actual MTEXT width, never beyond it.
+            label.Leaders.Add(new AnnotationSegment(elbow,new AnnotationPoint(x,y)));
             return label;
         }
         private static string Spec(double diameter,double spacing)

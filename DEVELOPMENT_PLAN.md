@@ -1,5 +1,11 @@
 # 分阶段开发计划
 
+## 2026-10-22 阶段 3 标注样式与端点补充
+
+按用户后续确认：宽高原生尺寸明确采用 `TSSD_25`，缺图层自动创建；线筋标注改为水平 LINE 加 36 mm 长、10 mm 宽斜杠，斜杠中点在线筋中心线上。MTEXT 实际宽度控制引线终点，确保不超出文字。缺少 `TSSD_25` 时宽高尺寸逐项失败并提示，钢筋及其他有效标注保留。本轮编译和回归证据在下方记录；AutoCAD 实际图形效果仍待验证。
+
+本次编译：Release/x64/.NET Framework 4.8，DLL `D:\\Waste\\WallDtailTool\\bin\\V01AnnotationTSSD25Slash20261022Final\\WallDetailTool.dll`，SHA-256 `83D8F2EA214418178FDFD9C82C1A9650926233F51AC5EBDBA166490EDD865E43`。自动测试：`UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。AutoCAD 2023、AutoCAD 2024 及图形界面本次均待验证。上述编译和纯计算结果不代表图层、TSSD_25 样式或文字实际宽度在 CAD 中已通过验收。
+
 ## 2026-10-22 阶段 3 标注视觉修正
 
 依据用户提供的左右对比图及图层设置表：将 `WDTUPDRAW` 的两条钢筋文字/引线改为 `S-TEXT`（ACI 71）、尺寸改为 `s-floor_de_dim`（ACI 70）；复用图中现有 `TSSD`，MTEXT 与原生尺寸字高均设为 62.5 mm。反坎侧边水平引线布局替换顶部小字斜引线布局。旧 `WDT-REBAR-TEXT`/`WDT-DIM` 实体不迁移；线筋/点筋保持原有层。已存在的目标图层若颜色不同会随本次确认更新，影响同层的其他 ByLayer 图元。测试和新 DLL 证据见 `tests/STAGE3_CHECKLIST.md` 后续条目。AutoCAD 可视效果及用户验收仍须实际运行确认。
