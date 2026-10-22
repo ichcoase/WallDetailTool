@@ -213,6 +213,11 @@ namespace WallDetailTool
                         if (result.Status != PromptStatus.OK || result.StringResult == "X") return;
                         if (result.StringResult == "M") continue;
                         var failures=new List<string>();
+                        if (annotations!=null && dimStyleId.IsNull)
+                        {
+                            try { PrepareArchitecturalTick(doc); }
+                            catch (System.Exception ex) { failures.Add("建筑标记准备失败："+ex.Message); }
+                        }
                         using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                         {
                             EnsureLayer(doc.Database, tr, LineLayer, 1);
@@ -349,7 +354,7 @@ namespace WallDetailTool
         {
             DimStyleTable styles=(DimStyleTable)tr.GetObject(db.DimStyleTableId,OpenMode.ForRead);
             if (styles.Has(AnnotationDimensionStyle)) return styles[AnnotationDimensionStyle];
-            ObjectId architecturalTick=EnsureArchitecturalTick(db,tr);
+            ObjectId architecturalTick=ArchitecturalTickId(db,tr);
             var style=new DimStyleTableRecord();
             try
             {
@@ -393,25 +398,34 @@ namespace WallDetailTool
             catch { style.Dispose(); throw; }
         }
 
-        private static ObjectId EnsureArchitecturalTick(Database db,Transaction tr)
+        private static void PrepareArchitecturalTick(Document doc)
+        {
+            using (Transaction check=doc.Database.TransactionManager.StartTransaction())
+            {
+                BlockTable existing=(BlockTable)check.GetObject(doc.Database.BlockTableId,OpenMode.ForRead);
+                if (existing.Has("_ARCHTICK")) return;
+            }
+
+            // SETVAR uses AutoCAD's built-in arrow creation path. Run it before opening
+            // the generation transaction, then restore the user's drawing override.
+            string previous=Convert.ToString(CadApplication.GetSystemVariable("DIMBLK"));
+            try { doc.Editor.Command("_.SETVAR","DIMBLK","_ARCHTICK"); }
+            finally { doc.Editor.Command("_.SETVAR","DIMBLK",String.IsNullOrEmpty(previous) ? "." : previous); }
+
+            using (Transaction check=doc.Database.TransactionManager.StartTransaction())
+            {
+                BlockTable created=(BlockTable)check.GetObject(doc.Database.BlockTableId,OpenMode.ForRead);
+                if (!created.Has("_ARCHTICK"))
+                    throw new InvalidOperationException("AutoCAD 未能建立内置建筑标记箭头 _ARCHTICK。");
+            }
+        }
+
+        private static ObjectId ArchitecturalTickId(Database db,Transaction tr)
         {
             const string arrowName="_ARCHTICK";
             BlockTable blocks=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead);
             if (blocks.Has(arrowName)) return blocks[arrowName];
-
-            // Selecting the AutoCAD built-in arrow creates its block definition when absent.
-            // Restore the drawing's DIMBLK override immediately; only the new style uses it.
-            object previous=CadApplication.GetSystemVariable("DIMBLK");
-            ObjectId arrowId=ObjectId.Null;
-            try
-            {
-                CadApplication.SetSystemVariable("DIMBLK",arrowName);
-                arrowId=db.Dimblk;
-            }
-            finally { CadApplication.SetSystemVariable("DIMBLK",previous); }
-            if (arrowId.IsNull)
-                throw new InvalidOperationException("AutoCAD 未能建立内置建筑标记箭头 _ARCHTICK。");
-            return arrowId;
+            throw new InvalidOperationException("当前图纸尚未建立建筑标记箭头 _ARCHTICK。");
         }
 
         private static List<Entity> BuildUpstandLabel(Database db,UpstandLabelLayout label,
@@ -424,7 +438,7 @@ namespace WallDetailTool
                 entities.Add(text);
                 text.SetDatabaseDefaults(db);
                 text.Layer=layer; text.ColorIndex=256;
-                text.Contents=label.Text.Replace("φ","%%c");
+                text.Contents=label.Text.Replace("φ","%%132");
                 text.TextStyleId=textStyleId;
                 text.TextHeight=layout.TextHeight;
                 text.Location=new Point3d(label.TextAnchor.X,label.TextAnchor.Y,layout.Elevation);
@@ -655,7 +669,7 @@ namespace WallDetailTool
         }
         private static bool ReadParameters(Editor ed, DetailParams p)
         {
-            ed.WriteMessage("\n默认实际直径/间距：线筋%%c8@150、点筋%%c6@200。锚固与 R 均为绘图输入值，不作规范计算。");
+            ed.WriteMessage("\n默认实际直径/间距：线筋%%1328@150、点筋%%1326@200。锚固与 R 均为绘图输入值，不作规范计算。");
             if (!Ask(ed,"保护层",ref p.Cover,true) || !Ask(ed,"线筋实际直径",ref p.LineDiameter)
                 || !Ask(ed,"线筋设计间距",ref p.LineSpacing) || !Ask(ed,"点筋实际直径",ref p.DotDiameter)
                 || !Ask(ed,"点筋中心间距",ref p.DotSpacing)) return false;
@@ -725,9 +739,9 @@ namespace WallDetailTool
                     entities.Add(Dot(xRight,y,beam.Z,dot,dotLayer));
                 }
                 double labelHeight= Math.Max(2.5*scale, Math.Min(20*scale, up.W/16));
-                entities.Add(Text(db,"%%c"+p.LineDiameter.ToString("g")+"@"+p.LineSpacing.ToString("g"),
+                entities.Add(Text(db,"%%132"+p.LineDiameter.ToString("g")+"@"+p.LineSpacing.ToString("g"),
                     new Point3d(up.R+20*scale,up.T,beam.Z),labelHeight,labelLayer));
-                entities.Add(Text(db,"%%c"+p.DotDiameter.ToString("g")+"@"+p.DotSpacing.ToString("g"),
+                entities.Add(Text(db,"%%132"+p.DotDiameter.ToString("g")+"@"+p.DotSpacing.ToString("g"),
                     new Point3d(up.R+20*scale,up.T-3*labelHeight,beam.Z),labelHeight,labelLayer));
                 entities.Add(Text(db,"L="+p.LeftAnchor.ToString("g")+" / R="+p.RightAnchor.ToString("g")+" mm (审核)",
                     new Point3d(up.R+20*scale,up.T-6*labelHeight,beam.Z),labelHeight,labelLayer));

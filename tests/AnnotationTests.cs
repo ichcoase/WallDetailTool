@@ -161,7 +161,7 @@ public class AnnotationTests
                 Polyline leader = tr.GetObject((ObjectId)Field(annotation, "LeaderId"), OpenMode.ForRead) as Polyline;
                 Polyline slash = tr.GetObject((ObjectId)Field(annotation, "SlashId"), OpenMode.ForRead) as Polyline;
                 Polyline steel = tr.GetObject((ObjectId)Field(rebar, "EntityId"), OpenMode.ForRead) as Polyline;
-                Require(text != null && leader != null && slash != null && text.TextString == "%%c12" &&
+                Require(text != null && leader != null && slash != null && text.TextString == "%%13212" &&
                     text.Layer == "S-TEXT" && leader.Layer == "S-TEXT" && slash.Layer == "S-TEXT" &&
                     Math.Abs(text.Height - 62.5) < 1e-9, "Annotation style, layer or height wrong");
                 Require(leader.NumberOfVertices == 3 && leader.GetPoint2dAt(0).X == leader.GetPoint2dAt(1).X &&
@@ -201,7 +201,7 @@ public class AnnotationTests
                 object rebar = Rebar(db, tr);
                 DBText text = (DBText)tr.GetObject((ObjectId)Field(annotation, "TextId"), OpenMode.ForRead);
                 Polyline steel = (Polyline)tr.GetObject((ObjectId)Field(rebar, "EntityId"), OpenMode.ForRead);
-                Require(text.TextString == "%%c16" && (string)Field(annotation, "Label") == "Φ16", "Text not updated");
+                Require(text.TextString == "%%13216" && (string)Field(annotation, "Label") == "Φ16", "Text not updated");
                 Require((double)Field(rebar, "Diameter") == 12 && Math.Abs(steel.ConstantWidth - DisplayWidth()) < 1e-9 &&
                     Math.Abs(Math.Abs(steel.StartPoint.Y) - 31) < 1e-6, "Steel changed by text edit");
             }
@@ -302,7 +302,7 @@ public class AnnotationTests
             {
                 object annotation = Annotation(db, tr);
                 DBText text = (DBText)tr.GetObject((ObjectId)Field(annotation, "TextId"), OpenMode.ForRead);
-                Require(text.TextString == "%%c12" && (string)Field(annotation, "Label") == "Φ12", "Undo mismatch");
+                Require(text.TextString == "%%13212" && (string)Field(annotation, "Label") == "Φ12", "Undo mismatch");
             }
         });
     }
@@ -317,7 +317,7 @@ public class AnnotationTests
             {
                 object annotation = Annotation(db, tr);
                 DBText text = (DBText)tr.GetObject((ObjectId)Field(annotation, "TextId"), OpenMode.ForRead);
-                Require(text.TextString == "%%c16" && (string)Field(annotation, "Label") == "Φ16", "Redo mismatch");
+                Require(text.TextString == "%%13216" && (string)Field(annotation, "Label") == "Φ16", "Redo mismatch");
             }
         });
     }
@@ -332,7 +332,7 @@ public class AnnotationTests
             {
                 object annotation = Annotation(db, tr);
                 DBText text = (DBText)tr.GetObject((ObjectId)Field(annotation, "TextId"), OpenMode.ForRead);
-                Require(text.TextString == "%%c16" && text.Layer == "S-TEXT" &&
+                Require(text.TextString == "%%13216" && text.Layer == "S-TEXT" &&
                     (string)Field(annotation, "Label") == "Φ16", "Saved annotation missing");
             }
         });

@@ -1,5 +1,12 @@
 # 分阶段开发计划
 
+## 2026-10-22 阶段 3 宽度尺寸 eInvalidInput 修正
+
+用户报告：缺少 `TSSD_25` 时提示将创建，但确认后宽度尺寸失败 `eInvalidInput`、未生成。将建筑标记块准备改为确认后、钢筋父事务前运行 AutoCAD 原生 `SETVAR` 命令，恢复原 `DIMBLK` 后再建立尺寸样式；避免在打开的事务内调用托管 `SetSystemVariable`。默认新钢筋文字转为 `%%132`，旧 `%%c` 显示解析保留。空白 AutoCAD 2023 Core Console 脚本已验证 `SETVAR DIMBLK _ARCHTICK` 后块表含 `_ARCHTICK`，恢复 `DIMBLK` 后块仍存在；尝试 NETLOAD 诊断插件受到测试环境加载限制，未完成插件端实测。该控制台结果不代表用户报告的尺寸问题已在图形界面解决，需使用新 DLL 复验。
+
+本轮 Release/x64/.NET Framework 4.8 编译通过：`D:\Waste\WallDtailTool\bin\V01AnnotationArrowFix20261022Final\WallDetailTool.dll`，SHA-256 `C676690228A406AF7709648B837C57226B6F794543DBFCE3580F4BC1BBADA1DD`。CAD 测试源码程序集编译通过，但未在 CAD 加载执行。阶段 1、2、3 纯计算回归分别输出 `UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。AutoCAD 2023 插件生成、2024、图形界面和本轮用户验收均待验证。标准测试 DWG 与用户 `docs/` 未改。
+
+
 ## 2026-10-22 自动创建 TSSD_25 时使用建筑标记
 
 用户进一步确认仅修改自动创建尺寸样式的箭头：由普通斜杠改为 AutoCAD 内置 `_ARCHTICK` 建筑标记，两端相同；已有 `TSSD_25`、字体、颜色、字高等不变。源码按 AutoCAD 内置箭头名取块 ID，缺块时临时设置并恢复 `DIMBLK` 以建立内置块。AutoCAD 中的样式面板和生成尺寸箭头效果待验证。

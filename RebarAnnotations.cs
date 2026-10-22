@@ -38,11 +38,11 @@ namespace WallDetailTool
 
         private static string CadLabel(string value)
         {
-            return value.Replace("Φ", "%%c").Replace("φ", "%%c");
+            return value.Replace("Φ", "%%132").Replace("φ", "%%132");
         }
         internal static string DisplayLabel(string value)
         {
-            return (value ?? "").Replace("%%c", "Φ").Replace("%%C", "Φ");
+            return (value ?? "").Replace("%%132", "Φ").Replace("%%c", "Φ").Replace("%%C", "Φ");
         }
         private static ObjectId TextStyle(Database db, Transaction tr)
         {
@@ -428,7 +428,7 @@ namespace WallDetailTool
             DBText text = tr.GetObject(annotation.TextId, OpenMode.ForWrite) as DBText;
             if (text == null || text.TextString != expectedText || text.Position != expectedPosition)
                 throw new InvalidOperationException("标注文字已变化，请重新预览。");
-            text.TextString = label.Replace("Φ", "%%c").Replace("φ", "%%c");
+            text.TextString = label.Replace("Φ", "%%132").Replace("φ", "%%132");
             annotation.Label = label;
             DrawingData.UpdateAnnotation(db, tr, annotation);
         }

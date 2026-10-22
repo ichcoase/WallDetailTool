@@ -1,5 +1,10 @@
 # WallDetailTool 架构
 
+## 2026-10-22 建筑标记创建顺序修正
+
+用户实测先前在可回滚标注子事务内执行 `Application.SetSystemVariable("DIMBLK", "_ARCHTICK")` 的路径出现宽度尺寸 `eInvalidInput`。现改为：用户确认后，父事务开始前，若缺内置箭头块，调用同步 `Editor.Command("_.SETVAR", "DIMBLK", "_ARCHTICK")`，随即恢复原 `DIMBLK`；后续子事务仅查 BlockTable 并在新 `TSSD_25` 中引用块 ID。准备失败逐项报告，钢筋仍可生成；取消预览不进入准备步骤。`RebarAnnotations` 和 `WDTUPDRAW` 的新钢筋文字均输出 `%%132`，旧 `%%c` 反读兼容。以下旧版“事务内临时设置 DIMBLK”说明已过时。
+
+
 ## 2026-10-22 自动创建尺寸样式的箭头
 
 `EnsureUpstandDimensionStyle` 仅在缺少 `TSSD_25` 时调用 `EnsureArchitecturalTick`，复用图纸已有 `_ARCHTICK` 块；若不存在，通过 AutoCAD 内置 `DIMBLK` 值临时选中 `_ARCHTICK` 使其建立，再立即恢复原 `DIMBLK`。新样式 `Dimblk` 指向该块，`Dimtsz=0`、`Dimsah=false`，两端采用同一种建筑标记。已有样式表记录不改；此创建流程的 CAD 实际行为仍需界面验证。
