@@ -1,5 +1,12 @@
 # 分阶段开发计划
 
+## 2026-10-22 阶段 3 TSSD 字体与颜色再次修正
+
+用户明确只有宽高尺寸文字固定白色，钢筋规格 MTEXT 随 `S-TEXT` 图层色。图纸缺 TSSD 时按截图于确认事务中创建，字体 `Tssdeng.shx`、大字体 `Tssdchn.shx`、字高 0、宽度因子 0.75、倾角 0。预览暂用当前文字样式并提示；确认后使用 TSSD。已在本机 AutoCAD 2023 字体目录静态查到上述两个 SHX 文件；AutoCAD 2024 字体可用性与 CAD 中样式创建、实际显示仍待验证。此前同日“钢筋 MTEXT 白色”“缺 TSSD 需换模板”的描述为历史版本。
+
+本轮 Release/x64/.NET Framework 4.8 编译通过：`D:\Waste\WallDtailTool\bin\V01AnnotationTSSDTextStyle20261022\WallDetailTool.dll`，SHA-256 `62F2A671E7394805C86AF8487E0C9A0E3F7B4FCDC053327ECA8B0D619C8E529E`。阶段 1、2、3 纯计算回归分别输出 `UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。AutoCAD 2023 插件绘图、AutoCAD 2024、图形界面和本轮用户验收均待验证；本次未改用户 DWG 或 `docs/`。
+
+
 ## 2026-10-22 阶段 3 尺寸文字与样式修正
 
 用户以五张 `TSSD_25` 设置截图补充确认：尺寸字高 2.5 × 全局比例 25 = 62.5 mm；文字白色、TSSD；不启用换算单位、公差。源码已改为缺少 `TSSD_25` 时在确认事务中创建，已有样式表记录不覆盖；宽高尺寸实体明确覆盖关键参数。钢筋 MTEXT 固定白色，引线及尺寸线仍使用相应图层色。历史小节中的缺样式跳过尺寸、尺寸实体字高直接设 62.5、MTEXT 随图层色，以本节为准。

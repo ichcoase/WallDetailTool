@@ -171,7 +171,12 @@ namespace WallDetailTool
                     {
                         try
                         {
-                            textStyleId=RequiredUpstandTextStyle(doc.Database);
+                            textStyleId=UpstandTextStyle(doc.Database);
+                            if (textStyleId.IsNull)
+                            {
+                                textStyleId=doc.Database.Textstyle;
+                                annotationWarnings.Add("当前图纸缺少 TSSD 文字样式；预览暂用当前样式，确认生成时按指定 SHX 设置创建 TSSD。");
+                            }
                             dimStyleId=UpstandDimensionStyle(doc.Database);
                             if (dimStyleId.IsNull)
                                 annotationWarnings.Add("当前图纸缺少 TSSD_25 尺寸样式；确认生成时将按指定设置创建。");
@@ -200,6 +205,7 @@ namespace WallDetailTool
                                 HidePreview(annotationPreview);
                             }
                         }
+                        foreach (string warning in annotationWarnings) ed.WriteMessage("\n"+warning);
                         var choice = new PromptKeywordOptions("\n检查红色钢筋及标注预览 [确认(C)/修改(M)/取消(X)] <修改>: ");
                         choice.Keywords.Add("C"); choice.Keywords.Add("M"); choice.Keywords.Add("X");
                         choice.Keywords.Default = "M";
@@ -220,17 +226,17 @@ namespace WallDetailTool
                                 if (annotations!=null)
                                 {
                                     TryAppendAnnotation(doc.Database,LabelLayer,71,"线筋标注",failures,
-                                        optional => BuildUpstandLabel(doc.Database,annotations.LineLabel,annotations,"0",textStyleId));
+                                        optional => BuildUpstandLabel(doc.Database,annotations.LineLabel,annotations,"0",
+                                            EnsureUpstandTextStyle(doc.Database,optional)));
                                     TryAppendAnnotation(doc.Database,LabelLayer,71,"点筋标注",failures,
-                                        optional => BuildUpstandLabel(doc.Database,annotations.DotLabel,annotations,"0",textStyleId));
+                                        optional => BuildUpstandLabel(doc.Database,annotations.DotLabel,annotations,"0",
+                                            EnsureUpstandTextStyle(doc.Database,optional)));
                                     TryAppendAnnotation(doc.Database,DimensionLayer,70,"宽度尺寸",failures,
-                                        optional => new List<Entity> { UpstandDimension(doc.Database,annotations.WidthA,
-                                            annotations.WidthB,annotations.WidthLine,annotations.Elevation,"0",
-                                            textStyleId,EnsureUpstandDimensionStyle(doc.Database,optional,textStyleId)) });
+                                        optional => BuildCommittedUpstandDimension(doc.Database,optional,
+                                            annotations.WidthA,annotations.WidthB,annotations.WidthLine,annotations.Elevation));
                                     TryAppendAnnotation(doc.Database,DimensionLayer,70,"高度尺寸",failures,
-                                        optional => new List<Entity> { UpstandDimension(doc.Database,annotations.HeightA,
-                                            annotations.HeightB,annotations.HeightLine,annotations.Elevation,"0",
-                                            textStyleId,EnsureUpstandDimensionStyle(doc.Database,optional,textStyleId)) });
+                                        optional => BuildCommittedUpstandDimension(doc.Database,optional,
+                                            annotations.HeightA,annotations.HeightB,annotations.HeightLine,annotations.Elevation));
                                 }
                                 else failures.Add("全部自动标注（预览布局失败）");
                                 WriteLast(doc.Database, tr, values);
@@ -296,15 +302,38 @@ namespace WallDetailTool
             catch { dot.Dispose(); throw; }
         }
 
-        private static ObjectId RequiredUpstandTextStyle(Database db)
+        private static ObjectId UpstandTextStyle(Database db)
         {
             using (Transaction tr=db.TransactionManager.StartTransaction())
             {
                 TextStyleTable styles=(TextStyleTable)tr.GetObject(db.TextStyleTableId,OpenMode.ForRead);
-                if (!styles.Has(AnnotationTextStyle))
-                    throw new InvalidOperationException("当前图纸缺少 TSSD 文字样式，请使用含该样式的图纸模板。");
-                return styles[AnnotationTextStyle];
+                return styles.Has(AnnotationTextStyle) ? styles[AnnotationTextStyle] : ObjectId.Null;
             }
+        }
+
+        private static ObjectId EnsureUpstandTextStyle(Database db,Transaction tr)
+        {
+            TextStyleTable styles=(TextStyleTable)tr.GetObject(db.TextStyleTableId,OpenMode.ForRead);
+            if (styles.Has(AnnotationTextStyle)) return styles[AnnotationTextStyle];
+            var style=new TextStyleTableRecord
+            {
+                Name=AnnotationTextStyle,
+                FileName="Tssdeng.shx",
+                BigFontFileName="Tssdchn.shx",
+                TextSize=0,
+                XScale=0.75,
+                ObliquingAngle=0,
+                IsVertical=false,
+                IsShapeFile=false
+            };
+            try
+            {
+                styles.UpgradeOpen();
+                ObjectId id=styles.Add(style);
+                tr.AddNewlyCreatedDBObject(style,true);
+                return id;
+            }
+            catch { style.Dispose(); throw; }
         }
 
         private static ObjectId UpstandDimensionStyle(Database db)
@@ -370,7 +399,7 @@ namespace WallDetailTool
                 var text=new MText();
                 entities.Add(text);
                 text.SetDatabaseDefaults(db);
-                text.Layer=layer; text.ColorIndex=7;
+                text.Layer=layer; text.ColorIndex=256;
                 text.Contents=label.Text.Replace("φ","%%c");
                 text.TextStyleId=textStyleId;
                 text.TextHeight=layout.TextHeight;
@@ -433,6 +462,14 @@ namespace WallDetailTool
             dimension.Dimtad=1;
             dimension.Dimgap=1;
             return dimension;
+        }
+
+        private static List<Entity> BuildCommittedUpstandDimension(Database db,Transaction tr,
+            AnnotationPoint a,AnnotationPoint b,AnnotationPoint line,double elevation)
+        {
+            ObjectId textStyleId=EnsureUpstandTextStyle(db,tr);
+            ObjectId dimStyleId=EnsureUpstandDimensionStyle(db,tr,textStyleId);
+            return new List<Entity> { UpstandDimension(db,a,b,line,elevation,"0",textStyleId,dimStyleId) };
         }
 
         private static void AddAnnotationPreview(List<Entity> preview,Database db,UpstandAnnotationLayout layout,
@@ -710,7 +747,7 @@ namespace WallDetailTool
             {
                 foreach (Entity e in entities)
                 {
-                    e.ColorIndex=annotation ? (e is MText ? 7 : e is RotatedDimension ? 70 : 71) : 1;
+                    e.ColorIndex=annotation ? (e is RotatedDimension ? 70 : 71) : 1;
                     Check(TransientManager.CurrentTransientManager.AddTransient(e,TransientDrawingMode.DirectShortTerm,128,PreviewViewports),
                         "无法显示完整预览。");
                     displayed++;
