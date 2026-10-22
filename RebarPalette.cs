@@ -702,7 +702,7 @@ namespace WallDetailTool
     public partial class Commands
     {
         [CommandMethod("WDTPANEL", CommandFlags.Session)]
-        public void ShowRebarPalette() { RebarPalette.Open(); }
+        public void ShowRebarPalette() { ShowUpstandDrawForm(); }
 
         [CommandMethod("WDTSELECT", CommandFlags.Modal)]
         public void SelectRebarPreview() { RebarPalette.SelectAndPreview(); }

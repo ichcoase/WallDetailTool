@@ -1,5 +1,11 @@
 # 分阶段开发计划
 
+## 2026-10-22 反坎绘制独立弹窗调整
+
+工具条“反坎绘制”和旧 `WDTPANEL` 现均打开独立常用参数对话框，确定后排入同一个 `DrawUpstandCore`；取消不启动选轮廓或写入 DWG。高级设置仍用独立设置对话框。新增窗口及命令见 `UpstandToolbar.cs`，没有重写钢筋、标注几何。AutoCAD 2023/2024 弹窗与生成操作仍须实际界面验证。
+
+Release/x64/.NET Framework 4.8 编译通过，DLL：`D:\Waste\WallDtailTool\bin\V01DrawDialogFinal\WallDetailTool.dll`；SHA-256：`2B8C04522B5C9F82AB8FBD0DC033DA3CE517D92C042FBC474BF65AB3ED95FAB4`。阶段 1–3 纯计算回归输出 PASS；CAD 2023/2024、图形界面与用户验收待验证。
+
 ## 2026-10-22 V0.1 入口与无预览生成调整
 
 源码：`UpstandToolbar.cs` 增加双按钮 AutoCAD 内工具条及独立高级设置对话框；`UpstandPanel.cs` 只显示常用参数；`UpstandDetail.cs` 在选轮廓与参数校验后直接按原事务生成普通块，移除该命令的 transient 预览代码。旧命令及其他模块的预览行为保留。设置的取消不写文件，图纸确认值仍只在生成成功后提交。新增图层名设置仅影响以后生成的图元，不改已有图层属性和用户当前图层。

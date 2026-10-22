@@ -48,11 +48,65 @@ namespace WallDetailTool
                 toolbar=new PaletteSet("WallDetailTool 工具条",new Guid("7EA33DAD-166B-4058-B37D-56120EE25037"));
                 toolbar.Size=new Size(290,95);
                 var strip=new ToolStrip { Dock=DockStyle.Fill,GripStyle=ToolStripGripStyle.Hidden };
-                strip.Items.Add(new ToolStripButton("反坎绘制",null,(s,e)=>RebarPalette.Queue("WDTPANEL")));
+                strip.Items.Add(new ToolStripButton("反坎绘制",null,(s,e)=>RebarPalette.Queue("WDTUPFORM")));
                 strip.Items.Add(new ToolStripButton("高级设置",null,(s,e)=>RebarPalette.Queue("WDTUPSETTINGS")));
                 toolbar.Add("工具",strip);
             }
             toolbar.Visible=true;
+        }
+    }
+
+    internal sealed class UpstandDrawForm : Form
+    {
+        private readonly TextBox[] fields=new TextBox[7];
+        private readonly UpstandPanelValues initial;
+        internal UpstandPanelValues Values { get; private set; }
+        internal UpstandDrawForm(UpstandPanelValues current)
+        {
+            initial=current;
+            Text="WallDetailTool 反坎绘制"; Width=430; Height=400;
+            FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
+            StartPosition=FormStartPosition.CenterParent;
+            var grid=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=7,Height=300,Padding=new Padding(14) };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,57));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,43));
+            string[] names={"保护层 (mm)","线筋实际直径 (mm)","线筋间距 (mm)",
+                "点筋实际直径 (mm)","点筋间距 (mm)","左侧锚固长度 (mm)",
+                "右侧锚固长度 (mm，留空同左侧)"};
+            double[] values={current.Cover,current.LineDiameter,current.LineSpacing,current.DotDiameter,
+                current.DotSpacing,current.LeftAnchor,current.RightAnchor};
+            for (int i=0;i<fields.Length;i++)
+            {
+                grid.Controls.Add(new Label { Text=names[i],AutoSize=true,Anchor=AnchorStyles.Left },0,i);
+                fields[i]=new TextBox { Dock=DockStyle.Fill,Text=values[i]>0 ?
+                    values[i].ToString("g",CultureInfo.CurrentCulture) : "" };
+                grid.Controls.Add(fields[i],1,i);
+            }
+            var buttons=new FlowLayoutPanel { Dock=DockStyle.Bottom,FlowDirection=FlowDirection.RightToLeft,Height=43 };
+            var cancel=new Button { Text="取消",Width=90,DialogResult=DialogResult.Cancel };
+            var ok=new Button { Text="确定",Width=90 };
+            ok.Click+=(s,e)=>AcceptValues(); buttons.Controls.Add(cancel); buttons.Controls.Add(ok);
+            CancelButton=cancel; Controls.Add(grid); Controls.Add(buttons);
+        }
+        private void AcceptValues()
+        {
+            try
+            {
+                var parsed=new double[7];
+                for(int i=0;i<parsed.Length;i++)
+                {
+                    if (i==6 && String.IsNullOrWhiteSpace(fields[i].Text)) { parsed[i]=parsed[5]; continue; }
+                    if (!double.TryParse(fields[i].Text,NumberStyles.Float,CultureInfo.CurrentCulture,out parsed[i]) ||
+                        double.IsNaN(parsed[i]) || double.IsInfinity(parsed[i]) || parsed[i]<(i==0?0:1e-12))
+                        throw new InvalidOperationException("请填写有效毫米参数；锚固长度须手动确认。");
+                }
+                Values=new UpstandPanelValues { Cover=parsed[0],LineDiameter=parsed[1],LineSpacing=parsed[2],
+                    DotDiameter=parsed[3],DotSpacing=parsed[4],LeftAnchor=parsed[5],RightAnchor=parsed[6],
+                    LineDisplayWidth=initial.LineDisplayWidth,DotDisplayDiameter=initial.DotDisplayDiameter,
+                    Radius=initial.Radius,TextHeight=initial.TextHeight };
+                DialogResult=DialogResult.OK; Close();
+            }
+            catch (System.Exception ex) { MessageBox.Show(this,ex.Message,"参数无效",MessageBoxButtons.OK,MessageBoxIcon.Warning); }
         }
     }
 
@@ -125,6 +179,34 @@ namespace WallDetailTool
 
     public partial class Commands
     {
+        private static UpstandPanelValues pendingDrawValues;
+        private static Document pendingDrawDocument;
+
+        [CommandMethod("WDTUPFORM",CommandFlags.Session)]
+        public void ShowUpstandDrawForm()
+        {
+            Document doc=CadApplication.DocumentManager.MdiActiveDocument;
+            if (doc==null) return;
+            pendingDrawValues=null; pendingDrawDocument=null;
+            using (var dialog=new UpstandDrawForm(PanelValues(doc.Database)))
+                if (CadApplication.ShowModalDialog(dialog)==DialogResult.OK)
+                {
+                    pendingDrawValues=dialog.Values; pendingDrawDocument=doc;
+                    doc.SendStringToExecute("WDTUPFORMDRAW ",true,false,false);
+                }
+        }
+
+        [CommandMethod("WDTUPFORMDRAW",CommandFlags.Modal)]
+        public void DrawUpstandFromForm()
+        {
+            Document doc=CadApplication.DocumentManager.MdiActiveDocument;
+            UpstandPanelValues values=pendingDrawValues;
+            Document target=pendingDrawDocument;
+            pendingDrawValues=null; pendingDrawDocument=null;
+            if (values==null || !ReferenceEquals(doc,target)) return;
+            DrawUpstandCore(values);
+        }
+
         [CommandMethod("WDTTOOLBAR",CommandFlags.Session)]
         public void ShowUpstandToolbar() { UpstandToolbar.Open(); }
 
