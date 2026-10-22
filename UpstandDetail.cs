@@ -7,8 +7,6 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using CadApplication = Autodesk.AutoCAD.ApplicationServices.Application;
-using TransientManager = Autodesk.AutoCAD.GraphicsInterface.TransientManager;
-using TransientDrawingMode = Autodesk.AutoCAD.GraphicsInterface.TransientDrawingMode;
 
 namespace WallDetailTool
 {
@@ -16,10 +14,10 @@ namespace WallDetailTool
     public partial class Commands
     {
         private const string ConcreteLayer = "WDT-CONCRETE";
-        private const string LineLayer = "WDT-REBAR-LINE";
-        private const string DotLayer = "WDT-REBAR-DOT";
-        private const string LabelLayer = "S-TEXT";
-        private const string DimensionLayer = "s-floor_de_dim";
+        private static string LineLayer { get { return UpstandLayers.Read().Line; } }
+        private static string DotLayer { get { return UpstandLayers.Read().Dot; } }
+        private static string LabelLayer { get { return UpstandLayers.Read().Text; } }
+        private static string DimensionLayer { get { return UpstandLayers.Read().Dimension; } }
         private const string AnnotationTextStyle = "TSSD";
         private const string AnnotationDimensionStyle = "TSSD_25";
         private const double AnnotationTextHeight = 62.5;
@@ -28,7 +26,6 @@ namespace WallDetailTool
         private const string ParamRecord = "WDT_UPSTAND_LAST";
         private const string BlockParamRecord = "WDT_UPSTAND_PARAMS";
         private const double Epsilon = 1e-6;
-        private static readonly IntegerCollection PreviewViewports = new IntegerCollection();
 
         private sealed class Rect
         {
@@ -160,68 +157,34 @@ namespace WallDetailTool
                 UpstandGeometry geometry=SelectUpstandGeometry(doc);
                 if (geometry==null) return;
                 DetailParams values = panelValues == null ? ReadLast(doc.Database) : FromPanel(panelValues);
-                while (true)
                 {
                     if (panelValues == null && !ReadParameters(ed, values)) return;
                     UpstandRebarParameters p=RebarParameters(values);
                     ed.WriteMessage("\n线筋显示宽度="+p.LineDisplayWidth.ToString("g")+" mm；点筋显示直径="+
                         p.DotDisplayDiameter.ToString("g")+" mm。固定 1 CAD 单位 = 1 mm。");
                     UpstandRebarLayout layout=UpstandRebarGeometry.Calculate(geometry,p);
-                    List<Entity> preview = BuildUpstandRebars(layout,"0","0");
-                    var annotationPreview=new List<Entity>();
                     UpstandAnnotationLayout annotations=null;
-                    ObjectId textStyleId=ObjectId.Null;
                     ObjectId dimStyleId=ObjectId.Null;
                     var annotationWarnings=new List<string>();
-                    try
-                    {
                         try
                         {
-                            textStyleId=UpstandTextStyle(doc.Database);
-                            if (textStyleId.IsNull)
-                            {
-                                textStyleId=doc.Database.Textstyle;
-                                annotationWarnings.Add("当前图纸缺少 TSSD 文字样式；预览暂用当前样式，确认生成时按指定 SHX 设置创建 TSSD。");
-                            }
                             dimStyleId=UpstandDimensionStyle(doc.Database);
                             if (dimStyleId.IsNull)
-                                annotationWarnings.Add("当前图纸缺少 TSSD_25 尺寸样式；确认生成时将按指定设置创建。");
+                                annotationWarnings.Add("当前图纸缺少 TSSD_25 尺寸样式；生成时将按指定设置创建。");
                             using (ViewTableRecord view=ed.GetCurrentView())
                             {
                                 double left=view.CenterPoint.X-view.Width/2;
                                 annotations=UpstandAnnotationGeometry.Calculate(geometry,layout,p,
                                     values.TextHeight,left,left+view.Width);
                             }
-                            AddAnnotationPreview(annotationPreview,doc.Database,annotations,textStyleId,dimStyleId);
                             annotationWarnings.AddRange(annotations.Warnings);
                         }
                         catch (System.Exception ex)
                         {
                             annotations=null;
-                            ed.WriteMessage("\n标注预览不可用，仍可生成有效钢筋："+ex.Message);
-                        }
-                        ShowPreview(preview);
-                        if (annotations!=null)
-                        {
-                            try { ShowPreview(annotationPreview,true); }
-                            catch (System.Exception ex)
-                            {
-                                annotations=null;
-                                annotationWarnings.Add("标注预览失败，本次仅生成钢筋："+ex.Message);
-                                HidePreview(annotationPreview);
-                            }
+                            ed.WriteMessage("\n标注布局不可用，仍可生成有效钢筋："+ex.Message);
                         }
                         foreach (string warning in annotationWarnings) ed.WriteMessage("\n"+warning);
-                        var choice = new PromptKeywordOptions("\n检查红色钢筋及标注预览 [确认(C)/修改(M)/取消(X)] <修改>: ");
-                        choice.Keywords.Add("C"); choice.Keywords.Add("M"); choice.Keywords.Add("X");
-                        choice.Keywords.Default = "M";
-                        PromptResult result = ed.GetKeywords(choice);
-                        if (result.Status != PromptStatus.OK || result.StringResult == "X") return;
-                        if (result.StringResult == "M")
-                        {
-                            if (panelValues!=null) { panelValues=RebarPalette.ReadUpstandPanel(); values=FromPanel(panelValues); }
-                            continue;
-                        }
                         var failures=new List<string>();
                         ed.Command("_.UNDO","_Begin");
                         try
@@ -260,7 +223,7 @@ namespace WallDetailTool
                                         optional => BuildCommittedUpstandDimension(doc.Database,optional,
                                             annotations.HeightA,annotations.HeightB,annotations.HeightLine,annotations.Elevation));
                                 }
-                                else failures.Add("全部自动标注（预览布局失败）");
+                                else failures.Add("全部自动标注（布局失败）");
                                 BlockTableRecord space=(BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId,OpenMode.ForWrite);
                                 var reference=new BlockReference(new Point3d(geometry.BaseX,geometry.BaseY,geometry.Elevation),definitionId)
                                     { Rotation=0, Layer=((LayerTableRecord)tr.GetObject(doc.Database.Clayer,OpenMode.ForRead)).Name };
@@ -277,14 +240,6 @@ namespace WallDetailTool
                         foreach (string warning in annotationWarnings) ed.WriteMessage("\n"+warning);
                         foreach (string failure in failures) ed.WriteMessage("\n未完成："+failure);
                         return;
-                    }
-                    finally
-                    {
-                        HidePreview(annotationPreview);
-                        HidePreview(preview);
-                        foreach (Entity entity in annotationPreview) entity.Dispose();
-                        foreach (Entity entity in preview) entity.Dispose();
-                    }
                 }
             }
             catch (System.Exception ex) { ed.WriteMessage("\n未生成钢筋：" + ex.Message); }
@@ -546,24 +501,6 @@ namespace WallDetailTool
             return new List<Entity> { UpstandDimension(db,a,b,line,elevation,"0",textStyleId,dimStyleId) };
         }
 
-        private static void AddAnnotationPreview(List<Entity> preview,Database db,UpstandAnnotationLayout layout,
-            ObjectId textStyleId,ObjectId dimStyleId)
-        {
-            var added=new List<Entity>();
-            try
-            {
-                added.AddRange(BuildUpstandLabel(db,layout.LineLabel,layout,"0",textStyleId));
-                added.AddRange(BuildUpstandLabel(db,layout.DotLabel,layout,"0",textStyleId));
-                ObjectId previewStyle=dimStyleId.IsNull ? db.Dimstyle : dimStyleId;
-                added.Add(UpstandDimension(db,layout.WidthA,layout.WidthB,layout.WidthLine,layout.Elevation,"0",
-                    textStyleId,previewStyle));
-                added.Add(UpstandDimension(db,layout.HeightA,layout.HeightB,layout.HeightLine,layout.Elevation,"0",
-                    textStyleId,previewStyle));
-                preview.AddRange(added);
-            }
-            catch { foreach (Entity entity in added) entity.Dispose(); throw; }
-        }
-
         private static void TryAppendAnnotation(Database db,ObjectId definitionId,Matrix3d local,string layer,short color,string name,
             List<string> failures,Func<Transaction,List<Entity>> build)
         {
@@ -814,31 +751,6 @@ namespace WallDetailTool
             double angle=Math.Abs(a.Y-b.Y) > Math.Abs(a.X-b.X) ? Math.PI/2 : 0;
             var d=new RotatedDimension(angle,a,b,line,"",db.Dimstyle);
             d.SetDatabaseDefaults(db); d.Layer=layer; return d;
-        }
-        private static void ShowPreview(List<Entity> entities,bool annotation=false)
-        {
-            int displayed=0;
-            try
-            {
-                foreach (Entity e in entities)
-                {
-                    e.ColorIndex=annotation ? (e is RotatedDimension ? 70 : 71) : 1;
-                    Check(TransientManager.CurrentTransientManager.AddTransient(e,TransientDrawingMode.DirectShortTerm,128,PreviewViewports),
-                        "无法显示完整预览。");
-                    displayed++;
-                }
-            }
-            catch
-            {
-                for (int i=0;i<displayed;i++) TransientManager.CurrentTransientManager.EraseTransient(entities[i],PreviewViewports);
-                throw;
-            }
-        }
-        private static void HidePreview(List<Entity> entities)
-        {
-            foreach (Entity e in entities)
-                try { TransientManager.CurrentTransientManager.EraseTransient(e,PreviewViewports); }
-                catch (Autodesk.AutoCAD.Runtime.Exception) { }
         }
         private static void Append(BlockTableRecord space,Transaction tr,Entity entity)
         {

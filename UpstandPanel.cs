@@ -63,22 +63,21 @@ namespace WallDetailTool
                 WrapContents=false,AutoScroll=true,Padding=new Padding(12) };
             all.Controls.Add(new Label { Text="梁上反坎 · 1 CAD 单位 = 1 mm",AutoSize=true });
             for (int i=0;i<7;i++) AddField(all,i);
-            var advanced=new FlowLayoutPanel { FlowDirection=FlowDirection.TopDown,WrapContents=false,AutoSize=true,Visible=false };
-            for (int i=7;i<fields.Length;i++) AddField(advanced,i);
-            var toggle=new Button { Text="展开高级设置",Width=240 };
-            toggle.Click+=(s,e)=>{ advanced.Visible=!advanced.Visible; toggle.Text=advanced.Visible?"收起高级设置":"展开高级设置"; };
-            all.Controls.Add(toggle); all.Controls.Add(advanced);
+            for (int i=7;i<fields.Length;i++) fields[i]=new TextBox();
             var generate=new Button { Text="按这些参数选择轮廓并生成",Width=245,Height=34 };
             generate.Click+=(s,e)=>{ try { ReadValues(); RebarPalette.Queue("WDTUPPANELDRAW"); }
                 catch (System.Exception ex) { status.Text=ex.Message; } };
             all.Controls.Add(generate);
-            var save=new Button { Text="保存为当前用户默认参数",Width=245 };
-            save.Click+=(s,e)=>{ try { ReadValues().SaveUserDefaults(); status.Text="用户默认参数已保存；当前图纸的上次确认参数只在确认生成后更新。"; }
+            var save=new Button { Text="保存常用参数为用户默认",Width=245 };
+            save.Click+=(s,e)=>{ try { var current=ReadValues(); var stored=UpstandPanelValues.ReadUserDefaults();
+                CopyCommon(current,stored); stored.SaveUserDefaults();
+                status.Text="常用参数已保存；当前图纸的上次确认参数只在生成后更新。"; }
                 catch (System.Exception ex) { status.Text="保存失败："+ex.Message; } };
             all.Controls.Add(save);
-            var reset=new Button { Text="恢复出厂默认值",Width=245 };
-            reset.Click+=(s,e)=>{ try { var defaults=new UpstandPanelValues(); defaults.SaveUserDefaults();
-                SetValues(defaults); status.Text="已恢复并保存初始值；锚固长度仍须手动输入。"; }
+            var reset=new Button { Text="恢复常用参数默认值",Width=245 };
+            reset.Click+=(s,e)=>{ try { var defaults=new UpstandPanelValues(); var stored=UpstandPanelValues.ReadUserDefaults();
+                CopyCommon(defaults,stored); stored.SaveUserDefaults(); SetValues(stored);
+                status.Text="常用参数已恢复默认值；锚固长度仍须手动输入。"; }
                 catch (System.Exception ex) { status.Text="恢复默认值失败："+ex.Message; } };
             all.Controls.Add(reset); all.Controls.Add(status); Controls.Add(all);
             SetValues(UpstandPanelValues.ReadUserDefaults());
@@ -90,11 +89,25 @@ namespace WallDetailTool
             parent.Controls.Add(fields[i]);
         }
         private static string Display(double value) { return value<=0 ? "" : value.ToString("g",CultureInfo.CurrentCulture); }
+        private static void CopyCommon(UpstandPanelValues source,UpstandPanelValues target)
+        {
+            target.Cover=source.Cover; target.LineDiameter=source.LineDiameter;
+            target.LineSpacing=source.LineSpacing; target.DotDiameter=source.DotDiameter;
+            target.DotSpacing=source.DotSpacing; target.LeftAnchor=source.LeftAnchor;
+            target.RightAnchor=source.RightAnchor;
+        }
         internal void SetValues(UpstandPanelValues v)
         {
             double[] a={v.Cover,v.LineDiameter,v.LineSpacing,v.DotDiameter,v.DotSpacing,v.LeftAnchor,
                 v.RightAnchor,v.LineDisplayWidth,v.DotDisplayDiameter,v.Radius,v.TextHeight};
             for (int i=0;i<a.Length;i++) fields[i].Text=i==0 ? a[i].ToString("g",CultureInfo.CurrentCulture) : Display(a[i]);
+        }
+        internal void UpdateAdvanced(UpstandPanelValues v)
+        {
+            fields[7].Text=Display(v.LineDisplayWidth);
+            fields[8].Text=Display(v.DotDisplayDiameter);
+            fields[9].Text=Display(v.Radius);
+            fields[10].Text=Display(v.TextHeight);
         }
         internal UpstandPanelValues ReadValues()
         {

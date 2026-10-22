@@ -86,6 +86,10 @@ namespace WallDetailTool
             if (upstandPanel==null) throw new InvalidOperationException("请先运行 WDTPANEL 打开反坎参数面板。");
             return upstandPanel.ReadValues();
         }
+        internal static void UpdateUpstandAdvanced(UpstandPanelValues values)
+        {
+            if (upstandPanel!=null) upstandPanel.UpdateAdvanced(values);
+        }
 
         internal static void Queue(string command)
         {
