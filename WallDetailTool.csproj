@@ -41,6 +41,7 @@
     <Compile Include="RebarAnnotations.cs" />
     <Compile Include="PluginSettings.cs" />
     <Compile Include="UpstandDetail.cs" />
+    <Compile Include="UpstandPanel.cs" />
     <Compile Include="UpstandGeometry.cs" />
     <Compile Include="UpstandRebarGeometry.cs" />
     <Compile Include="UpstandAnnotationGeometry.cs" />

@@ -1,5 +1,15 @@
 # 分阶段开发计划
 
+## 2026-10-22 V0.1 阶段 4 执行记录
+
+用户反馈阶段 3 标注的样式、图层和字高已人工调整到复核预期。此项记为用户对既有图纸外观的反馈，不记为本次阶段 4 CAD 验收。阶段 4 复用原有钢筋、标注布局与 DBText 生成，不改已验收外观规则。
+
+本轮源码增加：`WDTUPDRAW` 的单批普通块定义/参照与块参照参数 Xrecord；`WDTPANEL` 的梁上反坎常用参数和默认折叠高级设置；面板入口复用生成核心；DWG 级上次确认参数扩展记录显示宽度与文字高度。确认后数据在事务内提交，取消不写 DWG。图纸中已有目标图层与样式复用，不改变属性。新标准测试副本和逐项清单见 `tests/STAGE4_CHECKLIST.md`。
+
+已验证：Release/x64/.NET Framework 4.8 使用 2023 托管程序集编译成功；阶段 1、2、3 纯计算测试均输出 PASS。尝试 AutoCAD 2023 Core Console，启动后在设置当前 profile 时失败（exit code 1），未执行 `NETLOAD` 和插件命令；未调整全局信任/安全设置。**待验证**：AutoCAD 2023/2024 的阶段 4 命令运行、图形界面、BEDIT/COPY/MOVE/ERASE/EXPLODE、文字视觉、UNDO/REDO、保存重开、用户阶段 4 验收。AutoCAD 2024 Core Console 本机未找到。阶段 5 仍须综合测试，不能把本阶段代码和编译写成整个 V0.1 完成。
+
+交付 DLL：`D:\Waste\WallDtailTool\bin\V01BlockStage4Final\WallDetailTool.dll`，SHA-256 `A08E1EF088CA1D47147CFBAC1606FA886499CF948335039D01D963E6C9635FDE`。标准图 `tests\WallDetailTool_V01_Stage4_BlockPanel.dwg` 是阶段 3 图纸的副本，SHA-256 `A3382D88FB71EC217E1F8E205180028FEE5B0B59BEEDC33ED6D8B767810EA655`，仅本机交付，不提交到 Git。源码提交标识以本轮实际提交为准。
+
 ## 2026-10-22 阶段 3 钢筋文字改为 DBText
 
 按用户最新要求，`WDTUPDRAW` 的两条钢筋规格文字由 MTEXT 改为单行 DBText，保留 TSSD、字高 62.5、`%%132`、ByLayer 及引线方向。尺寸仍为 RotatedDimension。单行文字的实际边界用于限制引线终点；边界不可用时停在锚点。AutoCAD 图形界面中的单行文字属性、引线长度与保存重开仍待验证。

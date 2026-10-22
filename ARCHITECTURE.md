@@ -1,5 +1,13 @@
 # WallDetailTool 架构
 
+## V0.1 阶段 4 增量架构（2026-10-22）
+
+现有 `WDTUPDRAW` 复用阶段 1 的 `UpstandGeometry`、阶段 2 的 `UpstandRebarLayout` 和阶段 3 的 `UpstandAnnotationLayout`。预览继续使用不驻留的临时实体。确认时创建唯一普通 `BlockTableRecord`，把已计算的世界坐标实体整体平移到以反坎左下角为原点的块局部坐标，插入位于该点、旋转 0° 的 `BlockReference`。关键钢筋在父事务内，标注逐项在嵌套事务内；成功的图元进入同一块。参照扩展字典 `WDT_UPSTAND_PARAMS` 保存该批参数和几何快照，图纸 NOD `WDT_UPSTAND_LAST` 保存该 DWG 上次确认值。COPY 同一参照按普通块语义共享定义；源混凝土轮廓仍无持续关联。
+
+现有 `PaletteSet` 增加梁上反坎页，常用参数展开，高级设置折叠；面板命令调用同一生成核心。新图的用户默认值从当前 Windows 用户设置读取，已确认的图纸优先读取 `WDT_UPSTAND_LAST`。统一显示宽度和点筋显示直径仍是用户级设置，确认批次使用值也写入 DWG 与参照记录。用户明确保存/恢复默认时才改用户级文件；取消生成不改图纸确认值。当前钢筋文字实体为 DBText，以用户人工复核的阶段 3 实际显示为准；需求书原先的 MTEXT 记载不代表当前界面。
+
+编译只能验证 API 静态绑定；块定义、嵌套事务、UNDO 和重开后的行为必须在 AutoCAD 验证，详见 `tests/STAGE4_CHECKLIST.md`。
+
 ## 2026-10-22 钢筋规格单行文字适配
 
 `BuildUpstandLabel` 生成 DBText，向右引线时左对齐、向左时右对齐，基线位于水平引线上方；预览与正式生成复用该构造。引线终点读取 DBText 几何边界，若未入库实体无法提供边界，则止于文字锚点以避免超出文字。宽高 RotatedDimension 仍独立创建。下文历史 MTEXT/ActualWidth 的适配描述已由本节取代。

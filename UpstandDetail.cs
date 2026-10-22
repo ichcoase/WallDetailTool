@@ -12,7 +12,7 @@ using TransientDrawingMode = Autodesk.AutoCAD.GraphicsInterface.TransientDrawing
 
 namespace WallDetailTool
 {
-    // V0.1 stages 1–3 share read-only contour selection and separate geometry calculations.
+    // V0.1 stages 1–4 share read-only contour selection and separate geometry calculations.
     public partial class Commands
     {
         private const string ConcreteLayer = "WDT-CONCRETE";
@@ -26,6 +26,7 @@ namespace WallDetailTool
         private const double AnnotationDimensionScale = 25;
         private const double AnnotationDimensionTextHeight = AnnotationTextHeight / AnnotationDimensionScale;
         private const string ParamRecord = "WDT_UPSTAND_LAST";
+        private const string BlockParamRecord = "WDT_UPSTAND_PARAMS";
         private const double Epsilon = 1e-6;
         private static readonly IntegerCollection PreviewViewports = new IntegerCollection();
 
@@ -43,6 +44,9 @@ namespace WallDetailTool
             internal double DotDiameter = 6, DotSpacing = 200;
             internal double LeftAnchor, RightAnchor;
             internal double Radius = 20;
+            internal double TextHeight = AnnotationTextHeight;
+            internal double LineDisplayWidth = PluginSettings.ReadLineWidthMillimetres();
+            internal double DotDisplayDiameter = PluginSettings.ReadDotDiameterMillimetres();
         }
 
         private static bool Near(double a, double b) { return Math.Abs(a-b) <= Epsilon; }
@@ -144,7 +148,9 @@ namespace WallDetailTool
         }
 
         [CommandMethod("WDTUPDRAW", CommandFlags.Modal)]
-        public void DrawUpstand()
+        public void DrawUpstand() { DrawUpstandCore(null); }
+
+        internal static void DrawUpstandCore(UpstandPanelValues panelValues)
         {
             Document doc = CadApplication.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
@@ -153,10 +159,10 @@ namespace WallDetailTool
             {
                 UpstandGeometry geometry=SelectUpstandGeometry(doc);
                 if (geometry==null) return;
-                DetailParams values = ReadLast(doc.Database);
+                DetailParams values = panelValues == null ? ReadLast(doc.Database) : FromPanel(panelValues);
                 while (true)
                 {
-                    if (!ReadParameters(ed, values)) return;
+                    if (panelValues == null && !ReadParameters(ed, values)) return;
                     UpstandRebarParameters p=RebarParameters(values);
                     ed.WriteMessage("\n线筋显示宽度="+p.LineDisplayWidth.ToString("g")+" mm；点筋显示直径="+
                         p.DotDisplayDiameter.ToString("g")+" mm。固定 1 CAD 单位 = 1 mm。");
@@ -184,7 +190,7 @@ namespace WallDetailTool
                             {
                                 double left=view.CenterPoint.X-view.Width/2;
                                 annotations=UpstandAnnotationGeometry.Calculate(geometry,layout,p,
-                                    AnnotationTextHeight,left,left+view.Width);
+                                    values.TextHeight,left,left+view.Width);
                             }
                             AddAnnotationPreview(annotationPreview,doc.Database,annotations,textStyleId,dimStyleId);
                             annotationWarnings.AddRange(annotations.Warnings);
@@ -211,8 +217,15 @@ namespace WallDetailTool
                         choice.Keywords.Default = "M";
                         PromptResult result = ed.GetKeywords(choice);
                         if (result.Status != PromptStatus.OK || result.StringResult == "X") return;
-                        if (result.StringResult == "M") continue;
+                        if (result.StringResult == "M")
+                        {
+                            if (panelValues!=null) { panelValues=RebarPalette.ReadUpstandPanel(); values=FromPanel(panelValues); }
+                            continue;
+                        }
                         var failures=new List<string>();
+                        ed.Command("_.UNDO","_Begin");
+                        try
+                        {
                         if (annotations!=null && dimStyleId.IsNull)
                         {
                             try { PrepareArchitecturalTick(doc); }
@@ -222,34 +235,45 @@ namespace WallDetailTool
                         {
                             EnsureLayer(doc.Database, tr, LineLayer, 1);
                             EnsureLayer(doc.Database, tr, DotLayer, 2);
-                            BlockTableRecord space = (BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForWrite);
+                            BlockTable blocks=(BlockTable)tr.GetObject(doc.Database.BlockTableId,OpenMode.ForWrite);
+                            var definition=new BlockTableRecord { Name="WDT-UPSTAND-"+Guid.NewGuid().ToString("N") };
+                            ObjectId definitionId=blocks.Add(definition);
+                            tr.AddNewlyCreatedDBObject(definition,true);
+                            Matrix3d local=Matrix3d.Displacement(new Vector3d(-geometry.BaseX,-geometry.BaseY,-geometry.Elevation));
                             List<Entity> generated=BuildUpstandRebars(layout,LineLayer,DotLayer);
                             try
                             {
-                                foreach (Entity entity in generated) Append(space, tr, entity);
-                                space.DowngradeOpen();
+                                foreach (Entity entity in generated) { entity.TransformBy(local); Append(definition, tr, entity); }
+                                definition.DowngradeOpen();
                                 if (annotations!=null)
                                 {
-                                    TryAppendAnnotation(doc.Database,LabelLayer,71,"线筋标注",failures,
+                                    TryAppendAnnotation(doc.Database,definitionId,local,LabelLayer,71,"线筋标注",failures,
                                         optional => BuildUpstandLabel(doc.Database,annotations.LineLabel,annotations,"0",
                                             EnsureUpstandTextStyle(doc.Database,optional)));
-                                    TryAppendAnnotation(doc.Database,LabelLayer,71,"点筋标注",failures,
+                                    TryAppendAnnotation(doc.Database,definitionId,local,LabelLayer,71,"点筋标注",failures,
                                         optional => BuildUpstandLabel(doc.Database,annotations.DotLabel,annotations,"0",
                                             EnsureUpstandTextStyle(doc.Database,optional)));
-                                    TryAppendAnnotation(doc.Database,DimensionLayer,70,"宽度尺寸",failures,
+                                    TryAppendAnnotation(doc.Database,definitionId,local,DimensionLayer,70,"宽度尺寸",failures,
                                         optional => BuildCommittedUpstandDimension(doc.Database,optional,
                                             annotations.WidthA,annotations.WidthB,annotations.WidthLine,annotations.Elevation));
-                                    TryAppendAnnotation(doc.Database,DimensionLayer,70,"高度尺寸",failures,
+                                    TryAppendAnnotation(doc.Database,definitionId,local,DimensionLayer,70,"高度尺寸",failures,
                                         optional => BuildCommittedUpstandDimension(doc.Database,optional,
                                             annotations.HeightA,annotations.HeightB,annotations.HeightLine,annotations.Elevation));
                                 }
                                 else failures.Add("全部自动标注（预览布局失败）");
+                                BlockTableRecord space=(BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId,OpenMode.ForWrite);
+                                var reference=new BlockReference(new Point3d(geometry.BaseX,geometry.BaseY,geometry.Elevation),definitionId)
+                                    { Rotation=0, Layer=((LayerTableRecord)tr.GetObject(doc.Database.Clayer,OpenMode.ForRead)).Name };
+                                Append(space,tr,reference);
+                                WriteBlockParameters(tr,reference,values,p,geometry);
                                 WriteLast(doc.Database, tr, values);
                                 tr.Commit();
                             }
                             finally { foreach (Entity entity in generated) if (entity.ObjectId.IsNull) entity.Dispose(); }
                         }
-                        ed.WriteMessage("\n已生成线筋和点筋；自动标注结果随同一次确认提交，未建立普通块。锚固长度请审核实际构造。");
+                        }
+                        finally { ed.Command("_.UNDO","_End"); }
+                        ed.WriteMessage("\n已生成一个普通块，含有效钢筋及已成功的标注；锚固长度请审核实际构造。原混凝土轮廓未写入块。");
                         foreach (string warning in annotationWarnings) ed.WriteMessage("\n"+warning);
                         foreach (string failure in failures) ed.WriteMessage("\n未完成："+failure);
                         return;
@@ -271,8 +295,8 @@ namespace WallDetailTool
             return new UpstandRebarParameters { Cover=v.Cover,LineDiameter=v.LineDiameter,
                 LineSpacing=v.LineSpacing,DotDiameter=v.DotDiameter,DotSpacing=v.DotSpacing,
                 LeftAnchor=v.LeftAnchor,RightAnchor=v.RightAnchor,Radius=v.Radius,
-                LineDisplayWidth=PluginSettings.ReadLineWidthMillimetres(),
-                DotDisplayDiameter=PluginSettings.ReadDotDiameterMillimetres() };
+                LineDisplayWidth=v.LineDisplayWidth,
+                DotDisplayDiameter=v.DotDisplayDiameter };
         }
 
         private static List<Entity> BuildUpstandRebars(UpstandRebarLayout layout,string lineLayer,string dotLayer)
@@ -540,7 +564,7 @@ namespace WallDetailTool
             catch { foreach (Entity entity in added) entity.Dispose(); throw; }
         }
 
-        private static void TryAppendAnnotation(Database db,string layer,short color,string name,
+        private static void TryAppendAnnotation(Database db,ObjectId definitionId,Matrix3d local,string layer,short color,string name,
             List<string> failures,Func<Transaction,List<Entity>> build)
         {
             List<Entity> entities=null;
@@ -550,12 +574,13 @@ namespace WallDetailTool
                 // in the parent transaction. The command's final commit is still one UNDO step.
                 using (Transaction optional=db.TransactionManager.StartTransaction())
                 {
-                    EnsureLayer(db,optional,layer,color,true);
-                    BlockTableRecord space=(BlockTableRecord)optional.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);
+                    EnsureLayer(db,optional,layer,color);
+                    BlockTableRecord space=(BlockTableRecord)optional.GetObject(definitionId,OpenMode.ForWrite);
                     entities=build(optional);
                     foreach (Entity entity in entities)
                     {
                         entity.Layer=layer;
+                        entity.TransformBy(local);
                         Append(space,optional,entity);
                     }
                     optional.Commit();
@@ -836,24 +861,66 @@ namespace WallDetailTool
             var layer=new LayerTableRecord { Name=name, Color=Color.FromColorIndex(ColorMethod.ByAci,color) };
             table.Add(layer); tr.AddNewlyCreatedDBObject(layer,true);
         }
+        private static DetailParams FromPanel(UpstandPanelValues v)
+        {
+            return new DetailParams { Cover=v.Cover,LineDiameter=v.LineDiameter,LineSpacing=v.LineSpacing,
+                DotDiameter=v.DotDiameter,DotSpacing=v.DotSpacing,LeftAnchor=v.LeftAnchor,
+                RightAnchor=v.RightAnchor,Radius=v.Radius,TextHeight=v.TextHeight,
+                LineDisplayWidth=v.LineDisplayWidth,DotDisplayDiameter=v.DotDisplayDiameter };
+        }
+        internal static UpstandPanelValues PanelValues(Database db)
+        {
+            DetailParams p=ReadLast(db);
+            return new UpstandPanelValues { Cover=p.Cover,LineDiameter=p.LineDiameter,LineSpacing=p.LineSpacing,
+                DotDiameter=p.DotDiameter,DotSpacing=p.DotSpacing,LeftAnchor=p.LeftAnchor,
+                RightAnchor=p.RightAnchor,Radius=p.Radius,TextHeight=p.TextHeight,
+                LineDisplayWidth=p.LineDisplayWidth,DotDisplayDiameter=p.DotDisplayDiameter };
+        }
+        private static void WriteBlockParameters(Transaction tr,BlockReference reference,DetailParams v,
+            UpstandRebarParameters p,UpstandGeometry geometry)
+        {
+            reference.CreateExtensionDictionary();
+            DBDictionary data=(DBDictionary)tr.GetObject(reference.ExtensionDictionary,OpenMode.ForWrite);
+            var record=new Xrecord();
+            data.SetAt(BlockParamRecord,record);
+            tr.AddNewlyCreatedDBObject(record,true);
+            record.Data=new ResultBuffer(
+                new TypedValue((int)DxfCode.Int16,1),
+                new TypedValue((int)DxfCode.Real,v.Cover),new TypedValue((int)DxfCode.Real,v.LineDiameter),
+                new TypedValue((int)DxfCode.Real,v.LineSpacing),new TypedValue((int)DxfCode.Real,v.DotDiameter),
+                new TypedValue((int)DxfCode.Real,v.DotSpacing),new TypedValue((int)DxfCode.Real,v.LeftAnchor),
+                new TypedValue((int)DxfCode.Real,v.RightAnchor),new TypedValue((int)DxfCode.Real,v.Radius),
+                new TypedValue((int)DxfCode.Real,p.LineDisplayWidth),new TypedValue((int)DxfCode.Real,p.DotDisplayDiameter),
+                new TypedValue((int)DxfCode.Real,v.TextHeight),
+                new TypedValue((int)DxfCode.Real,geometry.Left),new TypedValue((int)DxfCode.Real,geometry.Right),
+                new TypedValue((int)DxfCode.Real,geometry.Top),new TypedValue((int)DxfCode.Real,geometry.BeamTop),
+                new TypedValue((int)DxfCode.Int16,(short)geometry.InputKind));
+        }
         private static DetailParams ReadLast(Database db)
         {
             var p=new DetailParams();
             using (Transaction tr=db.TransactionManager.StartTransaction())
             {
                 DBDictionary nod=(DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId,OpenMode.ForRead);
-                if (!nod.Contains(ParamRecord)) return p;
+                if (!nod.Contains(ParamRecord))
+                {
+                    UpstandPanelValues defaults=UpstandPanelValues.ReadUserDefaults();
+                    return FromPanel(defaults);
+                }
                 Xrecord record=tr.GetObject(nod.GetAt(ParamRecord),OpenMode.ForRead) as Xrecord;
                 if (record == null || record.Data == null) return p;
                 TypedValue[] v=record.Data.AsArray();
-                if (v.Length != 7 && v.Length != 8) return p;
+                if (v.Length != 7 && v.Length != 8 && v.Length != 9 && v.Length != 11) return p;
                 try
                 {
                     p.Cover=Convert.ToDouble(v[0].Value); p.LineDiameter=Convert.ToDouble(v[1].Value);
                     p.LineSpacing=Convert.ToDouble(v[2].Value); p.DotDiameter=Convert.ToDouble(v[3].Value);
                     p.DotSpacing=Convert.ToDouble(v[4].Value); p.LeftAnchor=Convert.ToDouble(v[5].Value);
                     p.RightAnchor=Convert.ToDouble(v[6].Value);
-                    if (v.Length==8) p.Radius=Convert.ToDouble(v[7].Value);
+                    if (v.Length>=8) p.Radius=Convert.ToDouble(v[7].Value);
+                    if (v.Length>=9) p.TextHeight=Convert.ToDouble(v[8].Value);
+                    if (v.Length==11) { p.LineDisplayWidth=Convert.ToDouble(v[9].Value);
+                        p.DotDisplayDiameter=Convert.ToDouble(v[10].Value); }
                 }
                 catch { return new DetailParams(); }
                 return p;
@@ -868,7 +935,10 @@ namespace WallDetailTool
             record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.Cover),new TypedValue((int)DxfCode.Real,p.LineDiameter),
                 new TypedValue((int)DxfCode.Real,p.LineSpacing),new TypedValue((int)DxfCode.Real,p.DotDiameter),
                 new TypedValue((int)DxfCode.Real,p.DotSpacing),new TypedValue((int)DxfCode.Real,p.LeftAnchor),
-                new TypedValue((int)DxfCode.Real,p.RightAnchor),new TypedValue((int)DxfCode.Real,p.Radius));
+                new TypedValue((int)DxfCode.Real,p.RightAnchor),new TypedValue((int)DxfCode.Real,p.Radius),
+                new TypedValue((int)DxfCode.Real,p.TextHeight),
+                new TypedValue((int)DxfCode.Real,p.LineDisplayWidth),
+                new TypedValue((int)DxfCode.Real,p.DotDisplayDiameter));
         }
     }
 }
