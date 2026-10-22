@@ -1,5 +1,10 @@
 # WallDetailTool 架构
 
+## 2026-10-22 自动创建尺寸样式的箭头
+
+`EnsureUpstandDimensionStyle` 仅在缺少 `TSSD_25` 时调用 `EnsureArchitecturalTick`，复用图纸已有 `_ARCHTICK` 块；若不存在，通过 AutoCAD 内置 `DIMBLK` 值临时选中 `_ARCHTICK` 使其建立，再立即恢复原 `DIMBLK`。新样式 `Dimblk` 指向该块，`Dimtsz=0`、`Dimsah=false`，两端采用同一种建筑标记。已有样式表记录不改；此创建流程的 CAD 实际行为仍需界面验证。
+
+
 ## 2026-10-22 尺寸样式创建与字高修正
 
 ### 后续用户修正：TSSD 文字样式与颜色

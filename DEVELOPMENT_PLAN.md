@@ -1,5 +1,12 @@
 # 分阶段开发计划
 
+## 2026-10-22 自动创建 TSSD_25 时使用建筑标记
+
+用户进一步确认仅修改自动创建尺寸样式的箭头：由普通斜杠改为 AutoCAD 内置 `_ARCHTICK` 建筑标记，两端相同；已有 `TSSD_25`、字体、颜色、字高等不变。源码按 AutoCAD 内置箭头名取块 ID，缺块时临时设置并恢复 `DIMBLK` 以建立内置块。AutoCAD 中的样式面板和生成尺寸箭头效果待验证。
+
+本轮 Release/x64/.NET Framework 4.8 编译通过：`D:\Waste\WallDtailTool\bin\V01AnnotationArchTick20261022Final\WallDetailTool.dll`，SHA-256 `14C3AD8CDBA385D09B80E802B5B0F5A18D3B304DAEF0840750DC803493E6E3C6`。阶段 1、2、3 纯计算回归均通过；`git diff --check` 无格式错误。上述自动测试未覆盖 AutoCAD 内置箭头块的实际创建或样式面板显示。AutoCAD 2023、2024、图形界面与用户验收本轮均待验证；测试仍使用阶段 3 标准 DWG 的副本。
+
+
 ## 2026-10-22 阶段 3 TSSD 字体与颜色再次修正
 
 用户明确只有宽高尺寸文字固定白色，钢筋规格 MTEXT 随 `S-TEXT` 图层色。图纸缺 TSSD 时按截图于确认事务中创建，字体 `Tssdeng.shx`、大字体 `Tssdchn.shx`、字高 0、宽度因子 0.75、倾角 0。预览暂用当前文字样式并提示；确认后使用 TSSD。已在本机 AutoCAD 2023 字体目录静态查到上述两个 SHX 文件；AutoCAD 2024 字体可用性与 CAD 中样式创建、实际显示仍待验证。此前同日“钢筋 MTEXT 白色”“缺 TSSD 需换模板”的描述为历史版本。

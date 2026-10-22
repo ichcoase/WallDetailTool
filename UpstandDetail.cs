@@ -349,6 +349,7 @@ namespace WallDetailTool
         {
             DimStyleTable styles=(DimStyleTable)tr.GetObject(db.DimStyleTableId,OpenMode.ForRead);
             if (styles.Has(AnnotationDimensionStyle)) return styles[AnnotationDimensionStyle];
+            ObjectId architecturalTick=EnsureArchitecturalTick(db,tr);
             var style=new DimStyleTableRecord();
             try
             {
@@ -367,8 +368,10 @@ namespace WallDetailTool
                 style.Dimdec=0;
                 style.Dimlunit=2;
                 style.Dimrnd=0;
-                style.Dimtsz=1;
+                style.Dimtsz=0;
                 style.Dimasz=1;
+                style.Dimsah=false;
+                style.Dimblk=architecturalTick;
                 style.Dimcen=0;
                 style.Dimexe=1;
                 style.Dimexo=2.5;
@@ -388,6 +391,27 @@ namespace WallDetailTool
                 return id;
             }
             catch { style.Dispose(); throw; }
+        }
+
+        private static ObjectId EnsureArchitecturalTick(Database db,Transaction tr)
+        {
+            const string arrowName="_ARCHTICK";
+            BlockTable blocks=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead);
+            if (blocks.Has(arrowName)) return blocks[arrowName];
+
+            // Selecting the AutoCAD built-in arrow creates its block definition when absent.
+            // Restore the drawing's DIMBLK override immediately; only the new style uses it.
+            object previous=CadApplication.GetSystemVariable("DIMBLK");
+            ObjectId arrowId=ObjectId.Null;
+            try
+            {
+                CadApplication.SetSystemVariable("DIMBLK",arrowName);
+                arrowId=db.Dimblk;
+            }
+            finally { CadApplication.SetSystemVariable("DIMBLK",previous); }
+            if (arrowId.IsNull)
+                throw new InvalidOperationException("AutoCAD 未能建立内置建筑标记箭头 _ARCHTICK。");
+            return arrowId;
         }
 
         private static List<Entity> BuildUpstandLabel(Database db,UpstandLabelLayout label,
