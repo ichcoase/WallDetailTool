@@ -106,3 +106,6 @@ CAD事件只收集变化，命令结束后比较基线并形成影响预览；�
 `WDTUPDRAW` 现复用阶段 1 的 `SelectUpstandGeometry`，三类输入共用 `UpstandRebarGeometry.Calculate`。该纯几何函数只接收 `UpstandGeometry` 与 `UpstandRebarParameters`，输出 8 顶点线筋（两段 Bulge 四分之一圆弧）及左右点筋中心。CAD 适配器把线筋建为一条宽 LWPOLYLINE，把每根点筋建为两顶点、闭合、宽度等于显示直径一半的 LWPOLYLINE。参数按 1 图形单位 = 1 mm 计算，不读取 INSUNITS 作换算。确认前仅使用 transient 预览；确认后单事务写钢筋和参数，取消或异常不提交。阶段 3 标注、阶段 4 普通块仍未接入新流程。历史 `BuildDetail` 私有方法保留但不由 `WDTUPDRAW` 调用。
 
 \n
+# 2026-10-22 尺寸样式创建与字高修正
+
+`WDTUPDRAW` 预览阶段不写图纸；缺少 `TSSD_25` 时暂用当前样式 ID 作预览，尺寸实体覆盖字高 2.5、比例 25、TSSD、白色文字、关闭换算单位和公差。确认后，宽度与高度各自位于可回滚的非关键标注子事务；缺样式时按用户截图创建 `TSSD_25`，已有样式不改其表记录，实体仍覆盖关键参数。尺寸线和界线保留图层色，钢筋 MTEXT 固定白色；普通引线与交接斜杠仍随 S-TEXT 图层色。以下较早的“缺尺寸样式即跳过”描述是历史实现。

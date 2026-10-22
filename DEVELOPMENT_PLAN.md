@@ -1,5 +1,12 @@
 # 分阶段开发计划
 
+## 2026-10-22 阶段 3 尺寸文字与样式修正
+
+用户以五张 `TSSD_25` 设置截图补充确认：尺寸字高 2.5 × 全局比例 25 = 62.5 mm；文字白色、TSSD；不启用换算单位、公差。源码已改为缺少 `TSSD_25` 时在确认事务中创建，已有样式表记录不覆盖；宽高尺寸实体明确覆盖关键参数。钢筋 MTEXT 固定白色，引线及尺寸线仍使用相应图层色。历史小节中的缺样式跳过尺寸、尺寸实体字高直接设 62.5、MTEXT 随图层色，以本节为准。
+
+本次 Release/x64/.NET Framework 4.8 编译通过：`D:\Waste\WallDtailTool\bin\V01AnnotationDimStyle20261022Final\WallDetailTool.dll`，SHA-256 `0284D47E7F91B66422B9A6CF6ADEFD4E2F13EED43140AB6B09B7980D04DD62E1`。阶段 1/2/3 纯计算测试分别输出 `UPSTAND_STAGE1_GEOMETRY_PASS`、`UPSTAND_STAGE2_GEOMETRY_PASS`、`UPSTAND_STAGE3_ANNOTATION_PASS`；`git diff --check` 无格式错误。此类纯计算测试不覆盖 CAD 样式表与实体渲染。AutoCAD 2023、AutoCAD 2024、图形界面和用户验收本轮均待验证。标准输入图仍为 `tests/WallDetailTool_V01_Stage3_Annotation.dwg`，未修改或覆盖；按 `tests/STAGE3_CHECKLIST.md` 在副本中验收。
+
+
 ## 2026-10-22 阶段 3 标注样式与端点补充
 
 按用户后续确认：宽高原生尺寸明确采用 `TSSD_25`，缺图层自动创建；线筋标注改为水平 LINE 加 36 mm 长、10 mm 宽斜杠，斜杠中点在线筋中心线上。MTEXT 实际宽度控制引线终点，确保不超出文字。缺少 `TSSD_25` 时宽高尺寸逐项失败并提示，钢筋及其他有效标注保留。本轮编译和回归证据在下方记录；AutoCAD 实际图形效果仍待验证。
