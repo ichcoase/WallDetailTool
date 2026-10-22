@@ -58,6 +58,21 @@ internal static class UpstandAnnotationStage3Tests
         var single=Parameters(); single.DotSpacing=500;
         var one=Calculate(Geometry(UpstandInputKind.ClosedRectangle),single,-400,600);
         Ok(one.DotLabel.Text=="2φ6","single row both sides");
+        Ok(one.DotLabel.Leaders.Count==3 && one.DotLabel.KeepLastLeaderEnd,
+            "single row has two diagonal branches and one full underline");
+        var oneSteel=UpstandRebarGeometry.Calculate(Geometry(UpstandInputKind.ClosedRectangle),single);
+        Near(one.DotLabel.Leaders[0].A.X,oneSteel.LeftDots[0].X,"left branch touches left dot");
+        Near(one.DotLabel.Leaders[1].A.X,oneSteel.RightDots[0].X,"right branch touches right dot");
+        Ok(one.DotLabel.Leaders[0].B.Y>one.DotLabel.Leaders[0].A.Y &&
+            one.DotLabel.Leaders[1].B.Y>one.DotLabel.Leaders[1].A.Y,
+            "both branches rise from dots");
+        Near(one.DotLabel.Leaders[2].A.Y,one.DotLabel.Leaders[2].B.Y,
+            "single row underline horizontal");
+        Ok(one.DotLabel.TextAnchor.Y>one.DotLabel.Leaders[2].A.Y &&
+            one.DotLabel.Leaders[2].A.Y>300,"single row text and underline above concrete");
+        var oneMirrored=Calculate(Geometry(UpstandInputKind.OpenInvertedU),single,-20,700);
+        Ok(!oneMirrored.DotLabel.Rightward && oneMirrored.DotLabel.Leaders.Count==3,
+            "single row mirrors to available right side");
         var custom=Parameters(); custom.LineDiameter=10; custom.LineSpacing=125;
         custom.DotDiameter=8; custom.DotSpacing=150;
         var changed=Calculate(Geometry(UpstandInputKind.FullSection),custom,-400,600);

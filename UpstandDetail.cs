@@ -487,7 +487,7 @@ namespace WallDetailTool
                 for (int i=0;i<label.Leaders.Count;i++)
                 {
                     AnnotationSegment segment=label.Leaders[i];
-                    AnnotationPoint end=i==label.Leaders.Count-1 ?
+                    AnnotationPoint end=i==label.Leaders.Count-1 && !label.KeepLastLeaderEnd ?
                         new AnnotationPoint(endX,segment.B.Y) : segment.B;
                     if (Math.Abs(end.X-segment.A.X)<1e-8 && Math.Abs(end.Y-segment.A.Y)<1e-8) continue;
                     entities.Add(new Line(new Point3d(segment.A.X,segment.A.Y,layout.Elevation),

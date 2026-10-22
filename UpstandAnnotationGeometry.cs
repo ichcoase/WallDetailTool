@@ -24,6 +24,7 @@ namespace WallDetailTool
         internal bool HasSlash;
         internal AnnotationPoint SlashCenter, SlashA, SlashB;
         internal double SlashWidth;
+        internal bool KeepLastLeaderEnd;
         internal readonly List<AnnotationSegment> Leaders=new List<AnnotationSegment>();
     }
 
@@ -90,7 +91,8 @@ namespace WallDetailTool
             result.LineLabel.SlashB=new AnnotationPoint(lineTouch.X+slashHalf,lineTouch.Y-slashHalf);
             result.LineLabel.SlashWidth=10;
             ContourPoint dot=right ? steel.LeftDots[last] : steel.RightDots[last];
-            result.DotLabel=Label(dotText,right,labelX,dotY,new AnnotationPoint(dot.X,dot.Y),labelX);
+            result.DotLabel=last==0 ? SingleRowDotLabel(dotText,g,steel,textHeight,freeLeft,freeRight) :
+                Label(dotText,right,labelX,dotY,new AnnotationPoint(dot.X,dot.Y),labelX);
             var concrete=new Box(g.Left,g.Right,g.BeamTop,g.Top);
             Box lineBox=TextBounds(result.LineLabel,textHeight);
             Box dotBox=TextBounds(result.DotLabel,textHeight);
@@ -99,9 +101,16 @@ namespace WallDetailTool
                 LeaderHits(result.DotLabel,lineBox))
             {
                 // One local fallback only; more complex global annotation packing belongs to later work.
-                dotY=g.BeamTop-Math.Max(45,2*textHeight);
-                result.DotLabel=Label(dotText,right,labelX,dotY,new AnnotationPoint(dot.X,dot.Y),labelX);
-                result.Warnings.Add("局部标注发生碰撞，点筋标注改用备用位置；请人工检查。");
+                if (last==0)
+                {
+                    result.Warnings.Add("单排点筋上方标注与其他内容接近；请人工检查位置。");
+                }
+                else
+                {
+                    dotY=g.BeamTop-Math.Max(45,2*textHeight);
+                    result.DotLabel=Label(dotText,right,labelX,dotY,new AnnotationPoint(dot.X,dot.Y),labelX);
+                    result.Warnings.Add("局部标注发生碰撞，点筋标注改用备用位置；请人工检查。");
+                }
             }
             result.WidthA=new AnnotationPoint(g.Left,g.Top);
             result.WidthB=new AnnotationPoint(g.Right,g.Top);
@@ -118,6 +127,31 @@ namespace WallDetailTool
             result.HeightB=new AnnotationPoint(dimLeft ? g.Left : g.Right,g.Top);
             result.HeightLine=new AnnotationPoint(dimX,(g.BeamTop+g.Top)/2);
             return result;
+        }
+
+        private static UpstandLabelLayout SingleRowDotLabel(string value,UpstandGeometry g,
+            UpstandRebarLayout steel,double height,double freeLeft,double freeRight)
+        {
+            // Two visible dots, one on each side: a shared underline above the upstand
+            // with an individual plain diagonal branch to each dot centre.
+            bool onLeft=freeLeft>=freeRight;
+            double y=g.Top+Math.Max(25,.55*height);
+            double rise=y-steel.LeftDots[0].Y;
+            double shift=Math.Min(g.Width*.3,rise*.55)*(onLeft ? -1 : 1);
+            double anchorX=onLeft ? g.Left-Math.Max(60,1.5*height) :
+                g.Right+Math.Max(60,1.5*height);
+            var left=new AnnotationPoint(steel.LeftDots[0].X+shift,y);
+            var right=new AnnotationPoint(steel.RightDots[0].X+shift,y);
+            var label=new UpstandLabelLayout { Text=value,Rightward=onLeft,KeepLastLeaderEnd=true,
+                TextAnchor=new AnnotationPoint(anchorX,y+4) };
+            label.Leaders.Add(new AnnotationSegment(
+                new AnnotationPoint(steel.LeftDots[0].X,steel.LeftDots[0].Y),left));
+            label.Leaders.Add(new AnnotationSegment(
+                new AnnotationPoint(steel.RightDots[0].X,steel.RightDots[0].Y),right));
+            label.Leaders.Add(new AnnotationSegment(
+                new AnnotationPoint(onLeft ? anchorX : left.X,y),
+                new AnnotationPoint(onLeft ? right.X : anchorX,y)));
+            return label;
         }
 
         private static UpstandLabelLayout Label(string value,bool right,double x,double y,
