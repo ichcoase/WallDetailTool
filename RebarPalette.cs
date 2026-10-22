@@ -46,10 +46,9 @@ namespace WallDetailTool
                 panel = new RebarPanel();
                 upstandPanel = new UpstandPanelView();
                 panel.VisibleChanged += (sender, args) => { if (!panel.Visible) ClearPreview(); };
-                palette = new PaletteSet("WallDetailTool 钢筋", new Guid("AD68FBD8-B905-42C1-A73B-CB63399C94D4"));
+                palette = new PaletteSet("WallDetailTool 梁上反坎", new Guid("AD68FBD8-B905-42C1-A73B-CB63399C94D4"));
                 palette.Size = new Size(320, 600);
                 palette.DockEnabled = DockSides.Left | DockSides.Right;
-                palette.Add("钢筋", panel);
                 palette.Add("梁上反坎", upstandPanel);
                 palette.StateChanged += (sender, args) => { if (!palette.Visible) ClearPreview(); };
                 CadApplication.DocumentManager.DocumentToBeDeactivated += OnDocumentChanging;
