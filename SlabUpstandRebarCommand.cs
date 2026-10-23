@@ -49,22 +49,24 @@ namespace WallDetailTool
                     PromptResult decision=ed.GetKeywords(options);
                     if (decision.Status!=PromptStatus.OK || decision.StringResult!="Continue") return;
                 }
+                string lineLayer=LineLayer, dotLayer=DotLayer;
                 var entities=new List<Entity>();
                 try
                 {
-                    var line=new Polyline(layout.Line.Count) { Elevation=layout.Elevation,Layer=LineLayer };
-                    entities.Add(line);
-                    for (int i=0;i<layout.Line.Count;i++)
-                    {
-                        RebarVertex v=layout.Line[i];
-                        line.AddVertexAt(i,new Point2d(v.X,v.Y),v.Bulge,layout.LineWidth,layout.LineWidth);
-                    }
-                    foreach (ContourPoint c in layout.LeftDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,DotLayer));
-                    foreach (ContourPoint c in layout.RightDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,DotLayer));
                     using (Transaction tr=doc.Database.TransactionManager.StartTransaction())
                     {
-                        EnsureLayer(doc.Database,tr,LineLayer,1);
-                        EnsureLayer(doc.Database,tr,DotLayer,2);
+                        // Layer names must exist before assigning them to new CAD entities.
+                        EnsureLayer(doc.Database,tr,lineLayer,1);
+                        EnsureLayer(doc.Database,tr,dotLayer,2);
+                        var line=new Polyline(layout.Line.Count) { Elevation=layout.Elevation,Layer=lineLayer };
+                        entities.Add(line);
+                        for (int i=0;i<layout.Line.Count;i++)
+                        {
+                            RebarVertex v=layout.Line[i];
+                            line.AddVertexAt(i,new Point2d(v.X,v.Y),v.Bulge,layout.LineWidth,layout.LineWidth);
+                        }
+                        foreach (ContourPoint c in layout.LeftDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
+                        foreach (ContourPoint c in layout.RightDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
                         BlockTableRecord space=(BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId,OpenMode.ForWrite);
                         foreach (Entity entity in entities)
                         {
