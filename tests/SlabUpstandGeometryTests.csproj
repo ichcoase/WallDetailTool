@@ -1,0 +1,9 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>SlabUpstandGeometryTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><OutputPath>bin\SlabStage1\</OutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
+    <Compile Include="..\UpstandGeometry.cs"><Link>UpstandGeometry.cs</Link></Compile>
+    <Compile Include="..\SlabUpstandGeometry.cs"><Link>SlabUpstandGeometry.cs</Link></Compile>
+    <Compile Include="SlabUpstandGeometryTests.cs"/>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

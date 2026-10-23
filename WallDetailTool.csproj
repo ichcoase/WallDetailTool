@@ -44,6 +44,8 @@
     <Compile Include="UpstandPanel.cs" />
     <Compile Include="UpstandToolbar.cs" />
     <Compile Include="UpstandGeometry.cs" />
+    <Compile Include="SlabUpstandGeometry.cs" />
+    <Compile Include="SlabUpstandCommand.cs" />
     <Compile Include="UpstandRebarGeometry.cs" />
     <Compile Include="UpstandAnnotationGeometry.cs" />
   </ItemGroup>
