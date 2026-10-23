@@ -13,15 +13,17 @@ namespace WallDetailTool
     {
         // Kept as an alias for existing stage 2 test drawings.
         [CommandMethod("WDTUPSLABREBARTEST",CommandFlags.Modal)]
-        [CommandMethod("WDTUPSLABDRAW",CommandFlags.Modal)]
         public void GenerateSlabUpstandRebarForTest()
+        { DrawSlabCore(null); }
+
+        private static void DrawSlabCore(SlabDrawValues drawValues)
         {
             Document doc=CadApplication.DocumentManager.MdiActiveDocument;
             if (doc==null) return;
             Editor ed=doc.Editor;
             try
             {
-                SlabUpstandGeometry g=SelectSlabGeometry(doc);
+                SlabUpstandGeometry g=SelectSlabGeometry(doc,drawValues==null?(double?)null:drawValues.LocalThickness);
                 if (g==null) return;
                 // Read on every invocation so saved changes and restored defaults take effect immediately.
                 UpstandPanelValues saved=UpstandPanelValues.ReadUserDefaults();
@@ -31,14 +33,33 @@ namespace WallDetailTool
                     DotDiameter=saved.DotDiameter, DotSpacing=saved.DotSpacing,
                     LineDisplayWidth=saved.LineDisplayWidth,
                     DotDisplayDiameter=saved.DotDisplayDiameter };
-                bool hasPrevious=ReadSlabLast(doc.Database,p);
+                double lastLocalThickness;
+                bool hasPrevious=ReadSlabLast(doc.Database,p,out lastLocalThickness);
                 ed.WriteMessage(string.Format("\n使用已保存设置：保护层 c={0:g} mm，圆弧半径 R={1:g} mm。",p.Cover,p.Radius));
-                double value;
-                if (!AskSlabDouble(ed,"板底至水平筋中心线 H",p.EffectiveH,out value)) return; p.H=value;
-                if (!AskSlabDouble(ed,"左水平直段 L左",p.LeftLength,out value)) return; p.LeftLength=value;
-                if (!AskSlabDouble(ed,"右水平直段 L右（首次默认随左侧）",
-                    hasPrevious?p.RightLength:p.LeftLength,out value)) return; p.RightLength=value;
+                if (drawValues!=null)
+                {
+                    p.LineDiameter=drawValues.LineDiameter; p.LineSpacing=drawValues.LineSpacing;
+                    p.DotDiameter=drawValues.DotDiameter; p.DotSpacing=drawValues.DotSpacing;
+                    p.H=drawValues.H; p.LeftLength=drawValues.LeftLength; p.RightLength=drawValues.RightLength;
+                }
+                else
+                {
+                    double value;
+                    if (!AskSlabDouble(ed,"板底至水平筋中心线 H",p.EffectiveH,out value)) return; p.H=value;
+                    if (!AskSlabDouble(ed,"左水平直段 L左",p.LeftLength,out value)) return; p.LeftLength=value;
+                    if (!AskSlabDouble(ed,"右水平直段 L右（首次默认随左侧）",
+                        hasPrevious?p.RightLength:p.LeftLength,out value)) return; p.RightLength=value;
+                }
                 SlabUpstandRebarLayout layout=SlabUpstandRebarGeometry.Calculate(g,p);
+                if (drawValues!=null)
+                {
+                    string source=g.ThicknessIsManual?"局部轮廓：使用本次输入":"完整截面：从轮廓识别";
+                    var answer=System.Windows.Forms.MessageBox.Show(string.Format(
+                        "{0}的板厚 h = {1:g} mm。\nH = {2:g} mm，L左 = {3:g} mm，L右 = {4:g} mm。\n确认继续生成？",
+                        source,g.SlabThickness,p.H.Value,p.LeftLength,p.RightLength),"板上反坎几何确认",
+                        System.Windows.Forms.MessageBoxButtons.OKCancel,System.Windows.Forms.MessageBoxIcon.Information);
+                    if (answer!=System.Windows.Forms.DialogResult.OK) return;
+                }
                 if (layout.HasSlabBoundaries && (layout.LeftOverrun>0 || layout.RightOverrun>0))
                 {
                     var options=new PromptKeywordOptions(string.Format(
@@ -136,7 +157,7 @@ namespace WallDetailTool
                             { Rotation=0,Layer=((LayerTableRecord)tr.GetObject(doc.Database.Clayer,OpenMode.ForRead)).Name };
                         space.AppendEntity(reference); tr.AddNewlyCreatedDBObject(reference,true);
                         WriteSlabBlockParameters(tr,reference,g,p);
-                        WriteSlabLast(doc.Database,tr,p);
+                        WriteSlabLast(doc.Database,tr,p,g.ThicknessIsManual?g.SlabThickness:lastLocalThickness);
                         tr.Commit();
                     }
                     }
@@ -186,8 +207,9 @@ namespace WallDetailTool
         }
 
         private const string SlabLastRecord="WDT_SLAB_UPSTAND_LAST";
-        private static bool ReadSlabLast(Database db,SlabUpstandRebarParameters p)
+        private static bool ReadSlabLast(Database db,SlabUpstandRebarParameters p,out double localThickness)
         {
+            localThickness=0;
             using (Transaction tr=db.TransactionManager.StartTransaction())
             {
                 DBDictionary nod=(DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId,OpenMode.ForRead);
@@ -195,7 +217,7 @@ namespace WallDetailTool
                 Xrecord record=tr.GetObject(nod.GetAt(SlabLastRecord),OpenMode.ForRead) as Xrecord;
                 if (record==null || record.Data==null) return false;
                 TypedValue[] values=record.Data.AsArray();
-                if (values.Length!=3) return false;
+                if (values.Length!=3 && values.Length!=4) return false;
                 try
                 {
                     double h=Convert.ToDouble(values[0].Value), left=Convert.ToDouble(values[1].Value),
@@ -203,20 +225,27 @@ namespace WallDetailTool
                     if (double.IsNaN(h)||double.IsInfinity(h)||h<=0 || double.IsNaN(left)||double.IsInfinity(left)||left<=0 ||
                         double.IsNaN(right)||double.IsInfinity(right)||right<=0) return false;
                     p.H=h; p.LeftLength=left; p.RightLength=right;
+                    if (values.Length==4)
+                    {
+                        double savedThickness=Convert.ToDouble(values[3].Value);
+                        if (!double.IsNaN(savedThickness) && !double.IsInfinity(savedThickness) && savedThickness>0)
+                            localThickness=savedThickness;
+                    }
                     return true;
                 }
                 catch { return false; }
             }
         }
 
-        private static void WriteSlabLast(Database db,Transaction tr,SlabUpstandRebarParameters p)
+        private static void WriteSlabLast(Database db,Transaction tr,SlabUpstandRebarParameters p,double localThickness)
         {
             DBDictionary nod=(DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId,OpenMode.ForWrite);
             Xrecord record;
             if (nod.Contains(SlabLastRecord)) record=(Xrecord)tr.GetObject(nod.GetAt(SlabLastRecord),OpenMode.ForWrite);
             else { record=new Xrecord(); nod.SetAt(SlabLastRecord,record); tr.AddNewlyCreatedDBObject(record,true); }
             record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.EffectiveH),
-                new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength));
+                new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength),
+                new TypedValue((int)DxfCode.Real,localThickness));
         }
 
         private static bool AskSlabDouble(Editor ed,string label,double defaultValue,out double value)

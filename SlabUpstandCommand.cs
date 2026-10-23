@@ -29,6 +29,9 @@ namespace WallDetailTool
         }
 
         private static SlabUpstandGeometry SelectSlabGeometry(Document doc)
+        { return SelectSlabGeometry(doc,null); }
+
+        private static SlabUpstandGeometry SelectSlabGeometry(Document doc,double? providedLocalThickness)
         {
             Editor ed=doc.Editor;
                 ed.WriteMessage("\n选择板上反坎轮廓（LINE/LWPOLYLINE）；只读识别，不修改原图元。");
@@ -72,10 +75,18 @@ namespace WallDetailTool
                 double? manualThickness=null;
                 if (baseCandidates[0].InputKind!=UpstandInputKind.FullSection)
                 {
-                    var option=new PromptDoubleOptions("\n楼板厚度 h（mm）: ") { AllowNegative=false,AllowZero=false };
-                    PromptDoubleResult thickness=ed.GetDouble(option);
-                    if (thickness.Status!=PromptStatus.OK) return null;
-                    manualThickness=thickness.Value;
+                    if (providedLocalThickness.HasValue)
+                    {
+                        if (providedLocalThickness.Value<=0) throw new InvalidOperationException("局部轮廓须在本次绘制窗口输入正数板厚 h。");
+                        manualThickness=providedLocalThickness;
+                    }
+                    else
+                    {
+                        var option=new PromptDoubleOptions("\n楼板厚度 h（mm）: ") { AllowNegative=false,AllowZero=false };
+                        PromptDoubleResult thickness=ed.GetDouble(option);
+                        if (thickness.Status!=PromptStatus.OK) return null;
+                        manualThickness=thickness.Value;
+                    }
                 }
                 var candidates=SlabUpstandRecognizer.Recognize(segments,elevation??0,manualThickness);
                 SlabUpstandGeometry chosen=candidates[0];
