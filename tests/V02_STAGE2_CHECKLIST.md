@@ -24,3 +24,5 @@
 2026-10-23 本轮再次尝试 AutoCAD 2023 Core Console，以测试图副本和完整截面案例脚本启动；退出码 1，`acad.err` 报 `Problem with setting up current profile.`，脚本未执行，未形成真实板上反坎 DWG。2023 图形界面、2024、CAD 运行及用户验收仍待验证。不得把编译和纯几何测试记作 CAD 验收。
 
 用户在图形界面报告 `WDTUPSLABREBARTEST` 生成时报 `eKeyNotFound`。源码复查发现新实体先指定图层、事务后创建图层，与 V0.1 的顺序相反；已调整为同一事务内先建图层再创建钢筋。修复版编译及四组纯几何回归通过；**CAD 中该报错是否消失、实体和撤销行为仍待用户用修复版 DLL 复测**。
+
+后续设置读取修正：`WDTUPSLABREBARTEST` 不再询问 c、R，每次调用 `UpstandPanelValues.ReadUserDefaults()` 读取现有用户默认值。R 由“高级设置”保存；c 由“常用参数”保存／恢复，二者共用 `upstand-defaults.ini`，未新增存储。纯几何测试已覆盖 c、R 改变与恢复后坐标变化，以及非法值拒绝；**CAD 中实际保存／恢复设置后的下一次绘制、取消和一次 UNDO 待验证**。

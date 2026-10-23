@@ -22,15 +22,19 @@ namespace WallDetailTool
             {
                 SlabUpstandGeometry g=SelectSlabGeometry(doc);
                 if (g==null) return;
+                // Read on every invocation so saved changes and restored defaults take effect immediately.
+                UpstandPanelValues saved=UpstandPanelValues.ReadUserDefaults();
                 var p=new SlabUpstandRebarParameters {
-                    LineDisplayWidth=PluginSettings.ReadLineWidthMillimetres(),
-                    DotDisplayDiameter=PluginSettings.ReadDotDiameterMillimetres() };
+                    Cover=saved.Cover, Radius=saved.Radius,
+                    LineDiameter=saved.LineDiameter, LineSpacing=saved.LineSpacing,
+                    DotDiameter=saved.DotDiameter, DotSpacing=saved.DotSpacing,
+                    LineDisplayWidth=saved.LineDisplayWidth,
+                    DotDisplayDiameter=saved.DotDisplayDiameter };
+                ed.WriteMessage(string.Format("\n使用已保存设置：保护层 c={0:g} mm，圆弧半径 R={1:g} mm。",p.Cover,p.Radius));
                 double value;
-                if (!AskSlabDouble(ed,"保护层 c",p.Cover,out value)) return; p.Cover=value;
                 if (!AskSlabDouble(ed,"板底至水平筋中心线 H",p.EffectiveH,out value)) return; p.H=value;
                 if (!AskSlabDouble(ed,"左水平直段 L左",p.LeftLength,out value)) return; p.LeftLength=value;
                 if (!AskSlabDouble(ed,"右水平直段 L右（默认随左侧）",p.LeftLength,out value)) return; p.RightLength=value;
-                if (!AskSlabDouble(ed,"统一圆弧半径 R",p.Radius,out value)) return; p.Radius=value;
                 SlabUpstandRebarLayout layout=SlabUpstandRebarGeometry.Calculate(g,p);
                 if (layout.HasSlabBoundaries && (layout.LeftOverrun>0 || layout.RightOverrun>0))
                 {

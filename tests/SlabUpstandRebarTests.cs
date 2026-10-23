@@ -24,6 +24,15 @@ internal static class SlabUpstandRebarTests
         Near(q.Line[5].Bulge,-Math.Tan(Math.PI/8),"right top tangent arc");
         Near(q.Line[7].Bulge,Math.Tan(Math.PI/8),"right bottom tangent arc");
         Near(q.LeftDots[0].X,443,"left dot tangent spacing"); Near(q.RightDots[0].X,557,"right dot");
+        var changedSettings=new SlabUpstandRebarParameters { Cover=35,Radius=30 };
+        var changedLayout=SlabUpstandRebarGeometry.Calculate(G(),changedSettings);
+        Near(changedSettings.EffectiveH,41,"saved cover changes default H");
+        Near(changedLayout.Line[2].X,441,"saved cover changes vertical placement");
+        Near(changedLayout.Line[1].X,411,"saved R changes lower tangent");
+        Near(changedLayout.Line[0].Y,41,"saved cover changes horizontal level");
+        var restoredLayout=SlabUpstandRebarGeometry.Calculate(G(),new SlabUpstandRebarParameters());
+        Near(restoredLayout.Line[2].X,q.Line[2].X,"restored cover geometry");
+        Near(restoredLayout.Line[1].X,q.Line[1].X,"restored R geometry");
         var open=G(); open.InputKind=UpstandInputKind.OpenInvertedU;
         Ok(SlabUpstandRebarGeometry.Calculate(open,p).Line.Count==10,"open U");
         var custom=new SlabUpstandRebarParameters { H=40,LeftLength=250,RightLength=420,Radius=30 };
@@ -47,6 +56,8 @@ internal static class SlabUpstandRebarTests
         invalid=new SlabUpstandRebarParameters { RightLength=-1 }; Fail("negative right",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Radius=100 }; Fail("impossible R",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Radius=0 }; Fail("zero R",G(),invalid);
+        invalid=new SlabUpstandRebarParameters { Cover=-1 }; Fail("invalid saved cover",G(),invalid);
+        invalid=new SlabUpstandRebarParameters { Radius=1000 }; Fail("invalid saved radius for space",G(),invalid);
         var narrow=G(); narrow.Right=450; Fail("self crossing top arcs",narrow,p);
         var shortRise=G(); shortRise.Top=360;
         Fail("self crossing vertical arcs",shortRise,new SlabUpstandRebarParameters { H=290 });
