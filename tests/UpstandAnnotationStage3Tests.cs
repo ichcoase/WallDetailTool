@@ -73,6 +73,13 @@ internal static class UpstandAnnotationStage3Tests
         var oneMirrored=Calculate(Geometry(UpstandInputKind.OpenInvertedU),single,-20,700);
         Ok(!oneMirrored.DotLabel.Rightward && oneMirrored.DotLabel.Leaders.Count==3,
             "single row mirrors to available right side");
+        var wideSingle=Geometry(UpstandInputKind.ClosedRectangle); wideSingle.Right=300; wideSingle.Top=150;
+        var threeSingle=Calculate(wideSingle,Parameters(),-400,700);
+        Ok(threeSingle.DotLabel.Text=="3φ6" && threeSingle.DotLabel.Leaders.Count==4,
+            "three dots in one row get three branches and count label");
+        var wideMultiple=Geometry(UpstandInputKind.OpenInvertedU); wideMultiple.Right=300;
+        var multi=Calculate(wideMultiple,Parameters(),-400,700);
+        Ok(multi.DotLabel.Text=="φ6@200","multiple rows retain spacing label");
         var custom=Parameters(); custom.LineDiameter=10; custom.LineSpacing=125;
         custom.DotDiameter=8; custom.DotSpacing=150;
         var changed=Calculate(Geometry(UpstandInputKind.FullSection),custom,-400,600);

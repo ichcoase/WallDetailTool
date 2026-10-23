@@ -49,7 +49,8 @@ namespace WallDetailTool
             UpstandRebarParameters p, double textHeight, double viewLeft, double viewRight)
         {
             if (g==null || steel==null || p==null || steel.Line.Count<5 ||
-                steel.LeftDots.Count==0 || steel.LeftDots.Count!=steel.RightDots.Count)
+                steel.LeftDots.Count==0 || steel.LeftDots.Count!=steel.RightDots.Count ||
+                steel.MiddleDots.Count%steel.LeftDots.Count!=0)
                 throw new InvalidOperationException("缺少完整的反坎钢筋布局，无法计算标注。");
             if (!Valid(textHeight) || textHeight<=0)
                 throw new InvalidOperationException("标注文字高度必须为有效正数。");
@@ -58,7 +59,9 @@ namespace WallDetailTool
             var result=new UpstandAnnotationLayout { TextHeight=textHeight, Elevation=g.Elevation };
             double offset=Math.Max(20,.5*textHeight);
             string lineText=Spec(p.LineDiameter,p.LineSpacing);
-            string dotText=steel.LeftDots.Count==1 ? "2φ"+Num(p.DotDiameter) : Spec(p.DotDiameter,p.DotSpacing);
+            int dotsPerRow=2+steel.MiddleDots.Count/steel.LeftDots.Count;
+            string dotText=steel.LeftDots.Count==1 ? dotsPerRow.ToString(CultureInfo.InvariantCulture)+"φ"+Num(p.DotDiameter) :
+                Spec(p.DotDiameter,p.DotSpacing);
             double run=Math.Max(100,Math.Max(lineText.Length,dotText.Length)*textHeight*.8);
             double need=run+offset;
             double freeLeft=g.Left-viewLeft, freeRight=viewRight-g.Right;
@@ -132,25 +135,24 @@ namespace WallDetailTool
         private static UpstandLabelLayout SingleRowDotLabel(string value,UpstandGeometry g,
             UpstandRebarLayout steel,double height,double freeLeft,double freeRight)
         {
-            // Two visible dots, one on each side: a shared underline above the upstand
-            // with an individual plain diagonal branch to each dot centre.
+            // One shared underline with a branch to every dot in the single row.
             bool onLeft=freeLeft>=freeRight;
             double y=g.Top+Math.Max(25,.55*height);
             double rise=y-steel.LeftDots[0].Y;
             double shift=Math.Min(g.Width*.3,rise*.55)*(onLeft ? -1 : 1);
             double anchorX=onLeft ? g.Left-Math.Max(60,1.5*height) :
                 g.Right+Math.Max(60,1.5*height);
-            var left=new AnnotationPoint(steel.LeftDots[0].X+shift,y);
-            var right=new AnnotationPoint(steel.RightDots[0].X+shift,y);
             var label=new UpstandLabelLayout { Text=value,Rightward=onLeft,KeepLastLeaderEnd=true,
                 TextAnchor=new AnnotationPoint(anchorX,y+4) };
+            var row=new List<ContourPoint> { steel.LeftDots[0] };
+            row.AddRange(steel.MiddleDots);
+            row.Add(steel.RightDots[0]);
+            foreach (ContourPoint dot in row)
+                label.Leaders.Add(new AnnotationSegment(new AnnotationPoint(dot.X,dot.Y),
+                    new AnnotationPoint(dot.X+shift,y)));
             label.Leaders.Add(new AnnotationSegment(
-                new AnnotationPoint(steel.LeftDots[0].X,steel.LeftDots[0].Y),left));
-            label.Leaders.Add(new AnnotationSegment(
-                new AnnotationPoint(steel.RightDots[0].X,steel.RightDots[0].Y),right));
-            label.Leaders.Add(new AnnotationSegment(
-                new AnnotationPoint(onLeft ? anchorX : left.X,y),
-                new AnnotationPoint(onLeft ? right.X : anchorX,y)));
+                new AnnotationPoint(onLeft ? anchorX : row[0].X+shift,y),
+                new AnnotationPoint(onLeft ? row[row.Count-1].X+shift : anchorX,y)));
             return label;
         }
 

@@ -48,6 +48,13 @@ internal static class SlabUpstandRebarTests
         var bothLayout=SlabUpstandRebarGeometry.Calculate(both,p);
         Near(bothLayout.LeftOverrun,49,"left overrun"); Near(bothLayout.RightOverrun,49,"right overrun");
         Ok(!q.HasSlabBoundaries,"local has no boundary result");
+        var wide=G(); wide.Right=700;
+        var threeDots=SlabUpstandRebarGeometry.Calculate(wide,p);
+        Ok(threeDots.MiddleDots.Count==threeDots.LeftDots.Count,"300 mm slab upstand has three per row");
+        Near(threeDots.MiddleDots[0].X,550,"slab middle symmetry");
+        wide.Right=900;
+        var fourDots=SlabUpstandRebarGeometry.Calculate(wide,p);
+        Ok(fourDots.MiddleDots.Count==2*fourDots.LeftDots.Count,"500 mm slab upstand has four per row");
         Ok(SlabUpstandRebarGeometry.MayGenerate(q,false),"local mode generates without boundary prompt");
         var thin=G(); thin.SlabBottom=290; Fail("thin slab",thin,p);
         var invalid=new SlabUpstandRebarParameters { H=0 }; Fail("zero H",G(),invalid);

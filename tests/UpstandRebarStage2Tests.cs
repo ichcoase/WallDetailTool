@@ -69,6 +69,28 @@ internal static class UpstandRebarStage2Tests
         var narrow=G(UpstandInputKind.OpenInvertedU); narrow.Right=65; Reject("narrow",narrow,P());
         var shortOne=G(UpstandInputKind.OpenInvertedU); shortOne.Top=40; Reject("short",shortOne,P());
         Require(basis.LeftDots.Count==2,"source layout unchanged");
+        var width300=G(UpstandInputKind.ClosedRectangle); width300.Right=300;
+        var three=UpstandRebarGeometry.Calculate(width300,P());
+        Require(three.MiddleDots.Count==three.LeftDots.Count,"300 mm width has three dots per row");
+        Near(three.MiddleDots[0].X,150,"middle dot centred");
+        var width500=G(UpstandInputKind.ClosedRectangle); width500.Right=500;
+        var four=UpstandRebarGeometry.Calculate(width500,P());
+        Require(four.MiddleDots.Count==2*four.LeftDots.Count,"500 mm width has four dots per row");
+        Near(four.MiddleDots[0].X+four.MiddleDots[1].X,500,"four dot symmetry");
+        var width700=G(UpstandInputKind.ClosedRectangle); width700.Right=700;
+        var five=UpstandRebarGeometry.Calculate(width700,P());
+        Require(five.MiddleDots.Count==3*five.LeftDots.Count,"700 mm width has five dots per row");
+        var display=P(); display.DotDisplayDiameter=20;
+        var displayLayout=UpstandRebarGeometry.Calculate(width300,display);
+        Require(displayLayout.MiddleDots.Count==displayLayout.LeftDots.Count,
+            "display diameter changes outer centre but not actual diameter rule");
+        var boundary=P(); boundary.DotSpacing=114;
+        Require(UpstandRebarGeometry.Calculate(G(UpstandInputKind.ClosedRectangle),boundary).MiddleDots.Count==0,
+            "exact 114 centre distance allows two dots");
+        boundary.DotSpacing=113.999;
+        var justOver=UpstandRebarGeometry.Calculate(G(UpstandInputKind.ClosedRectangle),boundary);
+        Require(justOver.MiddleDots.Count==justOver.LeftDots.Count,
+            "slightly above spacing limit adds one middle per row");
         Console.WriteLine("UPSTAND_STAGE2_GEOMETRY_PASS");
     }
 }

@@ -16,6 +16,7 @@ namespace WallDetailTool
         internal readonly System.Collections.Generic.List<RebarVertex> Line=new System.Collections.Generic.List<RebarVertex>();
         internal readonly System.Collections.Generic.List<ContourPoint> LeftDots=new System.Collections.Generic.List<ContourPoint>();
         internal readonly System.Collections.Generic.List<ContourPoint> RightDots=new System.Collections.Generic.List<ContourPoint>();
+        internal readonly System.Collections.Generic.List<ContourPoint> MiddleDots=new System.Collections.Generic.List<ContourPoint>();
         internal double LineWidth, DotDiameter, Elevation, LeftOverrun, RightOverrun;
         internal bool HasSlabBoundaries;
     }
@@ -47,6 +48,7 @@ namespace WallDetailTool
             double dotL=xl+p.LineDisplayWidth/2+p.DotDisplayDiameter/2;
             double dotR=xr-p.LineDisplayWidth/2-p.DotDisplayDiameter/2;
             if (dotR-dotL<p.DotDisplayDiameter-E) throw new InvalidOperationException("左右点筋相交，反坎空间不足。");
+            int perRow=UpstandDotDistribution.PerRow(dotL,dotR,p.DotSpacing,p.DotDisplayDiameter);
             double first=yt-p.LineDisplayWidth/2-p.DotDisplayDiameter/2;
             if (first-p.DotDisplayDiameter/2<g.SlabTop-E) throw new InvalidOperationException("首排点筋越过板顶。");
             double raw=(first-p.DotDisplayDiameter/2-g.SlabTop)/p.DotSpacing;
@@ -76,6 +78,7 @@ namespace WallDetailTool
                 double y=first-i*p.DotSpacing;
                 q.LeftDots.Add(new ContourPoint(dotL,y));
                 q.RightDots.Add(new ContourPoint(dotR,y));
+                UpstandDotDistribution.AddMiddle(dotL,dotR,y,perRow,q.MiddleDots);
             }
             return q;
         }

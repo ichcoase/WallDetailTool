@@ -24,6 +24,7 @@ namespace WallDetailTool
         internal readonly List<RebarVertex> Line = new List<RebarVertex>();
         internal readonly List<ContourPoint> LeftDots = new List<ContourPoint>();
         internal readonly List<ContourPoint> RightDots = new List<ContourPoint>();
+        internal readonly List<ContourPoint> MiddleDots = new List<ContourPoint>();
         internal double LineWidth, DotDiameter, Elevation;
     }
 
@@ -53,6 +54,7 @@ namespace WallDetailTool
             double xDotR=xr-p.LineDisplayWidth/2-p.DotDisplayDiameter/2;
             if (xDotR-xDotL<p.DotDisplayDiameter-Epsilon)
                 throw new InvalidOperationException("反坎过窄：左右点筋相交，空间不足。");
+            int perRow=UpstandDotDistribution.PerRow(xDotL,xDotR,p.DotSpacing,p.DotDisplayDiameter);
             double yFirst=yt-p.LineDisplayWidth/2-p.DotDisplayDiameter/2;
             if (yFirst-p.DotDisplayDiameter/2<g.BeamTop-Epsilon)
                 throw new InvalidOperationException("反坎过矮：第一排点筋会越过梁顶。");
@@ -76,6 +78,7 @@ namespace WallDetailTool
                 double y=yFirst-i*p.DotSpacing;
                 layout.LeftDots.Add(new ContourPoint(xDotL,y));
                 layout.RightDots.Add(new ContourPoint(xDotR,y));
+                UpstandDotDistribution.AddMiddle(xDotL,xDotR,y,perRow,layout.MiddleDots);
             }
             return layout;
         }

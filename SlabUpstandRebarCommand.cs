@@ -109,6 +109,7 @@ namespace WallDetailTool
                         }
                         foreach (ContourPoint c in layout.LeftDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
                         foreach (ContourPoint c in layout.RightDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
+                        foreach (ContourPoint c in layout.MiddleDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
                         BlockTable blocks=(BlockTable)tr.GetObject(doc.Database.BlockTableId,OpenMode.ForWrite);
                         var definition=new BlockTableRecord { Name="WDT-SLAB-UPSTAND-"+Guid.NewGuid().ToString("N") };
                         ObjectId definitionId=blocks.Add(definition);
@@ -165,6 +166,7 @@ namespace WallDetailTool
             result.Line.Add(new RebarVertex(right.X,g.SlabTop,0));
             result.Line.Add(new RebarVertex(right.X,g.SlabTop-1,0));
             result.LeftDots.AddRange(layout.LeftDots); result.RightDots.AddRange(layout.RightDots);
+            result.MiddleDots.AddRange(layout.MiddleDots);
             return result;
         }
 

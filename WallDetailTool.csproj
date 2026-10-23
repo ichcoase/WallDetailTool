@@ -50,6 +50,7 @@
     <Compile Include="SlabUpstandRebarCommand.cs" />
     <Compile Include="SlabUpstandForm.cs" />
     <Compile Include="UpstandRebarGeometry.cs" />
+    <Compile Include="UpstandDotDistribution.cs" />
     <Compile Include="UpstandAnnotationGeometry.cs" />
   </ItemGroup>
   <Target Name="CheckAutoCADReferences" BeforeTargets="ResolveReferences">

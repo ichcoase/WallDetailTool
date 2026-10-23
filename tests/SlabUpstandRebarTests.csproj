@@ -3,6 +3,7 @@
   <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
     <Compile Include="..\UpstandGeometry.cs"><Link>UpstandGeometry.cs</Link></Compile>
     <Compile Include="..\UpstandRebarGeometry.cs"><Link>UpstandRebarGeometry.cs</Link></Compile>
+    <Compile Include="..\UpstandDotDistribution.cs"><Link>UpstandDotDistribution.cs</Link></Compile>
     <Compile Include="..\SlabUpstandGeometry.cs"><Link>SlabUpstandGeometry.cs</Link></Compile>
     <Compile Include="..\SlabUpstandRebarGeometry.cs"><Link>SlabUpstandRebarGeometry.cs</Link></Compile>
     <Compile Include="SlabUpstandRebarTests.cs"/>
