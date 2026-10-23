@@ -1,0 +1,11 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>SlabUpstandRebarTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><OutputPath>bin\SlabStage2\</OutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
+    <Compile Include="..\UpstandGeometry.cs"><Link>UpstandGeometry.cs</Link></Compile>
+    <Compile Include="..\UpstandRebarGeometry.cs"><Link>UpstandRebarGeometry.cs</Link></Compile>
+    <Compile Include="..\SlabUpstandGeometry.cs"><Link>SlabUpstandGeometry.cs</Link></Compile>
+    <Compile Include="..\SlabUpstandRebarGeometry.cs"><Link>SlabUpstandRebarGeometry.cs</Link></Compile>
+    <Compile Include="SlabUpstandRebarTests.cs"/>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

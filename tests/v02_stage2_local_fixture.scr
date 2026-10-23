@@ -1,0 +1,13 @@
+_.ERASE
+_ALL
+
+_.UCS
+_World
+_.INSUNITS
+4
+_.PLINE
+0,0
+200,0
+200,300
+0,300
+_C

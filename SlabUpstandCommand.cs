@@ -19,9 +19,21 @@ namespace WallDetailTool
             Editor ed=doc.Editor;
             try
             {
+                SlabUpstandGeometry chosen=SelectSlabGeometry(doc);
+                if (chosen==null) return;
+                ed.WriteMessage(string.Format("\n板上反坎识别：{0}，反坎宽={1:g} 高={2:g}，板顶={3:g} 板底={4:g} 厚={5:g} mm，板界={6}。不生成钢筋。",
+                    chosen.InputKind,chosen.Width,chosen.Height,chosen.SlabTop,chosen.SlabBottom,chosen.SlabThickness,
+                    chosen.HasSlabBoundaries?string.Format("左 {0:g}／右 {1:g}",chosen.SlabLeft.Value,chosen.SlabRight.Value):"未知（无法判断钢筋越界）"));
+            }
+            catch (System.Exception ex) { ed.WriteMessage("\n板上反坎识别失败："+ex.Message); }
+        }
+
+        private static SlabUpstandGeometry SelectSlabGeometry(Document doc)
+        {
+            Editor ed=doc.Editor;
                 ed.WriteMessage("\n选择板上反坎轮廓（LINE/LWPOLYLINE）；只读识别，不修改原图元。");
                 PromptSelectionResult selected=ed.GetSelection();
-                if (selected.Status!=PromptStatus.OK) return;
+                if (selected.Status!=PromptStatus.OK) return null;
                 var segments=new List<ContourSegment>();
                 double? elevation=null;
                 using (Transaction tr=doc.Database.TransactionManager.StartTransaction())
@@ -62,7 +74,7 @@ namespace WallDetailTool
                 {
                     var option=new PromptDoubleOptions("\n楼板厚度 h（mm）: ") { AllowNegative=false,AllowZero=false };
                     PromptDoubleResult thickness=ed.GetDouble(option);
-                    if (thickness.Status!=PromptStatus.OK) return;
+                    if (thickness.Status!=PromptStatus.OK) return null;
                     manualThickness=thickness.Value;
                 }
                 var candidates=SlabUpstandRecognizer.Recognize(segments,elevation??0,manualThickness);
@@ -71,7 +83,7 @@ namespace WallDetailTool
                 {
                     ed.WriteMessage("\n存在多个反坎候选，请点选目标内部。");
                     PromptPointResult target=ed.GetPoint("\n目标反坎内部: ");
-                    if (target.Status!=PromptStatus.OK) return;
+                    if (target.Status!=PromptStatus.OK) return null;
                     chosen=SlabUpstandRecognizer.SelectCandidate(candidates,target.Value.X,target.Value.Y);
                     var checkedCandidates=SlabUpstandRecognizer.Recognize(segments,elevation??0,manualThickness);
                     SlabUpstandGeometry checkedChoice=SlabUpstandRecognizer.SelectCandidate(checkedCandidates,target.Value.X,target.Value.Y);
@@ -81,15 +93,7 @@ namespace WallDetailTool
                     chosen=checkedChoice;
                     chosen.CandidateState=SlabCandidateState.SelectedAndRevalidated;
                 }
-                ed.WriteMessage(string.Format("\n板上反坎识别：{0}，反坎宽={1:g} 高={2:g}，板顶={3:g} 板底={4:g} 厚={5:g} mm，板界={6}。不生成钢筋。",
-                    chosen.InputKind,chosen.Width,chosen.Height,chosen.SlabTop,chosen.SlabBottom,chosen.SlabThickness,
-                    chosen.HasSlabBoundaries?string.Format("左 {0:g}／右 {1:g}",chosen.SlabLeft.Value,chosen.SlabRight.Value):"未知（无法判断钢筋越界）"));
-            }
-            catch (InvalidOperationException ex)
-            {
-                ed.WriteMessage("\n板上反坎识别失败："+ex.Message);
-            }
-            catch (System.Exception ex) { ed.WriteMessage("\n板上反坎识别失败："+ex.Message); }
+                return chosen;
         }
     }
 }
