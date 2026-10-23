@@ -46,9 +46,10 @@ namespace WallDetailTool
             if (toolbar==null)
             {
                 toolbar=new PaletteSet("WallDetailTool 工具条",new Guid("7EA33DAD-166B-4058-B37D-56120EE25037"));
-                toolbar.Size=new Size(290,95);
+                toolbar.Size=new Size(330,95);
                 var strip=new ToolStrip { Dock=DockStyle.Fill,GripStyle=ToolStripGripStyle.Hidden };
                 strip.Items.Add(new ToolStripButton("反坎绘制",null,(s,e)=>RebarPalette.Queue("WDTUPFORM")));
+                strip.Items.Add(new ToolStripButton("板上反坎",null,(s,e)=>RebarPalette.Queue("WDTUPSLABDRAW")));
                 strip.Items.Add(new ToolStripButton("高级设置",null,(s,e)=>RebarPalette.Queue("WDTUPSETTINGS")));
                 toolbar.Add("工具",strip);
             }
