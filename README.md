@@ -1,5 +1,11 @@
 # WallDetailTool
 
+## V0.1 交付（2026-10-23）
+
+本地稳定基线 DLL：`D:\Waste\WallDtailTool\bin\V01Stable20261023\WallDetailTool.dll`（Release/x64/.NET Framework 4.8；引用 AutoCAD 2023 托管程序集；SHA-256 `2B8C04522B5C9F82AB8FBD0DC033DA3CE517D92C042FBC474BF65AB3ED95FAB4`）。在 AutoCAD 2023/2024 中重启后 `NETLOAD` 此 DLL，执行 `WDTTOOLBAR`，分别使用“反坎绘制”和“高级设置”；旧 `WDTUPDRAW`、`WDTPANEL`、`WDTUPCONTOUR`、`WDTTEST`、`WDTREBAR` 等命令保留。1 CAD 单位按 1 mm 使用。生成前先在绘制窗口填写或沿用参数，选轮廓后直接生成；用一次 UNDO 撤销本次生成。不要把历史 Phase7 的侧边栏/预览说明用于此版本。
+
+标准测试图位于本机 `tests/WallDetailTool_V01_Stage1_Contour.dwg` 至 `tests/WallDetailTool_V01_Stage4_BlockPanel.dwg`；请在副本上操作。逐项清单及本次证据见 `tests/V01_RELEASE_CHECKLIST.md`。DWG、DLL 和日志不上传 Git。用户反馈 V0.1 实际使用效果基本认可；AutoCAD 2023/2024 本轮完整图形界面回归仍待验证，结构构造须由工程师审核。历史 README 以下内容为旧阶段记录。
+
 ## 梁上反坎第一版（待 CAD 实测）
 
 若自动角色识别不唯一，请依次点选梁、板、反坎；人工指定后不要求板跨梁、梁宽大于梁高或三条边完全齐平。钢筋按所选反坎与梁生成，板只绘制混凝土轮廓。
