@@ -24,7 +24,7 @@ namespace WallDetailTool
         internal readonly List<RebarVertex> Line = new List<RebarVertex>();
         internal readonly List<ContourPoint> LeftDots = new List<ContourPoint>();
         internal readonly List<ContourPoint> RightDots = new List<ContourPoint>();
-        internal readonly List<ContourPoint> MiddleDots = new List<ContourPoint>();
+        internal readonly List<ContourPoint> TopDots = new List<ContourPoint>();
         internal double LineWidth, DotDiameter, Elevation;
     }
 
@@ -48,22 +48,23 @@ namespace WallDetailTool
             double xl=g.Left+e, xr=g.Right-e, yt=g.Top-e;
             if (xr-xl<=2*p.Radius+Epsilon)
                 throw new InvalidOperationException("反坎过窄：两个 R 圆弧间没有顶部水平直段；不会自动缩小 R。");
+            if (xr-xl-2*p.Radius<p.DotDisplayDiameter-Epsilon)
+                throw new InvalidOperationException("顶部线筋直段不足以容纳点筋显示直径。");
             if (yt-p.Radius<=g.BeamTop+Epsilon)
                 throw new InvalidOperationException("反坎过矮：R 圆弧下方没有竖直线筋段；不会自动缩小 R。");
-            double xDotL=xl+p.LineDisplayWidth/2+p.DotDisplayDiameter/2;
-            double xDotR=xr-p.LineDisplayWidth/2-p.DotDisplayDiameter/2;
-            if (xDotR-xDotL<p.DotDisplayDiameter-Epsilon)
-                throw new InvalidOperationException("反坎过窄：左右点筋相交，空间不足。");
-            int perRow=UpstandDotDistribution.PerRow(xDotL,xDotR,p.DotSpacing,p.DotDisplayDiameter);
-            double yFirst=yt-p.LineDisplayWidth/2-p.DotDisplayDiameter/2;
+            double yFirst=Math.Min(yt-p.DotSpacing,yt-p.Radius-p.DotDisplayDiameter/2);
             if (yFirst-p.DotDisplayDiameter/2<g.BeamTop-Epsilon)
-                throw new InvalidOperationException("反坎过矮：第一排点筋会越过梁顶。");
+                yFirst=yt-p.Radius-p.DotDisplayDiameter/2;
+            if (yFirst-p.DotDisplayDiameter/2<g.BeamTop-Epsilon)
+                throw new InvalidOperationException("反坎过矮：侧面点筋会越过梁顶。");
             double available=yFirst-p.DotDisplayDiameter/2-g.BeamTop;
             double raw=available/p.DotSpacing;
             if (raw>9999) throw new InvalidOperationException("点筋排数超出可处理范围。");
             int rows=1+(int)Math.Floor(raw+Epsilon);
             var layout=new UpstandRebarLayout { LineWidth=p.LineDisplayWidth,
                 DotDiameter=p.DotDisplayDiameter,Elevation=g.Elevation };
+            UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt,p.DotSpacing,
+                p.DotDisplayDiameter,layout.TopDots);
             double bulge=-Math.Tan(Math.PI/8);
             layout.Line.Add(new RebarVertex(xl,g.BeamTop-p.LeftAnchor,0));
             layout.Line.Add(new RebarVertex(xl,g.BeamTop,0));
@@ -76,9 +77,8 @@ namespace WallDetailTool
             for (int i=0;i<rows;i++)
             {
                 double y=yFirst-i*p.DotSpacing;
-                layout.LeftDots.Add(new ContourPoint(xDotL,y));
-                layout.RightDots.Add(new ContourPoint(xDotR,y));
-                UpstandDotDistribution.AddMiddle(xDotL,xDotR,y,perRow,layout.MiddleDots);
+                layout.LeftDots.Add(new ContourPoint(xl,y));
+                layout.RightDots.Add(new ContourPoint(xr,y));
             }
             return layout;
         }

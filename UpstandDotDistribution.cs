@@ -3,26 +3,24 @@ using System.Collections.Generic;
 
 namespace WallDetailTool
 {
-    // Adjacent dot centre distance is an upper bound. Keep the two existing outer centres.
+    // Dots follow the top straight segment of the U; none are placed inside the section.
     internal static class UpstandDotDistribution
     {
-        internal static int PerRow(double left,double right,double maximumSpacing,double displayDiameter)
+        internal static void AddTop(double leftTangent,double rightTangent,double y,
+            double maximumSpacing,double displayDiameter,List<ContourPoint> target)
         {
-            double distance=right-left;
-            if (double.IsNaN(distance)||double.IsInfinity(distance)||distance<displayDiameter-1e-8 ||
-                double.IsNaN(maximumSpacing)||double.IsInfinity(maximumSpacing)||maximumSpacing<displayDiameter-1e-8 ||
-                maximumSpacing<=0)
-                throw new InvalidOperationException("点筋横向空间或中心距无效，无法布置点筋。");
-            int intervals=(int)Math.Ceiling(distance/maximumSpacing-1e-10);
-            if (intervals<1) intervals=1;
-            if (intervals>9999) throw new InvalidOperationException("横向点筋数量超出可处理范围。");
-            return intervals+1;
-        }
-
-        internal static void AddMiddle(double left,double right,double y,int perRow,List<ContourPoint> target)
-        {
-            for (int i=1;i<perRow-1;i++)
-                target.Add(new ContourPoint(left+(right-left)*i/(perRow-1),y));
+            double length=rightTangent-leftTangent;
+            if (double.IsNaN(length)||double.IsInfinity(length)||length<=0 ||
+                double.IsNaN(maximumSpacing)||double.IsInfinity(maximumSpacing)||maximumSpacing<=0 ||
+                double.IsNaN(displayDiameter)||double.IsInfinity(displayDiameter)||displayDiameter<=0)
+                throw new InvalidOperationException("顶部线筋直段或点筋中心距无效。");
+            double raw=length/maximumSpacing;
+            if (raw>9999) throw new InvalidOperationException("顶部点筋数量超出可处理范围。");
+            int count=Math.Max(1,(int)Math.Ceiling(raw-1e-10));
+            if (length/(count+1)<displayDiameter-1e-8)
+                throw new InvalidOperationException("顶部点筋显示直径和中心距使点筋重叠，无法布置。");
+            for (int i=0;i<count;i++)
+                target.Add(new ContourPoint(leftTangent+length*(i+1)/(count+1),y));
         }
     }
 }

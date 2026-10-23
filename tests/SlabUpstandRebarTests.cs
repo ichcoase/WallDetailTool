@@ -23,7 +23,11 @@ internal static class SlabUpstandRebarTests
         Near(q.Line[3].Bulge,-Math.Tan(Math.PI/8),"left top tangent arc");
         Near(q.Line[5].Bulge,-Math.Tan(Math.PI/8),"right top tangent arc");
         Near(q.Line[7].Bulge,Math.Tan(Math.PI/8),"right bottom tangent arc");
-        Near(q.LeftDots[0].X,443,"left dot tangent spacing"); Near(q.RightDots[0].X,557,"right dot");
+        Near(q.LeftDots[0].X,431,"left dot on upright"); Near(q.RightDots[0].X,569,"right dot on upright");
+        Near(q.TopDots[0].X,500,"top dot on horizontal line");
+        Near(q.TopDots[0].Y,q.Line[4].Y,"top dot height follows line");
+        Near(q.LeftDots[0].X,q.Line[2].X,"no interior left dot");
+        Near(q.RightDots[0].X,q.Line[7].X,"no interior right dot");
         var changedSettings=new SlabUpstandRebarParameters { Cover=35,Radius=30 };
         var changedLayout=SlabUpstandRebarGeometry.Calculate(G(),changedSettings);
         Near(changedSettings.EffectiveH,41,"saved cover changes default H");
@@ -50,11 +54,11 @@ internal static class SlabUpstandRebarTests
         Ok(!q.HasSlabBoundaries,"local has no boundary result");
         var wide=G(); wide.Right=700;
         var threeDots=SlabUpstandRebarGeometry.Calculate(wide,p);
-        Ok(threeDots.MiddleDots.Count==threeDots.LeftDots.Count,"300 mm slab upstand has three per row");
-        Near(threeDots.MiddleDots[0].X,550,"slab middle symmetry");
+        Ok(threeDots.TopDots.Count==1,"300 mm slab upstand has one top dot");
+        Near(threeDots.TopDots[0].X,550,"slab top symmetry");
         wide.Right=900;
         var fourDots=SlabUpstandRebarGeometry.Calculate(wide,p);
-        Ok(fourDots.MiddleDots.Count==2*fourDots.LeftDots.Count,"500 mm slab upstand has four per row");
+        Ok(fourDots.TopDots.Count==2,"500 mm slab upstand has two top dots");
         Ok(SlabUpstandRebarGeometry.MayGenerate(q,false),"local mode generates without boundary prompt");
         var thin=G(); thin.SlabBottom=290; Fail("thin slab",thin,p);
         var invalid=new SlabUpstandRebarParameters { H=0 }; Fail("zero H",G(),invalid);
@@ -66,9 +70,11 @@ internal static class SlabUpstandRebarTests
         invalid=new SlabUpstandRebarParameters { Cover=-1 }; Fail("invalid saved cover",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Radius=1000 }; Fail("invalid saved radius for space",G(),invalid);
         var narrow=G(); narrow.Right=450; Fail("self crossing top arcs",narrow,p);
+        narrow.Right=505; Fail("top dot has no room",narrow,p);
         var shortRise=G(); shortRise.Top=360;
         Fail("self crossing vertical arcs",shortRise,new SlabUpstandRebarParameters { H=290 });
         invalid=new SlabUpstandRebarParameters { DotSpacing=5 }; Fail("overlapping dots",G(),invalid);
+        invalid=new SlabUpstandRebarParameters { DotSpacing=12 }; Fail("overlapping top dots",G(),invalid);
         Console.WriteLine("SLAB_UPSTAND_STAGE2_REBAR_PASS");
     }
 }

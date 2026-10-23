@@ -23,13 +23,13 @@ internal static class UpstandAnnotationStage3Tests
         {
             var layout=Calculate(Geometry(kind),Parameters(),-400,600);
             Ok(layout.LineLabel.Text=="φ8@150","line specification");
-            Ok(layout.DotLabel.Text=="φ6@200","multiple dot rows");
-            Ok(layout.LineLabel.Rightward && layout.DotLabel.Rightward,"equal space chooses right");
-            Ok(layout.LineLabel.Leaders.Count==1 && layout.DotLabel.Leaders.Count==2,
-                "straight line leader and dot leader");
+            Ok(layout.DotLabel.Text=="3φ6","one side row and top dot");
+            Ok(layout.LineLabel.Rightward,"equal space chooses right for line label");
+            Ok(layout.LineLabel.Leaders.Count==1 && layout.DotLabel.Leaders.Count==4,
+                "line leader and three dot branches with underline");
             Near(layout.TextHeight,62.5,"requested text height");
-            Ok(layout.LineLabel.TextAnchor.Y<300 && layout.DotLabel.TextAnchor.Y<300,
-                "both labels beside the upstand, not above its top");
+            Ok(layout.LineLabel.TextAnchor.Y<300 && layout.DotLabel.TextAnchor.Y>300,
+                "single-row dot label above the upstand");
             Near(layout.LineLabel.Leaders[0].A.X,169,"line leader touches right upright");
             Near(layout.LineLabel.Leaders[0].A.Y,layout.LineLabel.Leaders[0].B.Y,
                 "line leader is horizontal");
@@ -42,47 +42,50 @@ internal static class UpstandAnnotationStage3Tests
             Near(Math.Sqrt(Math.Pow(layout.LineLabel.SlashB.X-layout.LineLabel.SlashA.X,2)+
                 Math.Pow(layout.LineLabel.SlashB.Y-layout.LineLabel.SlashA.Y,2)),36,"slash length");
             Near(layout.LineLabel.SlashWidth,10,"slash width");
-            Near(layout.DotLabel.Leaders[0].A.X,43,"dot leader crosses both dots from left");
-            Near(layout.DotLabel.Leaders[0].A.Y,57,"dot leader touches bottom dot row");
-            Near(layout.DotLabel.Leaders[0].A.Y,layout.DotLabel.Leaders[0].B.Y,"dot horizontal leader");
+            Near(layout.DotLabel.Leaders[0].A.X,31,"dot leader starts on left upright");
+            Near(layout.DotLabel.Leaders[0].A.Y,69,"dot leader touches side dot");
+            Near(layout.DotLabel.Leaders[1].A.X,100,"second leader touches top dot");
             Ok(layout.LineLabel.TextAnchor.Y>layout.LineLabel.Leaders[0].A.Y,"text above leader");
             Near(layout.WidthB.X-layout.WidthA.X,200,"concrete width");
             Near(layout.HeightB.Y-layout.HeightA.Y,300,"concrete height");
             Near(layout.HeightLine.X,-93.75,"height dimension opposite right label");
         }
-        var leftward=Calculate(Geometry(UpstandInputKind.OpenInvertedU),Parameters(),-900,250);
+        var leftwardGeometry=Geometry(UpstandInputKind.OpenInvertedU); leftwardGeometry.Top=500;
+        var leftward=Calculate(leftwardGeometry,Parameters(),-900,250);
         Ok(!leftward.LineLabel.Rightward && !leftward.DotLabel.Rightward,"space chooses left");
         Near(leftward.HeightLine.X,-93.75,"height dimension stays where space permits");
         var crowdedLeft=Calculate(Geometry(UpstandInputKind.ClosedRectangle),Parameters(),-10,900);
         Near(crowdedLeft.HeightLine.X,293.75,"height dimension chooses available right side");
         var single=Parameters(); single.DotSpacing=500;
         var one=Calculate(Geometry(UpstandInputKind.ClosedRectangle),single,-400,600);
-        Ok(one.DotLabel.Text=="2φ6","single row both sides");
-        Ok(one.DotLabel.Leaders.Count==3 && one.DotLabel.KeepLastLeaderEnd,
-            "single row has two diagonal branches and one full underline");
+        Ok(one.DotLabel.Text=="3φ6","single row counts two sides and top");
+        Ok(one.DotLabel.Leaders.Count==4 && one.DotLabel.KeepLastLeaderEnd,
+            "single row has three branches and one full underline");
         var oneSteel=UpstandRebarGeometry.Calculate(Geometry(UpstandInputKind.ClosedRectangle),single);
         Near(one.DotLabel.Leaders[0].A.X,oneSteel.LeftDots[0].X,"left branch touches left dot");
-        Near(one.DotLabel.Leaders[1].A.X,oneSteel.RightDots[0].X,"right branch touches right dot");
+        Near(one.DotLabel.Leaders[1].A.X,oneSteel.TopDots[0].X,"top branch touches top dot");
+        Near(one.DotLabel.Leaders[2].A.X,oneSteel.RightDots[0].X,"right branch touches right dot");
         Ok(one.DotLabel.Leaders[0].B.Y>one.DotLabel.Leaders[0].A.Y &&
             one.DotLabel.Leaders[1].B.Y>one.DotLabel.Leaders[1].A.Y,
             "both branches rise from dots");
-        Near(one.DotLabel.Leaders[2].A.Y,one.DotLabel.Leaders[2].B.Y,
+        Near(one.DotLabel.Leaders[3].A.Y,one.DotLabel.Leaders[3].B.Y,
             "single row underline horizontal");
-        Ok(one.DotLabel.TextAnchor.Y>one.DotLabel.Leaders[2].A.Y &&
-            one.DotLabel.Leaders[2].A.Y>300,"single row text and underline above concrete");
+        Ok(one.DotLabel.TextAnchor.Y>one.DotLabel.Leaders[3].A.Y &&
+            one.DotLabel.Leaders[3].A.Y>300,"single row text and underline above concrete");
         var oneMirrored=Calculate(Geometry(UpstandInputKind.OpenInvertedU),single,-20,700);
-        Ok(!oneMirrored.DotLabel.Rightward && oneMirrored.DotLabel.Leaders.Count==3,
+        Ok(!oneMirrored.DotLabel.Rightward && oneMirrored.DotLabel.Leaders.Count==4,
             "single row mirrors to available right side");
         var wideSingle=Geometry(UpstandInputKind.ClosedRectangle); wideSingle.Right=300; wideSingle.Top=150;
         var threeSingle=Calculate(wideSingle,Parameters(),-400,700);
         Ok(threeSingle.DotLabel.Text=="3φ6" && threeSingle.DotLabel.Leaders.Count==4,
             "three dots in one row get three branches and count label");
-        var wideMultiple=Geometry(UpstandInputKind.OpenInvertedU); wideMultiple.Right=300;
+        var wideMultiple=Geometry(UpstandInputKind.OpenInvertedU); wideMultiple.Right=300; wideMultiple.Top=500;
         var multi=Calculate(wideMultiple,Parameters(),-400,700);
         Ok(multi.DotLabel.Text=="φ6@200","multiple rows retain spacing label");
         var custom=Parameters(); custom.LineDiameter=10; custom.LineSpacing=125;
         custom.DotDiameter=8; custom.DotSpacing=150;
-        var changed=Calculate(Geometry(UpstandInputKind.FullSection),custom,-400,600);
+        var customGeometry=Geometry(UpstandInputKind.FullSection); customGeometry.Top=500;
+        var changed=Calculate(customGeometry,custom,-400,600);
         Ok(changed.LineLabel.Text=="φ10@125" && changed.DotLabel.Text=="φ8@150","design values in text");
         var fallback=Calculate(Geometry(UpstandInputKind.ClosedRectangle),Parameters(),-20,220);
         Ok(fallback.Warnings.Count>=1,"insufficient view space warns");

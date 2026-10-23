@@ -50,7 +50,7 @@ namespace WallDetailTool
         {
             if (g==null || steel==null || p==null || steel.Line.Count<5 ||
                 steel.LeftDots.Count==0 || steel.LeftDots.Count!=steel.RightDots.Count ||
-                steel.MiddleDots.Count%steel.LeftDots.Count!=0)
+                steel.TopDots.Count==0)
                 throw new InvalidOperationException("缺少完整的反坎钢筋布局，无法计算标注。");
             if (!Valid(textHeight) || textHeight<=0)
                 throw new InvalidOperationException("标注文字高度必须为有效正数。");
@@ -59,7 +59,7 @@ namespace WallDetailTool
             var result=new UpstandAnnotationLayout { TextHeight=textHeight, Elevation=g.Elevation };
             double offset=Math.Max(20,.5*textHeight);
             string lineText=Spec(p.LineDiameter,p.LineSpacing);
-            int dotsPerRow=2+steel.MiddleDots.Count/steel.LeftDots.Count;
+            int dotsPerRow=2+steel.TopDots.Count;
             string dotText=steel.LeftDots.Count==1 ? dotsPerRow.ToString(CultureInfo.InvariantCulture)+"φ"+Num(p.DotDiameter) :
                 Spec(p.DotDiameter,p.DotSpacing);
             double run=Math.Max(100,Math.Max(lineText.Length,dotText.Length)*textHeight*.8);
@@ -145,7 +145,7 @@ namespace WallDetailTool
             var label=new UpstandLabelLayout { Text=value,Rightward=onLeft,KeepLastLeaderEnd=true,
                 TextAnchor=new AnnotationPoint(anchorX,y+4) };
             var row=new List<ContourPoint> { steel.LeftDots[0] };
-            row.AddRange(steel.MiddleDots);
+            row.AddRange(steel.TopDots);
             row.Add(steel.RightDots[0]);
             foreach (ContourPoint dot in row)
                 label.Leaders.Add(new AnnotationSegment(new AnnotationPoint(dot.X,dot.Y),
