@@ -51,15 +51,6 @@ namespace WallDetailTool
                         hasPrevious?p.RightLength:p.LeftLength,out value)) return; p.RightLength=value;
                 }
                 SlabUpstandRebarLayout layout=SlabUpstandRebarGeometry.Calculate(g,p);
-                if (drawValues!=null)
-                {
-                    string source=g.ThicknessIsManual?"局部轮廓：使用本次输入":"完整截面：从轮廓识别";
-                    var answer=System.Windows.Forms.MessageBox.Show(string.Format(
-                        "{0}的板厚 h = {1:g} mm。\nH = {2:g} mm，L左 = {3:g} mm，L右 = {4:g} mm。\n确认继续生成？",
-                        source,g.SlabThickness,p.H.Value,p.LeftLength,p.RightLength),"板上反坎几何确认",
-                        System.Windows.Forms.MessageBoxButtons.OKCancel,System.Windows.Forms.MessageBoxIcon.Information);
-                    if (answer!=System.Windows.Forms.DialogResult.OK) return;
-                }
                 if (layout.HasSlabBoundaries && (layout.LeftOverrun>0 || layout.RightOverrun>0))
                 {
                     var options=new PromptKeywordOptions(string.Format(
@@ -67,13 +58,6 @@ namespace WallDetailTool
                         layout.LeftOverrun,layout.RightOverrun));
                     options.Keywords.Add("Continue"); options.Keywords.Add("Cancel");
                     options.AllowNone=true;
-                    PromptResult decision=ed.GetKeywords(options);
-                    if (decision.Status!=PromptStatus.OK || decision.StringResult!="Continue") return;
-                }
-                else if (!layout.HasSlabBoundaries)
-                {
-                    var options=new PromptKeywordOptions("\n未提供楼板左右边界，水平段需人工审核。继续生成或取消 [Continue/Cancel] <Cancel>: ");
-                    options.Keywords.Add("Continue"); options.Keywords.Add("Cancel"); options.AllowNone=true;
                     PromptResult decision=ed.GetKeywords(options);
                     if (decision.Status!=PromptStatus.OK || decision.StringResult!="Continue") return;
                 }

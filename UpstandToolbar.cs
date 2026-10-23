@@ -59,22 +59,22 @@ namespace WallDetailTool
 
     internal sealed class UpstandDrawForm : Form
     {
-        private readonly TextBox[] fields=new TextBox[7];
+        private readonly TextBox[] fields=new TextBox[6];
         private readonly UpstandPanelValues initial;
         internal UpstandPanelValues Values { get; private set; }
         internal UpstandDrawForm(UpstandPanelValues current)
         {
             initial=current;
-            Text="WallDetailTool 反坎绘制"; Width=430; Height=400;
+            Text="WallDetailTool 反坎绘制"; Width=430; Height=360;
             FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
             StartPosition=FormStartPosition.CenterParent;
-            var grid=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=7,Height=300,Padding=new Padding(14) };
+            var grid=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=6,Height=260,Padding=new Padding(14) };
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,57));
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,43));
-            string[] names={"保护层 (mm)","线筋实际直径 (mm)","线筋间距 (mm)",
+            string[] names={"线筋实际直径 (mm)","线筋间距 (mm)",
                 "点筋实际直径 (mm)","点筋间距 (mm)","左侧锚固长度 (mm)",
                 "右侧锚固长度 (mm，留空同左侧)"};
-            double[] values={current.Cover,current.LineDiameter,current.LineSpacing,current.DotDiameter,
+            double[] values={current.LineDiameter,current.LineSpacing,current.DotDiameter,
                 current.DotSpacing,current.LeftAnchor,current.RightAnchor};
             for (int i=0;i<fields.Length;i++)
             {
@@ -93,16 +93,16 @@ namespace WallDetailTool
         {
             try
             {
-                var parsed=new double[7];
+                var parsed=new double[6];
                 for(int i=0;i<parsed.Length;i++)
                 {
-                    if (i==6 && String.IsNullOrWhiteSpace(fields[i].Text)) { parsed[i]=parsed[5]; continue; }
+                    if (i==5 && String.IsNullOrWhiteSpace(fields[i].Text)) { parsed[i]=parsed[4]; continue; }
                     if (!double.TryParse(fields[i].Text,NumberStyles.Float,CultureInfo.CurrentCulture,out parsed[i]) ||
-                        double.IsNaN(parsed[i]) || double.IsInfinity(parsed[i]) || parsed[i]<(i==0?0:1e-12))
+                        double.IsNaN(parsed[i]) || double.IsInfinity(parsed[i]) || parsed[i]<=0)
                         throw new InvalidOperationException("请填写有效毫米参数；锚固长度须手动确认。");
                 }
-                Values=new UpstandPanelValues { Cover=parsed[0],LineDiameter=parsed[1],LineSpacing=parsed[2],
-                    DotDiameter=parsed[3],DotSpacing=parsed[4],LeftAnchor=parsed[5],RightAnchor=parsed[6],
+                Values=new UpstandPanelValues { Cover=initial.Cover,LineDiameter=parsed[0],LineSpacing=parsed[1],
+                    DotDiameter=parsed[2],DotSpacing=parsed[3],LeftAnchor=parsed[4],RightAnchor=parsed[5],
                     LineDisplayWidth=initial.LineDisplayWidth,DotDisplayDiameter=initial.DotDisplayDiameter,
                     Radius=initial.Radius,TextHeight=initial.TextHeight };
                 DialogResult=DialogResult.OK; Close();
@@ -113,26 +113,27 @@ namespace WallDetailTool
 
     internal sealed class UpstandSettingsForm : Form
     {
-        private readonly TextBox[] numbers=new TextBox[4];
+        private readonly TextBox[] numbers=new TextBox[5];
         private readonly TextBox[] layers=new TextBox[4];
         private readonly UpstandPanelValues values;
         private readonly UpstandLayers names;
         internal UpstandSettingsForm()
         {
             values=UpstandPanelValues.ReadUserDefaults(); names=UpstandLayers.Read();
-            Text="WallDetailTool 高级设置"; Width=640; Height=355;
+            Text="WallDetailTool 高级设置"; Width=640; Height=390;
             FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
             StartPosition=FormStartPosition.CenterParent;
-            var columns=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=1,Height=250 };
+            var columns=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=1,Height=285 };
             columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));
             columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));
-            var left=Section("参数（mm）",new[]{"线筋显示宽度","点筋显示直径","圆弧中心线半径 R","钢筋文字高度"},numbers);
+            var left=Section("参数（mm）",new[]{"保护层 c","线筋显示宽度","点筋显示直径","圆弧中心线半径 R","钢筋文字高度"},numbers);
             var right=Section("新生成图元的图层",new[]{"线筋图层","点筋图层","文字/引线图层","尺寸图层"},layers);
             columns.Controls.Add(left,0,0); columns.Controls.Add(right,1,0);
-            numbers[0].Text=values.LineDisplayWidth.ToString("g",CultureInfo.CurrentCulture);
-            numbers[1].Text=values.DotDisplayDiameter.ToString("g",CultureInfo.CurrentCulture);
-            numbers[2].Text=values.Radius.ToString("g",CultureInfo.CurrentCulture);
-            numbers[3].Text=values.TextHeight.ToString("g",CultureInfo.CurrentCulture);
+            numbers[0].Text=values.Cover.ToString("g",CultureInfo.CurrentCulture);
+            numbers[1].Text=values.LineDisplayWidth.ToString("g",CultureInfo.CurrentCulture);
+            numbers[2].Text=values.DotDisplayDiameter.ToString("g",CultureInfo.CurrentCulture);
+            numbers[3].Text=values.Radius.ToString("g",CultureInfo.CurrentCulture);
+            numbers[4].Text=values.TextHeight.ToString("g",CultureInfo.CurrentCulture);
             layers[0].Text=names.Line; layers[1].Text=names.Dot;
             layers[2].Text=names.Text; layers[3].Text=names.Dimension;
             var buttons=new FlowLayoutPanel { Dock=DockStyle.Bottom,FlowDirection=FlowDirection.RightToLeft,Height=42 };
@@ -144,10 +145,10 @@ namespace WallDetailTool
         private static Control Section(string title,string[] captions,TextBox[] fields)
         {
             var box=new GroupBox { Text=title,Dock=DockStyle.Fill };
-            var grid=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=4 };
+            var grid=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=fields.Length };
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,53));
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,47));
-            for(int i=0;i<4;i++)
+            for(int i=0;i<fields.Length;i++)
             {
                 grid.Controls.Add(new Label { Text=captions[i],AutoSize=true,Anchor=AnchorStyles.Left },0,i);
                 fields[i]=new TextBox { Dock=DockStyle.Fill };
@@ -159,17 +160,17 @@ namespace WallDetailTool
         {
             try
             {
-                var parsed=new double[4];
-                for(int i=0;i<4;i++)
+                var parsed=new double[5];
+                for(int i=0;i<5;i++)
                     if (!double.TryParse(numbers[i].Text,NumberStyles.Float,CultureInfo.CurrentCulture,out parsed[i]) ||
-                        double.IsNaN(parsed[i]) || double.IsInfinity(parsed[i]) || parsed[i]<=0)
+                        double.IsNaN(parsed[i]) || double.IsInfinity(parsed[i]) || parsed[i]<(i==0?0:1e-12))
                         throw new InvalidOperationException("绘图参数必须为有效正数。");
-                if (parsed[0]>1000 || parsed[1]>1000) throw new InvalidOperationException("CAD 显示尺寸不得超过 1000 mm。");
+                if (parsed[1]>1000 || parsed[2]>1000) throw new InvalidOperationException("CAD 显示尺寸不得超过 1000 mm。");
                 var nextNames=new UpstandLayers { Line=layers[0].Text.Trim(),Dot=layers[1].Text.Trim(),
                     Text=layers[2].Text.Trim(),Dimension=layers[3].Text.Trim() };
                 nextNames.Validate();
-                values.LineDisplayWidth=parsed[0]; values.DotDisplayDiameter=parsed[1];
-                values.Radius=parsed[2]; values.TextHeight=parsed[3];
+                values.Cover=parsed[0]; values.LineDisplayWidth=parsed[1]; values.DotDisplayDiameter=parsed[2];
+                values.Radius=parsed[3]; values.TextHeight=parsed[4];
                 values.SaveUserDefaults(); nextNames.Save();
                 RebarPalette.UpdateUpstandAdvanced(values);
                 DialogResult=DialogResult.OK; Close();
@@ -189,7 +190,9 @@ namespace WallDetailTool
             Document doc=CadApplication.DocumentManager.MdiActiveDocument;
             if (doc==null) return;
             pendingDrawValues=null; pendingDrawDocument=null;
-            using (var dialog=new UpstandDrawForm(PanelValues(doc.Database)))
+            UpstandPanelValues initial=PanelValues(doc.Database);
+            initial.Cover=UpstandPanelValues.ReadUserDefaults().Cover;
+            using (var dialog=new UpstandDrawForm(initial))
                 if (CadApplication.ShowModalDialog(dialog)==DialogResult.OK)
                 {
                     pendingDrawValues=dialog.Values; pendingDrawDocument=doc;

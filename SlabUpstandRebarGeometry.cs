@@ -83,7 +83,7 @@ namespace WallDetailTool
         internal static bool MayGenerate(SlabUpstandRebarLayout layout,bool userContinues)
         {
             if (layout==null) return false;
-            return (layout.HasSlabBoundaries && layout.LeftOverrun<=E && layout.RightOverrun<=E) || userContinues;
+            return !layout.HasSlabBoundaries || (layout.LeftOverrun<=E && layout.RightOverrun<=E) || userContinues;
         }
     }
 }

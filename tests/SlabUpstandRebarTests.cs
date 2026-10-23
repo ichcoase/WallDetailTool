@@ -48,7 +48,7 @@ internal static class SlabUpstandRebarTests
         var bothLayout=SlabUpstandRebarGeometry.Calculate(both,p);
         Near(bothLayout.LeftOverrun,49,"left overrun"); Near(bothLayout.RightOverrun,49,"right overrun");
         Ok(!q.HasSlabBoundaries,"local has no boundary result");
-        Ok(!SlabUpstandRebarGeometry.MayGenerate(q,false) && SlabUpstandRebarGeometry.MayGenerate(q,true),"local review continue cancel");
+        Ok(SlabUpstandRebarGeometry.MayGenerate(q,false),"local mode generates without boundary prompt");
         var thin=G(); thin.SlabBottom=290; Fail("thin slab",thin,p);
         var invalid=new SlabUpstandRebarParameters { H=0 }; Fail("zero H",G(),invalid);
         invalid.H=300; Fail("H equals h",G(),invalid);
