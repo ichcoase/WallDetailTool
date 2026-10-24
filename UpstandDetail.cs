@@ -269,6 +269,7 @@ namespace WallDetailTool
                 foreach (ContourPoint p in layout.LeftDots) entities.Add(UpstandDot(p,layout.Elevation,layout.DotDiameter,dotLayer));
                 foreach (ContourPoint p in layout.RightDots) entities.Add(UpstandDot(p,layout.Elevation,layout.DotDiameter,dotLayer));
                 foreach (ContourPoint p in layout.TopDots) entities.Add(UpstandDot(p,layout.Elevation,layout.DotDiameter,dotLayer));
+                foreach (ContourPoint p in layout.CornerDots) entities.Add(UpstandDot(p,layout.Elevation,layout.DotDiameter,dotLayer));
                 return entities;
             }
             catch { foreach (Entity e in entities) e.Dispose(); throw; }

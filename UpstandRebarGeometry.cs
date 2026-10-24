@@ -25,6 +25,7 @@ namespace WallDetailTool
         internal readonly List<ContourPoint> LeftDots = new List<ContourPoint>();
         internal readonly List<ContourPoint> RightDots = new List<ContourPoint>();
         internal readonly List<ContourPoint> TopDots = new List<ContourPoint>();
+        internal readonly List<ContourPoint> CornerDots = new List<ContourPoint>();
         internal double LineWidth, DotDiameter, Elevation;
     }
 
@@ -52,18 +53,19 @@ namespace WallDetailTool
                 throw new InvalidOperationException("顶部线筋直段不足以容纳点筋显示直径。");
             if (yt-p.Radius<=g.BeamTop+Epsilon)
                 throw new InvalidOperationException("反坎过矮：R 圆弧下方没有竖直线筋段；不会自动缩小 R。");
-            double yFirst=Math.Min(yt-p.DotSpacing,yt-p.Radius-p.DotDisplayDiameter/2);
-            if (yFirst-p.DotDisplayDiameter/2<g.BeamTop-Epsilon)
-                yFirst=yt-p.Radius-p.DotDisplayDiameter/2;
-            if (yFirst-p.DotDisplayDiameter/2<g.BeamTop-Epsilon)
-                throw new InvalidOperationException("反坎过矮：侧面点筋会越过梁顶。");
+            double dotOffset=UpstandDotDistribution.InnerOffset(p.LineDisplayWidth,p.DotDisplayDiameter);
+            if (p.Radius<=dotOffset+Epsilon)
+                throw new InvalidOperationException("R 不足以在顶部转角内侧布置相切点筋。");
+            double yFirst=UpstandDotDistribution.SideFirst(yt,p.Radius,dotOffset,
+                p.DotDisplayDiameter,p.DotSpacing,g.BeamTop);
             double available=yFirst-p.DotDisplayDiameter/2-g.BeamTop;
             double raw=available/p.DotSpacing;
             if (raw>9999) throw new InvalidOperationException("点筋排数超出可处理范围。");
             int rows=1+(int)Math.Floor(raw+Epsilon);
             var layout=new UpstandRebarLayout { LineWidth=p.LineDisplayWidth,
                 DotDiameter=p.DotDisplayDiameter,Elevation=g.Elevation };
-            UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt,p.DotSpacing,
+            UpstandDotDistribution.AddCorners(xl,xr,yt,p.Radius,dotOffset,layout.CornerDots);
+            UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt-dotOffset,p.DotSpacing,
                 p.DotDisplayDiameter,layout.TopDots);
             double bulge=-Math.Tan(Math.PI/8);
             layout.Line.Add(new RebarVertex(xl,g.BeamTop-p.LeftAnchor,0));
@@ -77,9 +79,11 @@ namespace WallDetailTool
             for (int i=0;i<rows;i++)
             {
                 double y=yFirst-i*p.DotSpacing;
-                layout.LeftDots.Add(new ContourPoint(xl,y));
-                layout.RightDots.Add(new ContourPoint(xr,y));
+                layout.LeftDots.Add(new ContourPoint(xl+dotOffset,y));
+                layout.RightDots.Add(new ContourPoint(xr-dotOffset,y));
             }
+            UpstandDotDistribution.CheckCorners(layout.CornerDots,layout.TopDots,
+                layout.LeftDots[0],layout.RightDots[0],p.DotDisplayDiameter);
             return layout;
         }
         private static void Positive(double v,string name)

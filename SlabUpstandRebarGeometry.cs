@@ -17,6 +17,7 @@ namespace WallDetailTool
         internal readonly System.Collections.Generic.List<ContourPoint> LeftDots=new System.Collections.Generic.List<ContourPoint>();
         internal readonly System.Collections.Generic.List<ContourPoint> RightDots=new System.Collections.Generic.List<ContourPoint>();
         internal readonly System.Collections.Generic.List<ContourPoint> TopDots=new System.Collections.Generic.List<ContourPoint>();
+        internal readonly System.Collections.Generic.List<ContourPoint> CornerDots=new System.Collections.Generic.List<ContourPoint>();
         internal double LineWidth, DotDiameter, Elevation, LeftOverrun, RightOverrun;
         internal bool HasSlabBoundaries;
     }
@@ -46,16 +47,17 @@ namespace WallDetailTool
             if (xr-xl<=2*p.Radius+E) throw new InvalidOperationException("反坎过窄：顶部两个 R 圆弧无直线段。");
             if (xr-xl-2*p.Radius<p.DotDisplayDiameter-E) throw new InvalidOperationException("顶部线筋直段不足以容纳点筋显示直径。");
             if (yt-p.Radius<=yh+p.Radius+E) throw new InvalidOperationException("竖直段不足以连接上下 R 圆弧；不会缩小 R。");
-            double first=Math.Min(yt-p.DotSpacing,yt-p.Radius-p.DotDisplayDiameter/2);
-            if (first-p.DotDisplayDiameter/2<g.SlabTop-E)
-                first=yt-p.Radius-p.DotDisplayDiameter/2;
-            if (first-p.DotDisplayDiameter/2<g.SlabTop-E) throw new InvalidOperationException("侧面点筋越过板顶。");
+            double dotOffset=UpstandDotDistribution.InnerOffset(p.LineDisplayWidth,p.DotDisplayDiameter);
+            if (p.Radius<=dotOffset+E) throw new InvalidOperationException("R 不足以在顶部转角内侧布置相切点筋。");
+            double first=UpstandDotDistribution.SideFirst(yt,p.Radius,dotOffset,
+                p.DotDisplayDiameter,p.DotSpacing,g.SlabTop);
             double raw=(first-p.DotDisplayDiameter/2-g.SlabTop)/p.DotSpacing;
             if (raw>9999) throw new InvalidOperationException("点筋排数超限。");
             int rows=1+(int)Math.Floor(raw+E);
             var q=new SlabUpstandRebarLayout { LineWidth=p.LineDisplayWidth,DotDiameter=p.DotDisplayDiameter,
                 Elevation=g.Elevation,HasSlabBoundaries=g.HasSlabBoundaries };
-            UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt,p.DotSpacing,
+            UpstandDotDistribution.AddCorners(xl,xr,yt,p.Radius,dotOffset,q.CornerDots);
+            UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt-dotOffset,p.DotSpacing,
                 p.DotDisplayDiameter,q.TopDots);
             double leftEnd=xl-p.Radius-p.LeftLength, rightEnd=xr+p.Radius+p.RightLength;
             if (g.HasSlabBoundaries)
@@ -77,9 +79,11 @@ namespace WallDetailTool
             for (int i=0;i<rows;i++)
             {
                 double y=first-i*p.DotSpacing;
-                q.LeftDots.Add(new ContourPoint(xl,y));
-                q.RightDots.Add(new ContourPoint(xr,y));
+                q.LeftDots.Add(new ContourPoint(xl+dotOffset,y));
+                q.RightDots.Add(new ContourPoint(xr-dotOffset,y));
             }
+            UpstandDotDistribution.CheckCorners(q.CornerDots,q.TopDots,
+                q.LeftDots[0],q.RightDots[0],p.DotDisplayDiameter);
             return q;
         }
 

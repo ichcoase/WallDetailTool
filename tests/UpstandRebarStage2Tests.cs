@@ -36,19 +36,23 @@ internal static class UpstandRebarStage2Tests
             Near(q.Line[2].Bulge,-Math.Tan(Math.PI/8),"left quarter arc bulge");
             Near(q.Line[4].Bulge,-Math.Tan(Math.PI/8),"right quarter arc bulge");
             Require(q.LeftDots.Count==q.RightDots.Count && q.LeftDots.Count==1,"side dot count");
-            Near(q.LeftDots[0].X,31,"left dot on upright centreline");
-            Near(q.RightDots[0].X,169,"right dot on upright centreline");
+            Near(q.LeftDots[0].X,43,"left dot tangent to upright inner edge");
+            Near(q.RightDots[0].X,157,"right dot tangent to upright inner edge");
             Near(q.LeftDots[0].Y,69,"side dot 200 below top centreline");
             Require(q.TopDots.Count==1,"one top dot");
-            Near(q.TopDots[0].X,100,"top dot on horizontal centreline");
-            Near(q.TopDots[0].Y,269,"top dot height");
+            Near(q.TopDots[0].X,100,"top dot centred on horizontal span");
+            Near(q.TopDots[0].Y,257,"top dot tangent to horizontal inner edge");
+            Require(q.CornerDots.Count==2,"both top bends have dots");
+            Near(Math.Sqrt(Math.Pow(q.CornerDots[0].X-51,2)+
+                Math.Pow(q.CornerDots[0].Y-249,2)),8,"left corner dot tangent to arc inner edge");
+            Near(q.CornerDots[0].X+q.CornerDots[1].X,200,"corner dots symmetric");
             foreach (ContourPoint dot in q.TopDots)
-                Require(dot.Y==q.Line[3].Y && dot.X>=q.Line[3].X && dot.X<=q.Line[4].X,
-                    "top dots stay on the horizontal line");
+                Require(dot.Y<q.Line[3].Y && dot.X>=q.Line[3].X && dot.X<=q.Line[4].X,
+                    "top dots stay inside and tangent to the horizontal line");
             foreach (ContourPoint dot in q.LeftDots)
-                Near(dot.X,q.Line[2].X,"no interior left dot");
+                Near(dot.X-q.Line[2].X,12,"left dots retain line tangency");
             foreach (ContourPoint dot in q.RightDots)
-                Near(dot.X,q.Line[5].X,"no interior right dot");
+                Near(q.Line[5].X-dot.X,12,"right dots retain line tangency");
             basis=q;
         }
         var changed=P(); changed.Cover=10; changed.LineDisplayWidth=8; changed.DotDisplayDiameter=10;
@@ -56,7 +60,11 @@ internal static class UpstandRebarStage2Tests
         var c=UpstandRebarGeometry.Calculate(G(UpstandInputKind.OpenInvertedU),changed);
         Near(c.Line[0].X,14,"display width controls offset");
         Near(c.Line[3].X,44,"custom radius");
-        Near(c.LeftDots[0].X,14,"side dot follows line centreline");
+        Near(c.LeftDots[0].X,23,"side dot keeps tangent offset");
+        Near(c.Line[3].Y-c.TopDots[0].Y,9,"custom display sizes keep top tangency");
+        Near(Math.Sqrt(Math.Pow(c.CornerDots[0].X-(c.Line[2].X+30),2)+
+            Math.Pow(c.CornerDots[0].Y-c.Line[2].Y,2)),21,
+            "custom radius and display sizes keep bend tangency");
         Require(c.LeftDots.Count>=1,"dots remain");
         var reversed=new List<ContourSegment> {
             new ContourSegment(new ContourPoint(200,0),new ContourPoint(200,300)),
@@ -76,6 +84,7 @@ internal static class UpstandRebarStage2Tests
         invalid=P(); invalid.DotSpacing=12; Reject("top dots cannot fit without overlap",G(UpstandInputKind.ClosedRectangle),invalid);
         invalid=P(); invalid.Cover=-1; Reject("negative cover",G(UpstandInputKind.ClosedRectangle),invalid);
         invalid=P(); invalid.Radius=0; Reject("zero radius",G(UpstandInputKind.ClosedRectangle),invalid);
+        invalid=P(); invalid.Radius=12; Reject("bend dot cannot fit",G(UpstandInputKind.ClosedRectangle),invalid);
         var narrow=G(UpstandInputKind.OpenInvertedU); narrow.Right=65; Reject("narrow",narrow,P());
         narrow.Right=105; Reject("top dot has no room",narrow,P());
         var shortOne=G(UpstandInputKind.OpenInvertedU); shortOne.Top=40; Reject("short",shortOne,P());
@@ -93,8 +102,8 @@ internal static class UpstandRebarStage2Tests
         Require(five.TopDots.Count==3,"700 mm width has three dots on top line");
         var display=P(); display.DotDisplayDiameter=20;
         var displayLayout=UpstandRebarGeometry.Calculate(width300,display);
-        Require(displayLayout.TopDots.Count==1 && displayLayout.LeftDots[0].X==31,
-            "display diameter does not move line-centred dots");
+        Require(displayLayout.TopDots.Count==1 && displayLayout.LeftDots[0].X==47,
+            "display diameter moves dot centre but not line centre");
         var boundary=P(); boundary.DotSpacing=198;
         Require(UpstandRebarGeometry.Calculate(width300,boundary).TopDots.Count==1,
             "exact 198 top straight length uses one top dot");

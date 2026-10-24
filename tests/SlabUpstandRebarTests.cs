@@ -23,11 +23,14 @@ internal static class SlabUpstandRebarTests
         Near(q.Line[3].Bulge,-Math.Tan(Math.PI/8),"left top tangent arc");
         Near(q.Line[5].Bulge,-Math.Tan(Math.PI/8),"right top tangent arc");
         Near(q.Line[7].Bulge,Math.Tan(Math.PI/8),"right bottom tangent arc");
-        Near(q.LeftDots[0].X,431,"left dot on upright"); Near(q.RightDots[0].X,569,"right dot on upright");
-        Near(q.TopDots[0].X,500,"top dot on horizontal line");
-        Near(q.TopDots[0].Y,q.Line[4].Y,"top dot height follows line");
-        Near(q.LeftDots[0].X,q.Line[2].X,"no interior left dot");
-        Near(q.RightDots[0].X,q.Line[7].X,"no interior right dot");
+        Near(q.LeftDots[0].X,443,"left dot tangent to upright"); Near(q.RightDots[0].X,557,"right dot tangent to upright");
+        Near(q.TopDots[0].X,500,"top dot centred over horizontal line");
+        Near(q.Line[4].Y-q.TopDots[0].Y,12,"top dot tangent to horizontal inner edge");
+        Near(q.LeftDots[0].X-q.Line[2].X,12,"left side contact offset");
+        Near(q.Line[7].X-q.RightDots[0].X,12,"right side contact offset");
+        Ok(q.CornerDots.Count==2,"both slab top bends have dots");
+        Near(Math.Sqrt(Math.Pow(q.CornerDots[0].X-451,2)+
+            Math.Pow(q.CornerDots[0].Y-449,2)),8,"slab left corner tangent to arc");
         var changedSettings=new SlabUpstandRebarParameters { Cover=35,Radius=30 };
         var changedLayout=SlabUpstandRebarGeometry.Calculate(G(),changedSettings);
         Near(changedSettings.EffectiveH,41,"saved cover changes default H");
@@ -67,6 +70,7 @@ internal static class SlabUpstandRebarTests
         invalid=new SlabUpstandRebarParameters { RightLength=-1 }; Fail("negative right",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Radius=100 }; Fail("impossible R",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Radius=0 }; Fail("zero R",G(),invalid);
+        invalid=new SlabUpstandRebarParameters { Radius=12 }; Fail("bend dot cannot fit",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Cover=-1 }; Fail("invalid saved cover",G(),invalid);
         invalid=new SlabUpstandRebarParameters { Radius=1000 }; Fail("invalid saved radius for space",G(),invalid);
         var narrow=G(); narrow.Right=450; Fail("self crossing top arcs",narrow,p);
