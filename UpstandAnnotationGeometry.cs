@@ -50,7 +50,7 @@ namespace WallDetailTool
         {
             if (g==null || steel==null || p==null || steel.Line.Count<5 ||
                 steel.LeftDots.Count==0 || steel.LeftDots.Count!=steel.RightDots.Count ||
-                steel.TopDots.Count==0 || steel.CornerDots.Count!=2)
+                steel.CornerDots.Count!=2)
                 throw new InvalidOperationException("缺少完整的反坎钢筋布局，无法计算标注。");
             if (!Valid(textHeight) || textHeight<=0)
                 throw new InvalidOperationException("标注文字高度必须为有效正数。");

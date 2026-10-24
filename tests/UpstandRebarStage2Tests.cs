@@ -39,9 +39,7 @@ internal static class UpstandRebarStage2Tests
             Near(q.LeftDots[0].X,43,"left dot tangent to upright inner edge");
             Near(q.RightDots[0].X,157,"right dot tangent to upright inner edge");
             Near(q.LeftDots[0].Y,69,"side dot 200 below top centreline");
-            Require(q.TopDots.Count==1,"one top dot");
-            Near(q.TopDots[0].X,100,"top dot centred on horizontal span");
-            Near(q.TopDots[0].Y,257,"top dot tangent to horizontal inner edge");
+            Require(q.TopDots.Count==0,"200 mm width needs no dot between corner dots");
             Require(q.CornerDots.Count==2,"both top bends have dots");
             Near(Math.Sqrt(Math.Pow(q.CornerDots[0].X-51,2)+
                 Math.Pow(q.CornerDots[0].Y-249,2)),8,"left corner dot tangent to arc inner edge");
@@ -57,7 +55,8 @@ internal static class UpstandRebarStage2Tests
         }
         var changed=P(); changed.Cover=10; changed.LineDisplayWidth=8; changed.DotDisplayDiameter=10;
         changed.Radius=30; changed.LineDiameter=12; changed.DotDiameter=16;
-        var c=UpstandRebarGeometry.Calculate(G(UpstandInputKind.OpenInvertedU),changed);
+        var changedGeometry=G(UpstandInputKind.OpenInvertedU); changedGeometry.Right=300;
+        var c=UpstandRebarGeometry.Calculate(changedGeometry,changed);
         Near(c.Line[0].X,14,"display width controls offset");
         Near(c.Line[3].X,44,"custom radius");
         Near(c.LeftDots[0].X,23,"side dot keeps tangent offset");
@@ -93,10 +92,33 @@ internal static class UpstandRebarStage2Tests
         var three=UpstandRebarGeometry.Calculate(width300,P());
         Require(three.TopDots.Count==1,"300 mm width has one dot on top line");
         Near(three.TopDots[0].X,150,"top dot centred");
+        var smallRadius=P(); smallRadius.Radius=13;
+        Require(UpstandRebarGeometry.Calculate(width300,smallRadius).TopDots.Count==1,
+            "300 mm top remains one dot when straight tangent span exceeds 200");
+        Near(three.TopDots[0].Y,257,"top dot tangent to horizontal inner edge");
+        double topGap=Math.Sqrt(Math.Pow(three.TopDots[0].X-three.CornerDots[0].X,2)+
+            Math.Pow(three.TopDots[0].Y-three.CornerDots[0].Y,2));
+        Require(topGap<=200 && topGap>0,"corner dot participates in top spacing");
         var width500=G(UpstandInputKind.ClosedRectangle); width500.Right=500;
         var four=UpstandRebarGeometry.Calculate(width500,P());
         Require(four.TopDots.Count==2,"500 mm width has two dots on top line");
         Near(four.TopDots[0].X+four.TopDots[1].X,500,"top dot symmetry");
+        var topPath=new List<ContourPoint> { four.CornerDots[0] };
+        topPath.AddRange(four.TopDots);
+        topPath.Add(four.CornerDots[1]);
+        for (int i=1;i<topPath.Count;i++)
+            Require(Math.Sqrt(Math.Pow(topPath[i].X-topPath[i-1].X,2)+
+                Math.Pow(topPath[i].Y-topPath[i-1].Y,2))<=200+1e-8,
+                "every top adjacent centre distance includes corners and stays within limit");
+        double cornerRise=three.TopDots[0].Y-three.CornerDots[0].Y;
+        double reach=Math.Sqrt(200*200-cornerRise*cornerRise);
+        var limit=G(UpstandInputKind.ClosedRectangle);
+        limit.Right=300+2*reach+200-(three.CornerDots[1].X-three.CornerDots[0].X);
+        Require(UpstandRebarGeometry.Calculate(limit,P()).TopDots.Count==2,
+            "two top dots suffice at their exact maximum covered span");
+        limit.Right+=.001;
+        Require(UpstandRebarGeometry.Calculate(limit,P()).TopDots.Count==3,
+            "slightly wider top requires a third dot");
         var width700=G(UpstandInputKind.ClosedRectangle); width700.Right=700;
         var five=UpstandRebarGeometry.Calculate(width700,P());
         Require(five.TopDots.Count==3,"700 mm width has three dots on top line");
@@ -104,13 +126,13 @@ internal static class UpstandRebarStage2Tests
         var displayLayout=UpstandRebarGeometry.Calculate(width300,display);
         Require(displayLayout.TopDots.Count==1 && displayLayout.LeftDots[0].X==47,
             "display diameter moves dot centre but not line centre");
-        var boundary=P(); boundary.DotSpacing=198;
-        Require(UpstandRebarGeometry.Calculate(width300,boundary).TopDots.Count==1,
-            "exact 198 top straight length uses one top dot");
-        boundary.DotSpacing=197.999;
+        var boundary=P(); boundary.DotSpacing=three.CornerDots[1].X-three.CornerDots[0].X;
+        Require(UpstandRebarGeometry.Calculate(width300,boundary).TopDots.Count==0,
+            "exact corner-to-corner centre distance needs no top dot");
+        boundary.DotSpacing-=.001;
         var justOver=UpstandRebarGeometry.Calculate(width300,boundary);
-        Require(justOver.TopDots.Count==2,
-            "slightly above top spacing limit adds a second top dot");
+        Require(justOver.TopDots.Count==1,
+            "slightly above corner spacing limit adds one top dot");
         var tall=G(UpstandInputKind.ClosedRectangle); tall.Top=500;
         var tallLayout=UpstandRebarGeometry.Calculate(tall,P());
         Require(tallLayout.LeftDots.Count==2 && tallLayout.RightDots.Count==2,

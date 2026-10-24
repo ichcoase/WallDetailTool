@@ -37,20 +37,51 @@ namespace WallDetailTool
         }
 
         internal static void AddTop(double leftTangent,double rightTangent,double y,
-            double maximumSpacing,double displayDiameter,List<ContourPoint> target)
+            double maximumSpacing,double displayDiameter,List<ContourPoint> corners,
+            List<ContourPoint> target)
         {
             double length=rightTangent-leftTangent;
             if (double.IsNaN(length)||double.IsInfinity(length)||length<=0 ||
                 double.IsNaN(maximumSpacing)||double.IsInfinity(maximumSpacing)||maximumSpacing<=0 ||
-                double.IsNaN(displayDiameter)||double.IsInfinity(displayDiameter)||displayDiameter<=0)
+                double.IsNaN(displayDiameter)||double.IsInfinity(displayDiameter)||displayDiameter<=0 ||
+                corners==null || corners.Count!=2)
                 throw new InvalidOperationException("顶部线筋直段或点筋中心距无效。");
-            double raw=length/maximumSpacing;
-            if (raw>9999) throw new InvalidOperationException("顶部点筋数量超出可处理范围。");
-            int count=Math.Max(1,(int)Math.Ceiling(raw-1e-10));
-            if (length/(count+1)<displayDiameter-1e-8)
-                throw new InvalidOperationException("顶部点筋显示直径和中心距使点筋重叠，无法布置。");
-            for (int i=0;i<count;i++)
-                target.Add(new ContourPoint(leftTangent+length*(i+1)/(count+1),y));
+            double dx=corners[1].X-corners[0].X;
+            double dy=y-corners[0].Y;
+            if (dx<=0 || Math.Abs(corners[0].Y-corners[1].Y)>1e-8)
+                throw new InvalidOperationException("顶部转角点筋位置无效。");
+            int count=0;
+            if (dx>maximumSpacing+1e-8)
+            {
+                if (maximumSpacing<=Math.Abs(dy))
+                    throw new InvalidOperationException("点筋中心距过小，角部与顶部点筋无法衔接。");
+                double cornerReach=Math.Sqrt(maximumSpacing*maximumSpacing-dy*dy);
+                double extra=(dx-2*cornerReach)/maximumSpacing;
+                if (extra>9998) throw new InvalidOperationException("顶部点筋数量超出可处理范围。");
+                count=extra<=1e-10 ? 1 : 1+(int)Math.Ceiling(extra-1e-10);
+                double first=Math.Max(corners[0].X+Math.Min(dx/(count+1),cornerReach),leftTangent);
+                double last=corners[1].X-(first-corners[0].X);
+                if (first>last+1e-8 || first>rightTangent+1e-8 || last<leftTangent-1e-8)
+                    throw new InvalidOperationException("顶部水平直段不足以放置所需点筋。");
+                for (int i=0;i<count;i++)
+                    target.Add(new ContourPoint(count==1 ? (corners[0].X+corners[1].X)/2 :
+                        first+(last-first)*i/(count-1),y));
+            }
+            ContourPoint previous=corners[0];
+            foreach (ContourPoint dot in target)
+            {
+                CheckDistance(previous,dot,maximumSpacing,displayDiameter);
+                previous=dot;
+            }
+            CheckDistance(previous,corners[1],maximumSpacing,displayDiameter);
+        }
+
+        private static void CheckDistance(ContourPoint a,ContourPoint b,double maximum,double diameter)
+        {
+            double dx=a.X-b.X,dy=a.Y-b.Y;
+            double distance=Math.Sqrt(dx*dx+dy*dy);
+            if (distance>maximum+1e-8 || distance<diameter-1e-8)
+                throw new InvalidOperationException("顶部相邻点筋中心距或显示轮廓不满足布置要求。");
         }
 
         internal static void CheckCorners(List<ContourPoint> corners,List<ContourPoint> top,

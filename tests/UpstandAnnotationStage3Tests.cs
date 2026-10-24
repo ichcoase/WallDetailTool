@@ -23,10 +23,10 @@ internal static class UpstandAnnotationStage3Tests
         {
             var layout=Calculate(Geometry(kind),Parameters(),-400,600);
             Ok(layout.LineLabel.Text=="φ8@150","line specification");
-            Ok(layout.DotLabel.Text=="5φ6","one side row, top dot and two bend dots");
+            Ok(layout.DotLabel.Text=="4φ6","one side row and two bend dots; no redundant top dot");
             Ok(layout.LineLabel.Rightward,"equal space chooses right for line label");
-            Ok(layout.LineLabel.Leaders.Count==1 && layout.DotLabel.Leaders.Count==6,
-                "line leader and five dot branches with underline");
+            Ok(layout.LineLabel.Leaders.Count==1 && layout.DotLabel.Leaders.Count==5,
+                "line leader and four dot branches with underline");
             Near(layout.TextHeight,62.5,"requested text height");
             Ok(layout.LineLabel.TextAnchor.Y<300 && layout.DotLabel.TextAnchor.Y>300,
                 "single-row dot label above the upstand");
@@ -60,24 +60,23 @@ internal static class UpstandAnnotationStage3Tests
         Near(crowdedLeft.HeightLine.X,293.75,"height dimension chooses available right side");
         var single=Parameters(); single.DotSpacing=500;
         var one=Calculate(Geometry(UpstandInputKind.ClosedRectangle),single,-400,600);
-        Ok(one.DotLabel.Text=="5φ6","single row counts two sides, two bends and top");
-        Ok(one.DotLabel.Leaders.Count==6 && one.DotLabel.KeepLastLeaderEnd,
-            "single row has five branches and one full underline");
+        Ok(one.DotLabel.Text=="4φ6","single row counts two sides and two bends");
+        Ok(one.DotLabel.Leaders.Count==5 && one.DotLabel.KeepLastLeaderEnd,
+            "single row has four branches and one full underline");
         var oneSteel=UpstandRebarGeometry.Calculate(Geometry(UpstandInputKind.ClosedRectangle),single);
         Near(one.DotLabel.Leaders[0].A.X,oneSteel.LeftDots[0].X,"left branch touches left dot");
         Near(one.DotLabel.Leaders[1].A.X,oneSteel.CornerDots[0].X,"bend branch touches left bend dot");
-        Near(one.DotLabel.Leaders[2].A.X,oneSteel.TopDots[0].X,"top branch touches top dot");
-        Near(one.DotLabel.Leaders[3].A.X,oneSteel.CornerDots[1].X,"bend branch touches right bend dot");
-        Near(one.DotLabel.Leaders[4].A.X,oneSteel.RightDots[0].X,"right branch touches right dot");
+        Near(one.DotLabel.Leaders[2].A.X,oneSteel.CornerDots[1].X,"bend branch touches right bend dot");
+        Near(one.DotLabel.Leaders[3].A.X,oneSteel.RightDots[0].X,"right branch touches right dot");
         Ok(one.DotLabel.Leaders[0].B.Y>one.DotLabel.Leaders[0].A.Y &&
             one.DotLabel.Leaders[1].B.Y>one.DotLabel.Leaders[1].A.Y,
             "both branches rise from dots");
-        Near(one.DotLabel.Leaders[5].A.Y,one.DotLabel.Leaders[5].B.Y,
+        Near(one.DotLabel.Leaders[4].A.Y,one.DotLabel.Leaders[4].B.Y,
             "single row underline horizontal");
-        Ok(one.DotLabel.TextAnchor.Y>one.DotLabel.Leaders[5].A.Y &&
-            one.DotLabel.Leaders[5].A.Y>300,"single row text and underline above concrete");
+        Ok(one.DotLabel.TextAnchor.Y>one.DotLabel.Leaders[4].A.Y &&
+            one.DotLabel.Leaders[4].A.Y>300,"single row text and underline above concrete");
         var oneMirrored=Calculate(Geometry(UpstandInputKind.OpenInvertedU),single,-20,700);
-        Ok(!oneMirrored.DotLabel.Rightward && oneMirrored.DotLabel.Leaders.Count==6,
+        Ok(!oneMirrored.DotLabel.Rightward && oneMirrored.DotLabel.Leaders.Count==5,
             "single row mirrors to available right side");
         var wideSingle=Geometry(UpstandInputKind.ClosedRectangle); wideSingle.Right=300; wideSingle.Top=150;
         var threeSingle=Calculate(wideSingle,Parameters(),-400,700);

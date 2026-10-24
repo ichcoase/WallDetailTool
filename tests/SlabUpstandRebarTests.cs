@@ -24,8 +24,7 @@ internal static class SlabUpstandRebarTests
         Near(q.Line[5].Bulge,-Math.Tan(Math.PI/8),"right top tangent arc");
         Near(q.Line[7].Bulge,Math.Tan(Math.PI/8),"right bottom tangent arc");
         Near(q.LeftDots[0].X,443,"left dot tangent to upright"); Near(q.RightDots[0].X,557,"right dot tangent to upright");
-        Near(q.TopDots[0].X,500,"top dot centred over horizontal line");
-        Near(q.Line[4].Y-q.TopDots[0].Y,12,"top dot tangent to horizontal inner edge");
+        Ok(q.TopDots.Count==0,"200 mm width needs no dot between corner dots");
         Near(q.LeftDots[0].X-q.Line[2].X,12,"left side contact offset");
         Near(q.Line[7].X-q.RightDots[0].X,12,"right side contact offset");
         Ok(q.CornerDots.Count==2,"both slab top bends have dots");
@@ -59,6 +58,11 @@ internal static class SlabUpstandRebarTests
         var threeDots=SlabUpstandRebarGeometry.Calculate(wide,p);
         Ok(threeDots.TopDots.Count==1,"300 mm slab upstand has one top dot");
         Near(threeDots.TopDots[0].X,550,"slab top symmetry");
+        var smallRadius=new SlabUpstandRebarParameters { Radius=13 };
+        Ok(SlabUpstandRebarGeometry.Calculate(wide,smallRadius).TopDots.Count==1,
+            "300 mm slab top remains one dot at smaller valid R");
+        Near(threeDots.Line[4].Y-threeDots.TopDots[0].Y,12,
+            "slab top dot tangent to horizontal inner edge");
         wide.Right=900;
         var fourDots=SlabUpstandRebarGeometry.Calculate(wide,p);
         Ok(fourDots.TopDots.Count==2,"500 mm slab upstand has two top dots");

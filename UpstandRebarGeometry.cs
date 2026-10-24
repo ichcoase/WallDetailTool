@@ -66,7 +66,7 @@ namespace WallDetailTool
                 DotDiameter=p.DotDisplayDiameter,Elevation=g.Elevation };
             UpstandDotDistribution.AddCorners(xl,xr,yt,p.Radius,dotOffset,layout.CornerDots);
             UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt-dotOffset,p.DotSpacing,
-                p.DotDisplayDiameter,layout.TopDots);
+                p.DotDisplayDiameter,layout.CornerDots,layout.TopDots);
             double bulge=-Math.Tan(Math.PI/8);
             layout.Line.Add(new RebarVertex(xl,g.BeamTop-p.LeftAnchor,0));
             layout.Line.Add(new RebarVertex(xl,g.BeamTop,0));

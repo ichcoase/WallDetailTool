@@ -58,7 +58,7 @@ namespace WallDetailTool
                 Elevation=g.Elevation,HasSlabBoundaries=g.HasSlabBoundaries };
             UpstandDotDistribution.AddCorners(xl,xr,yt,p.Radius,dotOffset,q.CornerDots);
             UpstandDotDistribution.AddTop(xl+p.Radius,xr-p.Radius,yt-dotOffset,p.DotSpacing,
-                p.DotDisplayDiameter,q.TopDots);
+                p.DotDisplayDiameter,q.CornerDots,q.TopDots);
             double leftEnd=xl-p.Radius-p.LeftLength, rightEnd=xr+p.Radius+p.RightLength;
             if (g.HasSlabBoundaries)
             {
