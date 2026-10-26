@@ -1,5 +1,15 @@
 # 项目执行约定
 
+## 2026-10-26 上下节点共用计算与长期回归约束
+
+梁上反坎与梁下下挂必须共用排筋计算 `UpstandRebarGeometry.Calculate`；板上反坎与板下下挂必须共用 `SlabUpstandRebarGeometry.Calculate`。几何方向差异统一由 `NodeOrientation` 适配，不得复制出独立的下挂排筋算法。只有用户明确确认构造差异后，才能增加具有需求依据的分支，并记录确认内容及适用节点。界面名称、H 的方向说明、块/参数记录类型区分不属于另建排筋算法的理由。
+
+以后修复共用排筋、点筋或标注规则时，必须实际运行原五组回归及 `HangingNodeTests`：`UpstandGeometryStage1Tests`、`SlabUpstandGeometryTests`、`UpstandRebarStage2Tests`、`SlabUpstandRebarTests`、`UpstandAnnotationStage3Tests`、`HangingNodeTests`。可使用 [统一回归入口](tests/run_v03_geometry.ps1)。新增 BUG 案例应同时覆盖对应的上、下节点，不能只验证反坎；若环境受阻，应如实记录未运行，不得以编译代替通过。
+
+修改方向转换、文字布局、窗口或参数保存时，另补对应验证：坐标/bulge/相切及显示尺寸，正向文字/引线/尺寸位置，窗口入口与确定/取消/文档切换，类型间参数隔离及撤销重做/保存重开/多文档等；按实际变更选择必要项目，不把纯计算等同 CAD 动态验证。纯文档维护仍只检查内容、链接和差异，不必编译或重跑测试。
+
+本轮已静态核对符合上述共用关系，仅补维护文档，不重构已验收源码。现有方向专属逻辑及证据边界见 [架构维护约束](ARCHITECTURE.md)。
+
 ## 目标与沟通
 先读PRD.md、ARCHITECTURE.md、DEVELOPMENT_PLAN.md及实际源码。用户没有编程基础，使用简洁中文，解释结果和必要操作，不要求用户手工改代码。优先在Codex Windows桌面版中以本项目文件夹继续。
 本次文档任务不授权实现全部远期功能。用户明确启动开发阶段后，在该阶段内自主完成检查、修改、编译、适当测试及文档更新，不对每次可逆编辑反复询问。依赖未通过或需要真实CAD人工操作时如实说明；独立工作可继续。产品决策、结构规则缺失、破坏性操作或权限受阻时才提出具体问题。

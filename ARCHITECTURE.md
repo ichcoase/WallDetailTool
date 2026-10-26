@@ -1,5 +1,20 @@
 # WallDetailTool 架构
 
+## 上下节点共用计算的长期维护约束（2026-10-26）
+
+梁上反坎／梁下下挂共用 `UpstandRebarGeometry.Calculate`；板上反坎／板下下挂共用 `SlabUpstandRebarGeometry.Calculate`。两套计算器分别表达梁、板构造，不按上下方向另立算法。各生成核心先将下挂输入经 `NodeOrientation` 转入标准空间，再调用原计算器，输出经同一适配器还原；点筋共用 `UpstandDotDistribution`，标注布局共用 `UpstandAnnotationGeometry.Calculate`（板节点先复用既有 SlabAnnotationSteel 适配）。本轮静态核对：计算器内没有下挂独立分支，没有复制的下挂排筋算法，符合约束；不为文档收尾重构已验收代码。
+
+几何方向差异必须统一在 `NodeOrientation` 处理，不得复制出独立的下挂排筋算法。只有用户明确确认构造差异后，才能增加有依据且记录适用范围的分支。以后修复共用排筋、点筋或标注规则，必须运行原五组回归与 `HangingNodeTests`；新增 BUG 案例须同时覆盖对应的上、下节点，不能只验证反坎。六组项目及执行入口见 [AGENTS.md](AGENTS.md) 和 [run_v03_geometry.ps1](tests/run_v03_geometry.ps1)。方向转换、文字布局、窗口或参数保存变更，另补对应的纯计算及必要 CAD 验证；文档维护无需重编译或重跑测试。
+
+现存方向专属逻辑是边界适配，不是独立排筋计算：
+
+- `NodeOrientation` 转换输入/点选/输出/几何快照坐标，反转 bulge；翻转标注定义点，重新定位正向文字，下方单排标注预留字高，高度尺寸恢复由下至上。
+- `UpstandDetail`、`SlabUpstandCommand`、`SlabUpstandRebarCommand` 的 `hanging` 参数选择何时调用适配器、世界块基点、名称及节点类型。梁上/下共用同一 DrawUpstandCore，板上/下共用同一 DrawSlabCore。
+- `UpstandToolbar`、`SlabUpstandForm` 区分入口/窗口标题与 H 提示，并携带目标文档及方向；首次值、共享高级设置读取及下挂各自上次参数恢复存在类型专属路径。
+- 下挂使用独立 NOD 键及块类型3/4。板下记录8项（H、左右长度、局部h、线/点筋规格和间距），板上仍兼容旧3/4项记录；此持久化差异须单独验证，不允许据此分叉几何算法。
+
+本轮为静态代码核对和文档维护，未改源码、未编译、未重跑六组测试或 CAD。此前自动测试、用户验收及未验证专项仍按 [V0.3 清单](tests/V03_RELEASE_CHECKLIST.md) 分别记录。
+
 ## V0.3 下挂方向适配（2026-10-26）
 
 新增纯计算 `NodeOrientation.cs`：下挂输入线段以 y→−y 转入上反坎计算空间，识别器、配筋和点筋服务保持原有连接面及正高度。输出再作同一变换，结果等价于围绕相应连接面翻转，支持任意连接面标高。Z、左右、长度、宽度及点筋数量不变。仅处理源实体的读取副本，多候选的点选坐标同步转换后复核。
