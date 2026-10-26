@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
@@ -17,16 +17,16 @@ namespace WallDetailTool
     {
         private readonly TextBox[] fields=new TextBox[8];
         internal SlabDrawValues Values { get; private set; }
-        internal SlabDrawForm(SlabDrawValues initial)
+        internal SlabDrawForm(SlabDrawValues initial,bool hanging=false)
         {
-            Text="WallDetailTool 板上反坎绘制"; Width=470; Height=440;
+            Text=hanging ? "WallDetailTool 板下下挂绘制" : "WallDetailTool 板上反坎绘制"; Width=470; Height=440;
             FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
             StartPosition=FormStartPosition.CenterParent;
             var grid=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=8,Height=340,Padding=new Padding(14) };
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,62));
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,38));
             string[] labels={"线筋实际直径 (mm)","线筋间距 (mm)","点筋实际直径 (mm)","点筋间距 (mm)",
-                "局部轮廓板厚 h (mm)","板底至水平筋 H (mm)","左水平直段 L左 (mm)","右水平直段 L右 (mm，留空同左)"};
+                "局部轮廓板厚 h (mm)",hanging ? "板顶向下至水平筋 H (mm)" : "板底至水平筋 H (mm)","左水平直段 L左 (mm)","右水平直段 L右 (mm，留空同左)"};
             double[] numbers={initial.LineDiameter,initial.LineSpacing,initial.DotDiameter,initial.DotSpacing,
                 initial.LocalThickness,initial.H,initial.LeftLength,initial.RightLength};
             for(int i=0;i<fields.Length;i++)
@@ -71,9 +71,15 @@ namespace WallDetailTool
     {
         private static SlabDrawValues pendingSlabValues;
         private static Document pendingSlabDocument;
+        private static bool pendingSlabHanging;
 
         [CommandMethod("WDTUPSLABDRAW",CommandFlags.Session)]
-        public void ShowSlabDrawForm()
+        public void ShowSlabDrawForm() { ShowSlabForm(false); }
+
+        [CommandMethod("WDTSLABHANGDRAW",CommandFlags.Session)]
+        public void ShowSlabHangingForm() { ShowSlabForm(true); }
+
+        private static void ShowSlabForm(bool hanging)
         {
             Document doc=CadApplication.DocumentManager.MdiActiveDocument;
             if (doc==null) return;
@@ -81,11 +87,12 @@ namespace WallDetailTool
             UpstandPanelValues saved=UpstandPanelValues.ReadUserDefaults();
             var p=new SlabUpstandRebarParameters { Cover=saved.Cover,LineDisplayWidth=saved.LineDisplayWidth };
             double localThickness=0;
-            ReadSlabLast(doc.Database,p,out localThickness);
-            var initial=new SlabDrawValues { LineDiameter=saved.LineDiameter,LineSpacing=saved.LineSpacing,
-                DotDiameter=saved.DotDiameter,DotSpacing=saved.DotSpacing,LocalThickness=localThickness,
+            pendingSlabHanging=hanging;
+            ReadSlabLast(doc.Database,p,out localThickness,hanging);
+            var initial=new SlabDrawValues { LineDiameter=hanging?p.LineDiameter:saved.LineDiameter,LineSpacing=hanging?p.LineSpacing:saved.LineSpacing,
+                DotDiameter=hanging?p.DotDiameter:saved.DotDiameter,DotSpacing=hanging?p.DotSpacing:saved.DotSpacing,LocalThickness=localThickness,
                 H=p.EffectiveH,LeftLength=p.LeftLength,RightLength=p.RightLength };
-            using (var dialog=new SlabDrawForm(initial))
+            using (var dialog=new SlabDrawForm(initial,hanging))
                 if (CadApplication.ShowModalDialog(dialog)==DialogResult.OK)
                 {
                     pendingSlabValues=dialog.Values; pendingSlabDocument=doc;
@@ -100,7 +107,7 @@ namespace WallDetailTool
             SlabDrawValues values=pendingSlabValues; Document target=pendingSlabDocument;
             pendingSlabValues=null; pendingSlabDocument=null;
             if (values==null || !ReferenceEquals(doc,target)) return;
-            DrawSlabCore(values);
+            DrawSlabCore(values,pendingSlabHanging);
         }
     }
 }

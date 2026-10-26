@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -31,10 +31,10 @@ namespace WallDetailTool
         private static SlabUpstandGeometry SelectSlabGeometry(Document doc)
         { return SelectSlabGeometry(doc,null); }
 
-        private static SlabUpstandGeometry SelectSlabGeometry(Document doc,double? providedLocalThickness)
+        private static SlabUpstandGeometry SelectSlabGeometry(Document doc,double? providedLocalThickness,bool hanging=false)
         {
             Editor ed=doc.Editor;
-                ed.WriteMessage("\n选择板上反坎轮廓（LINE/LWPOLYLINE）；只读识别，不修改原图元。");
+                ed.WriteMessage(hanging ? "\n选择板下下挂轮廓（局部矩形、开放 U 或完整等厚板截面）；原图元不修改。" : "\n选择板上反坎轮廓（LINE/LWPOLYLINE）；只读识别，不修改原图元。");
                 PromptSelectionResult selected=ed.GetSelection();
                 if (selected.Status!=PromptStatus.OK) return null;
                 var segments=new List<ContourSegment>();
@@ -70,6 +70,7 @@ namespace WallDetailTool
                 }
                 if (doc.Database.Insunits!=UnitsValue.Millimeters && doc.Database.Insunits!=UnitsValue.Undefined)
                     ed.WriteMessage("\n固定 1 CAD 单位 = 1 mm；当前 INSUNITS 非毫米，不自动换算，请核对实际尺寸。");
+                if (hanging) segments=NodeOrientation.Reflect(segments);
                 // Ask for thickness only for a local outline; a full section supplies it.
                 var baseCandidates=UpstandRecognizer.Recognize(segments,elevation??0);
                 double? manualThickness=null;
@@ -95,9 +96,9 @@ namespace WallDetailTool
                     ed.WriteMessage("\n存在多个反坎候选，请点选目标内部。");
                     PromptPointResult target=ed.GetPoint("\n目标反坎内部: ");
                     if (target.Status!=PromptStatus.OK) return null;
-                    chosen=SlabUpstandRecognizer.SelectCandidate(candidates,target.Value.X,target.Value.Y);
+                    chosen=SlabUpstandRecognizer.SelectCandidate(candidates,target.Value.X,NodeOrientation.Y(target.Value.Y,hanging));
                     var checkedCandidates=SlabUpstandRecognizer.Recognize(segments,elevation??0,manualThickness);
-                    SlabUpstandGeometry checkedChoice=SlabUpstandRecognizer.SelectCandidate(checkedCandidates,target.Value.X,target.Value.Y);
+                    SlabUpstandGeometry checkedChoice=SlabUpstandRecognizer.SelectCandidate(checkedCandidates,target.Value.X,NodeOrientation.Y(target.Value.Y,hanging));
                     if (Math.Abs(checkedChoice.Left-chosen.Left)>Epsilon || Math.Abs(checkedChoice.Right-chosen.Right)>Epsilon ||
                         Math.Abs(checkedChoice.SlabBottom-chosen.SlabBottom)>Epsilon)
                         throw new InvalidOperationException("点选后几何复核失败。");

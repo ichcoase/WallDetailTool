@@ -1,0 +1,14 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>HangingNodeTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><OutputPath>bin\V03\</OutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
+    <Compile Include="..\UpstandGeometry.cs"/>
+    <Compile Include="..\SlabUpstandGeometry.cs"/>
+    <Compile Include="..\UpstandRebarGeometry.cs"/>
+    <Compile Include="..\SlabUpstandRebarGeometry.cs"/>
+    <Compile Include="..\UpstandDotDistribution.cs"/>
+    <Compile Include="..\UpstandAnnotationGeometry.cs"/>
+    <Compile Include="..\NodeOrientation.cs"/>
+    <Compile Include="HangingNodeTests.cs"/>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

@@ -1,5 +1,17 @@
 # WallDetailTool 架构
 
+## V0.3 下挂方向适配（2026-10-26）
+
+新增纯计算 `NodeOrientation.cs`：下挂输入线段以 y→−y 转入上反坎计算空间，识别器、配筋和点筋服务保持原有连接面及正高度。输出再作同一变换，结果等价于围绕相应连接面翻转，支持任意连接面标高。Z、左右、长度、宽度及点筋数量不变。仅处理源实体的读取副本，多候选的点选坐标同步转换后复核。
+
+`UpstandDetail`、`SlabUpstandCommand`、`SlabUpstandRebarCommand` 按调用参数 `hanging` 选择方向，不复制生成程序。线筋保留顶点遍历顺序，Y/bulge 同时取反；每段起终宽度保持布局值。点筋中心翻转后复用 `UpstandDot` 创建两顶点闭合宽多段线，圆形本身不必镜像。原识别、相切、空间及最大中心距校验不放宽。
+
+标注在标准空间复用布局，再转换引线、斜杠及尺寸定义点。TEXT 仅转换定位，始终正向新建，基线高于水平引线 4 mm；单排点筋引线下移一个字高，避免正向文字侵入混凝土。高度尺寸定义点由下至上排列。块仅平移到连接面左侧基点，参照旋转 0，不使用镜像块或负比例。
+
+NOD 新增 `WDT_BEAM_HANGING_LAST`、`WDT_SLAB_HANGING_LAST`，原梁上/板上记录及格式保留。板下记录保存 H、L左/L右、局部 h、线筋/点筋规格及间距；梁下复用梁参数结构但独立键。块参照 `WDT_UPSTAND_PARAMS` 首值为梁上 1、板上 2、梁下 3、板下 4；下挂快照存世界坐标，长度、厚度保持正值。记录与块仍同事务提交，沿用 UNDO 组及逐项非关键标注失败策略。
+
+工具条及独立窗口在 `UpstandToolbar.cs`、`SlabUpstandForm.cs` 扩展，新 Session 入口排入现有 Modal 生成命令并核对目标文档。新增源码已加入旧式 csproj Compile，继续 .NET Framework 4.8/x64，CAD 引用不复制。动态行为仍须按 [V0.3 清单](tests/V03_RELEASE_CHECKLIST.md) 验证。
+
 ## V0.2 板上反坎增量（2026-10-26）
 
 `SlabUpstandGeometry` 保存输入种类、反坎宽高、板顶／底／厚及可选的楼板左右边界。`SlabUpstandRecognizer` 与 `SlabUpstandCommand` 独立于 V0.1 `UpstandRecognizer` 和 `WDTUPCONTOUR`；局部矩形／倒 U 的板顶取反坎底部，完整模式另外校验等厚水平矩形楼板。`SlabUpstandRebarGeometry` 计算连续倒 U 多段线、相切圆弧、水平长度及越界量；`SlabUpstandRebarCommand` 负责 CAD 实体、标注、普通块与提交。`SlabUpstandForm` 提供独立绘制窗口和按钮命令 `WDTUPSLABDRAW`。旧 `WDTUPSLABREBARTEST` 是兼容命令入口，不表示完整自动验收。

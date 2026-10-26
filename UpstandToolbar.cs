@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -46,10 +46,12 @@ namespace WallDetailTool
             if (toolbar==null)
             {
                 toolbar=new PaletteSet("WallDetailTool 工具条",new Guid("7EA33DAD-166B-4058-B37D-56120EE25037"));
-                toolbar.Size=new Size(330,95);
+                toolbar.Size=new Size(570,95);
                 var strip=new ToolStrip { Dock=DockStyle.Fill,GripStyle=ToolStripGripStyle.Hidden };
                 strip.Items.Add(new ToolStripButton("反坎绘制",null,(s,e)=>RebarPalette.Queue("WDTUPFORM")));
                 strip.Items.Add(new ToolStripButton("板上反坎",null,(s,e)=>RebarPalette.Queue("WDTUPSLABDRAW")));
+                strip.Items.Add(new ToolStripButton("梁下下挂",null,(s,e)=>RebarPalette.Queue("WDTBEAMHANGDRAW")));
+                strip.Items.Add(new ToolStripButton("板下下挂",null,(s,e)=>RebarPalette.Queue("WDTSLABHANGDRAW")));
                 strip.Items.Add(new ToolStripButton("高级设置",null,(s,e)=>RebarPalette.Queue("WDTUPSETTINGS")));
                 toolbar.Add("工具",strip);
             }
@@ -62,10 +64,10 @@ namespace WallDetailTool
         private readonly TextBox[] fields=new TextBox[6];
         private readonly UpstandPanelValues initial;
         internal UpstandPanelValues Values { get; private set; }
-        internal UpstandDrawForm(UpstandPanelValues current)
+        internal UpstandDrawForm(UpstandPanelValues current,bool hanging=false)
         {
             initial=current;
-            Text="WallDetailTool 反坎绘制"; Width=430; Height=360;
+            Text=hanging ? "WallDetailTool 梁下下挂绘制" : "WallDetailTool 反坎绘制"; Width=430; Height=360;
             FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
             StartPosition=FormStartPosition.CenterParent;
             var grid=new TableLayoutPanel { Dock=DockStyle.Top,ColumnCount=2,RowCount=6,Height=260,Padding=new Padding(14) };
@@ -183,16 +185,29 @@ namespace WallDetailTool
     {
         private static UpstandPanelValues pendingDrawValues;
         private static Document pendingDrawDocument;
+        private static bool pendingBeamHanging;
 
         [CommandMethod("WDTUPFORM",CommandFlags.Session)]
-        public void ShowUpstandDrawForm()
+        public void ShowUpstandDrawForm() { ShowBeamForm(false); }
+
+        [CommandMethod("WDTBEAMHANGDRAW",CommandFlags.Session)]
+        public void ShowBeamHangingForm() { ShowBeamForm(true); }
+
+        private static void ShowBeamForm(bool hanging)
         {
             Document doc=CadApplication.DocumentManager.MdiActiveDocument;
             if (doc==null) return;
             pendingDrawValues=null; pendingDrawDocument=null;
-            UpstandPanelValues initial=PanelValues(doc.Database);
+            pendingBeamHanging=hanging;
+            UpstandPanelValues initial=PanelValues(doc.Database,hanging);
             initial.Cover=UpstandPanelValues.ReadUserDefaults().Cover;
-            using (var dialog=new UpstandDrawForm(initial))
+            if (hanging)
+            {
+                var advanced=UpstandPanelValues.ReadUserDefaults();
+                initial.Radius=advanced.Radius; initial.TextHeight=advanced.TextHeight;
+                initial.LineDisplayWidth=advanced.LineDisplayWidth; initial.DotDisplayDiameter=advanced.DotDisplayDiameter;
+            }
+            using (var dialog=new UpstandDrawForm(initial,hanging))
                 if (CadApplication.ShowModalDialog(dialog)==DialogResult.OK)
                 {
                     pendingDrawValues=dialog.Values; pendingDrawDocument=doc;
@@ -208,7 +223,7 @@ namespace WallDetailTool
             Document target=pendingDrawDocument;
             pendingDrawValues=null; pendingDrawDocument=null;
             if (values==null || !ReferenceEquals(doc,target)) return;
-            DrawUpstandCore(values);
+            DrawUpstandCore(values,pendingBeamHanging);
         }
 
         [CommandMethod("WDTTOOLBAR",CommandFlags.Session)]

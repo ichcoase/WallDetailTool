@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -16,14 +16,14 @@ namespace WallDetailTool
         public void GenerateSlabUpstandRebarForTest()
         { DrawSlabCore(null); }
 
-        private static void DrawSlabCore(SlabDrawValues drawValues)
+        private static void DrawSlabCore(SlabDrawValues drawValues,bool hanging=false)
         {
             Document doc=CadApplication.DocumentManager.MdiActiveDocument;
             if (doc==null) return;
             Editor ed=doc.Editor;
             try
             {
-                SlabUpstandGeometry g=SelectSlabGeometry(doc,drawValues==null?(double?)null:drawValues.LocalThickness);
+                SlabUpstandGeometry g=SelectSlabGeometry(doc,drawValues==null?(double?)null:drawValues.LocalThickness,hanging);
                 if (g==null) return;
                 // Read on every invocation so saved changes and restored defaults take effect immediately.
                 UpstandPanelValues saved=UpstandPanelValues.ReadUserDefaults();
@@ -34,7 +34,7 @@ namespace WallDetailTool
                     LineDisplayWidth=saved.LineDisplayWidth,
                     DotDisplayDiameter=saved.DotDisplayDiameter };
                 double lastLocalThickness;
-                bool hasPrevious=ReadSlabLast(doc.Database,p,out lastLocalThickness);
+                bool hasPrevious=ReadSlabLast(doc.Database,p,out lastLocalThickness,hanging);
                 ed.WriteMessage(string.Format("\n使用已保存设置：保护层 c={0:g} mm，圆弧半径 R={1:g} mm。",p.Cover,p.Radius));
                 if (drawValues!=null)
                 {
@@ -45,7 +45,7 @@ namespace WallDetailTool
                 else
                 {
                     double value;
-                    if (!AskSlabDouble(ed,"板底至水平筋中心线 H",p.EffectiveH,out value)) return; p.H=value;
+                    if (!AskSlabDouble(ed,hanging ? "板顶至水平筋中心线向下距离 H" : "板底至水平筋中心线 H",p.EffectiveH,out value)) return; p.H=value;
                     if (!AskSlabDouble(ed,"左水平直段 L左",p.LeftLength,out value)) return; p.LeftLength=value;
                     if (!AskSlabDouble(ed,"右水平直段 L右（首次默认随左侧）",
                         hasPrevious?p.RightLength:p.LeftLength,out value)) return; p.RightLength=value;
@@ -83,6 +83,12 @@ namespace WallDetailTool
                     foreach (string warning in annotations.Warnings) ed.WriteMessage("\n"+warning);
                 }
                 catch (System.Exception ex) { failures.Add("自动标注布局："+ex.Message); }
+                if (hanging)
+                {
+                    NodeOrientation.Reflect(layout.Line,layout.LeftDots,layout.RightDots,layout.TopDots,layout.CornerDots);
+                    NodeOrientation.Reflect(annotations);
+                }
+                double worldBase=NodeOrientation.Y(g.SlabTop,hanging);
                 string lineLayer=LineLayer, dotLayer=DotLayer;
                 var entities=new List<Entity>();
                 try
@@ -112,10 +118,10 @@ namespace WallDetailTool
                         foreach (ContourPoint c in layout.TopDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
                         foreach (ContourPoint c in layout.CornerDots) entities.Add(UpstandDot(c,layout.Elevation,layout.DotDiameter,dotLayer));
                         BlockTable blocks=(BlockTable)tr.GetObject(doc.Database.BlockTableId,OpenMode.ForWrite);
-                        var definition=new BlockTableRecord { Name="WDT-SLAB-UPSTAND-"+Guid.NewGuid().ToString("N") };
+                        var definition=new BlockTableRecord { Name=(hanging ? "WDT-SLAB-HANGING-" : "WDT-SLAB-UPSTAND-")+Guid.NewGuid().ToString("N") };
                         ObjectId definitionId=blocks.Add(definition);
                         tr.AddNewlyCreatedDBObject(definition,true);
-                        Matrix3d local=Matrix3d.Displacement(new Vector3d(-g.Left,-g.SlabTop,-g.Elevation));
+                        Matrix3d local=Matrix3d.Displacement(new Vector3d(-g.Left,-worldBase,-g.Elevation));
                         foreach (Entity entity in entities)
                         {
                             entity.TransformBy(local);
@@ -139,16 +145,16 @@ namespace WallDetailTool
                                     annotations.HeightA,annotations.HeightB,annotations.HeightLine,annotations.Elevation));
                         }
                         BlockTableRecord space=(BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId,OpenMode.ForWrite);
-                        var reference=new BlockReference(new Point3d(g.Left,g.SlabTop,g.Elevation),definitionId)
+                        var reference=new BlockReference(new Point3d(g.Left,worldBase,g.Elevation),definitionId)
                             { Rotation=0,Layer=((LayerTableRecord)tr.GetObject(doc.Database.Clayer,OpenMode.ForRead)).Name };
                         space.AppendEntity(reference); tr.AddNewlyCreatedDBObject(reference,true);
-                        WriteSlabBlockParameters(tr,reference,g,p);
-                        WriteSlabLast(doc.Database,tr,p,g.ThicknessIsManual?g.SlabThickness:lastLocalThickness);
+                        WriteSlabBlockParameters(tr,reference,g,p,hanging);
+                        WriteSlabLast(doc.Database,tr,p,g.ThicknessIsManual?g.SlabThickness:lastLocalThickness,hanging);
                         tr.Commit();
                     }
                     }
                     finally { ed.Command("_.UNDO","_End"); }
-                    ed.WriteMessage("\n板上反坎已生成独立普通块，包含钢筋和已成功的标注；原混凝土轮廓未修改。");
+                    ed.WriteMessage(hanging ? "\n板下下挂已生成独立普通块，包含钢筋和已成功的标注；原混凝土轮廓未修改。" : "\n板上反坎已生成独立普通块，包含钢筋和已成功的标注；原混凝土轮廓未修改。");
                     foreach (string failure in failures) ed.WriteMessage("\n未完成："+failure);
                 }
                 finally { foreach (Entity entity in entities) entity.Dispose(); }
@@ -173,12 +179,12 @@ namespace WallDetailTool
         }
 
         private static void WriteSlabBlockParameters(Transaction tr,BlockReference reference,
-            SlabUpstandGeometry g,SlabUpstandRebarParameters p)
+            SlabUpstandGeometry g,SlabUpstandRebarParameters p,bool hanging=false)
         {
             reference.CreateExtensionDictionary();
             DBDictionary data=(DBDictionary)tr.GetObject(reference.ExtensionDictionary,OpenMode.ForWrite);
             var record=new Xrecord(); data.SetAt(BlockParamRecord,record); tr.AddNewlyCreatedDBObject(record,true);
-            record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Int16,2),
+            record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Int16,hanging ? 4 : 2),
                 new TypedValue((int)DxfCode.Real,p.Cover),new TypedValue((int)DxfCode.Real,p.Radius),
                 new TypedValue((int)DxfCode.Real,g.SlabThickness),new TypedValue((int)DxfCode.Real,p.EffectiveH),
                 new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength),
@@ -186,8 +192,8 @@ namespace WallDetailTool
                 new TypedValue((int)DxfCode.Real,p.DotDiameter),new TypedValue((int)DxfCode.Real,p.DotSpacing),
                 new TypedValue((int)DxfCode.Real,p.LineDisplayWidth),new TypedValue((int)DxfCode.Real,p.DotDisplayDiameter),
                 new TypedValue((int)DxfCode.Real,g.Left),new TypedValue((int)DxfCode.Real,g.Right),
-                new TypedValue((int)DxfCode.Real,g.Top),new TypedValue((int)DxfCode.Real,g.SlabTop),
-                new TypedValue((int)DxfCode.Real,g.SlabBottom),
+                new TypedValue((int)DxfCode.Real,NodeOrientation.Y(g.Top,hanging)),new TypedValue((int)DxfCode.Real,NodeOrientation.Y(g.SlabTop,hanging)),
+                new TypedValue((int)DxfCode.Real,NodeOrientation.Y(g.SlabBottom,hanging)),
                 new TypedValue((int)DxfCode.Int16,(short)g.InputKind),
                 new TypedValue((int)DxfCode.Int16,(short)(g.HasSlabBoundaries?1:0)),
                 new TypedValue((int)DxfCode.Real,g.SlabLeft??0),
@@ -195,17 +201,18 @@ namespace WallDetailTool
         }
 
         private const string SlabLastRecord="WDT_SLAB_UPSTAND_LAST";
-        private static bool ReadSlabLast(Database db,SlabUpstandRebarParameters p,out double localThickness)
+        private static bool ReadSlabLast(Database db,SlabUpstandRebarParameters p,out double localThickness,bool hanging=false)
         {
+            string recordName=hanging ? "WDT_SLAB_HANGING_LAST" : SlabLastRecord;
             localThickness=0;
             using (Transaction tr=db.TransactionManager.StartTransaction())
             {
                 DBDictionary nod=(DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId,OpenMode.ForRead);
-                if (!nod.Contains(SlabLastRecord)) return false;
-                Xrecord record=tr.GetObject(nod.GetAt(SlabLastRecord),OpenMode.ForRead) as Xrecord;
+                if (!nod.Contains(recordName)) return false;
+                Xrecord record=tr.GetObject(nod.GetAt(recordName),OpenMode.ForRead) as Xrecord;
                 if (record==null || record.Data==null) return false;
                 TypedValue[] values=record.Data.AsArray();
-                if (values.Length!=3 && values.Length!=4) return false;
+                if (hanging ? values.Length!=8 : (values.Length!=3 && values.Length!=4)) return false;
                 try
                 {
                     double h=Convert.ToDouble(values[0].Value), left=Convert.ToDouble(values[1].Value),
@@ -213,11 +220,22 @@ namespace WallDetailTool
                     if (double.IsNaN(h)||double.IsInfinity(h)||h<=0 || double.IsNaN(left)||double.IsInfinity(left)||left<=0 ||
                         double.IsNaN(right)||double.IsInfinity(right)||right<=0) return false;
                     p.H=h; p.LeftLength=left; p.RightLength=right;
-                    if (values.Length==4)
+                    if (values.Length>=4)
                     {
                         double savedThickness=Convert.ToDouble(values[3].Value);
                         if (!double.IsNaN(savedThickness) && !double.IsInfinity(savedThickness) && savedThickness>0)
                             localThickness=savedThickness;
+                    }
+                    if (hanging)
+                    {
+                        double[] spec=new double[4];
+                        for (int i=0;i<4;i++)
+                        {
+                            spec[i]=Convert.ToDouble(values[i+4].Value);
+                            if (double.IsNaN(spec[i]) || double.IsInfinity(spec[i]) || spec[i]<=0) return false;
+                        }
+                        p.LineDiameter=spec[0]; p.LineSpacing=spec[1];
+                        p.DotDiameter=spec[2]; p.DotSpacing=spec[3];
                     }
                     return true;
                 }
@@ -225,15 +243,22 @@ namespace WallDetailTool
             }
         }
 
-        private static void WriteSlabLast(Database db,Transaction tr,SlabUpstandRebarParameters p,double localThickness)
+        private static void WriteSlabLast(Database db,Transaction tr,SlabUpstandRebarParameters p,double localThickness,bool hanging=false)
         {
+            string recordName=hanging ? "WDT_SLAB_HANGING_LAST" : SlabLastRecord;
             DBDictionary nod=(DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId,OpenMode.ForWrite);
             Xrecord record;
-            if (nod.Contains(SlabLastRecord)) record=(Xrecord)tr.GetObject(nod.GetAt(SlabLastRecord),OpenMode.ForWrite);
-            else { record=new Xrecord(); nod.SetAt(SlabLastRecord,record); tr.AddNewlyCreatedDBObject(record,true); }
+            if (nod.Contains(recordName)) record=(Xrecord)tr.GetObject(nod.GetAt(recordName),OpenMode.ForWrite);
+            else { record=new Xrecord(); nod.SetAt(recordName,record); tr.AddNewlyCreatedDBObject(record,true); }
             record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.EffectiveH),
                 new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength),
                 new TypedValue((int)DxfCode.Real,localThickness));
+            if (hanging)
+                record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.EffectiveH),
+                    new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength),
+                    new TypedValue((int)DxfCode.Real,localThickness),
+                    new TypedValue((int)DxfCode.Real,p.LineDiameter),new TypedValue((int)DxfCode.Real,p.LineSpacing),
+                    new TypedValue((int)DxfCode.Real,p.DotDiameter),new TypedValue((int)DxfCode.Real,p.DotSpacing));
         }
 
         private static bool AskSlabDouble(Editor ed,string label,double defaultValue,out double value)
