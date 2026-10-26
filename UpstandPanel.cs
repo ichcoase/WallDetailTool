@@ -128,13 +128,7 @@ namespace WallDetailTool
 
     public partial class Commands
     {
-        [CommandMethod("WDTUPPANELDRAW",CommandFlags.Modal)]
-        public void DrawUpstandFromPanel()
-        {
-            Document doc=CadApplication.DocumentManager.MdiActiveDocument;
-            if (doc==null) return;
-            try { DrawUpstandCore(RebarPalette.ReadUpstandPanel()); }
-            catch (System.Exception ex) { doc.Editor.WriteMessage("\n反坎面板参数无效："+ex.Message); }
-        }
+        [CommandMethod("WDTUPPANELDRAW",CommandFlags.Session)]
+        public void DrawUpstandFromPanel() { ShowNodeForm(false,false); }
     }
 }

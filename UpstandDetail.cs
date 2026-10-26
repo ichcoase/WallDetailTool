@@ -145,8 +145,8 @@ namespace WallDetailTool
             elevation=a;
         }
 
-        [CommandMethod("WDTUPDRAW", CommandFlags.Modal)]
-        public void DrawUpstand() { DrawUpstandCore(null); }
+        [CommandMethod("WDTUPDRAW", CommandFlags.Session)]
+        public void DrawUpstand() { ShowNodeForm(false,false); }
 
         internal static void DrawUpstandCore(UpstandPanelValues panelValues,bool hanging=false)
         {

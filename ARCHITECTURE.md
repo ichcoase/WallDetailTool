@@ -1,5 +1,19 @@
 # WallDetailTool 架构
 
+## V0.3.1 窗口与请求边界（2026-10-26）
+
+`NodeDrawForm` 是原生 WinForms 窗口，按梁/板配置6/8个参数项；顶部下拉方向、原生 NodeSketch、说明及生成按钮由同一状态刷新。NodeSketch 仅用 System.Drawing 绘制示意，不复用或替换排筋算法。`NodeDrawState` 按方向保留本窗口的原始文本副本，切换不要求另一方向草稿合法；每次开窗重新读取各自成功记录，取消后无跨窗口草稿。
+
+`NodeDrawRequest` 克隆参数及高级设置数组，类型/方向只读，不暴露可写数组。`NodeDrawCommands.ShowNodeForm` 局部闭包携带请求和目标 Document，通过现有 AutoCAD 2023 API `ExecuteInCommandContextAsync` 进入命令上下文；执行前核对活动文档。原 pendingDraw/pendingSlab/pendingBeam 全局字段及 SendStringToExecute 参数转交已移除。确认、取消和异常不留下可被下次开窗消费的请求。原 WDTUPFORMDRAW/WDTUPSLABFORMDRAW 保留为预选向上的安全窗口别名，不再重放全局状态。
+
+新入口 WDTBEAMNODE/WDTSLABNODE 均默认向上；WDTUPFORM、WDTUPDRAW、WDTUPPANELDRAW、WDTPANEL 预选梁上，WDTBEAMHANGDRAW 预选梁下；WDTUPSLABDRAW 预选板上，WDTSLABHANGDRAW 预选板下。WDTUPSLABREBARTEST、旧识别/测试及高级设置命令保留。未另建会话方向或持久设置系统。
+
+四类 NOD 键不变。梁上/下继续使用既有记录；板节点 `SlabDrawRecord.Decode` 兼容板上旧3/4项及双方8项记录，先完整校验再应用，避免坏记录部分污染读入参数。板上/下成功记录统一保存 H、L左、L右、局部h、线筋直径/间距、点筋直径/间距8项，仍在原成功事务更新各自键；只读开窗、切换及取消不迁移记录。共享保护层、R、显示尺寸及文字高度以请求快照传入核心；几何校验及生成事务结构保持原样。
+
+梁上与梁下共用 `UpstandRebarGeometry.Calculate`，板上与板下共用 `SlabUpstandRebarGeometry.Calculate`；点筋和标注规则共享，方向由未改动的 `NodeOrientation` 统一适配。没有新增下挂算法，构造差异分支须先有用户确认。共用规则修复必须跑原五组及 HangingNodeTests，BUG 案例同时覆盖对应上下节点；窗口/参数保存修改另补 NodeDrawWindowTests 与必要 CAD 专项。新文件已加入旧式 csproj Compile；框架仍为 .NET Framework 4.8/x64，CAD 引用不复制。
+
+本轮独立原生窗口测试及渲染检查不能证明 CAD 工具条、异步命令上下文或实际 DWG 事务通过。证据及待验收项见 [V0.3.1 清单](tests/V031_RELEASE_CHECKLIST.md)。下方 V0.3.0 文档维护与旧窗口/记录描述为历史，以本节为当前增量。
+
 ## 上下节点共用计算的长期维护约束（2026-10-26）
 
 梁上反坎／梁下下挂共用 `UpstandRebarGeometry.Calculate`；板上反坎／板下下挂共用 `SlabUpstandRebarGeometry.Calculate`。两套计算器分别表达梁、板构造，不按上下方向另立算法。各生成核心先将下挂输入经 `NodeOrientation` 转入标准空间，再调用原计算器，输出经同一适配器还原；点筋共用 `UpstandDotDistribution`，标注布局共用 `UpstandAnnotationGeometry.Calculate`（板节点先复用既有 SlabAnnotationSteel 适配）。本轮静态核对：计算器内没有下挂独立分支，没有复制的下挂排筋算法，符合约束；不为文档收尾重构已验收代码。

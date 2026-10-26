@@ -25,8 +25,15 @@ namespace WallDetailTool
             {
                 SlabUpstandGeometry g=SelectSlabGeometry(doc,drawValues==null?(double?)null:drawValues.LocalThickness,hanging);
                 if (g==null) return;
-                // Read on every invocation so saved changes and restored defaults take effect immediately.
-                UpstandPanelValues saved=UpstandPanelValues.ReadUserDefaults();
+                // Window requests own their accepted advanced settings. Only the
+                // legacy direct test path reads user defaults during generation.
+                UpstandPanelValues saved=drawValues==null?UpstandPanelValues.ReadUserDefaults():new UpstandPanelValues();
+                if(drawValues!=null)
+                {
+                    saved.Cover=drawValues.Cover; saved.Radius=drawValues.Radius;
+                    saved.LineDisplayWidth=drawValues.LineDisplayWidth; saved.DotDisplayDiameter=drawValues.DotDisplayDiameter;
+                    saved.TextHeight=drawValues.TextHeight;
+                }
                 var p=new SlabUpstandRebarParameters {
                     Cover=saved.Cover, Radius=saved.Radius,
                     LineDiameter=saved.LineDiameter, LineSpacing=saved.LineSpacing,
@@ -212,30 +219,15 @@ namespace WallDetailTool
                 Xrecord record=tr.GetObject(nod.GetAt(recordName),OpenMode.ForRead) as Xrecord;
                 if (record==null || record.Data==null) return false;
                 TypedValue[] values=record.Data.AsArray();
-                if (hanging ? values.Length!=8 : (values.Length!=3 && values.Length!=4)) return false;
                 try
                 {
-                    double h=Convert.ToDouble(values[0].Value), left=Convert.ToDouble(values[1].Value),
-                        right=Convert.ToDouble(values[2].Value);
-                    if (double.IsNaN(h)||double.IsInfinity(h)||h<=0 || double.IsNaN(left)||double.IsInfinity(left)||left<=0 ||
-                        double.IsNaN(right)||double.IsInfinity(right)||right<=0) return false;
-                    p.H=h; p.LeftLength=left; p.RightLength=right;
-                    if (values.Length>=4)
+                    double[] decoded=SlabDrawRecord.Decode(Array.ConvertAll(values,v=>Convert.ToDouble(v.Value)),hanging);
+                    p.H=decoded[0]; p.LeftLength=decoded[1]; p.RightLength=decoded[2];
+                    localThickness=decoded[3];
+                    if(decoded.Length==8)
                     {
-                        double savedThickness=Convert.ToDouble(values[3].Value);
-                        if (!double.IsNaN(savedThickness) && !double.IsInfinity(savedThickness) && savedThickness>0)
-                            localThickness=savedThickness;
-                    }
-                    if (hanging)
-                    {
-                        double[] spec=new double[4];
-                        for (int i=0;i<4;i++)
-                        {
-                            spec[i]=Convert.ToDouble(values[i+4].Value);
-                            if (double.IsNaN(spec[i]) || double.IsInfinity(spec[i]) || spec[i]<=0) return false;
-                        }
-                        p.LineDiameter=spec[0]; p.LineSpacing=spec[1];
-                        p.DotDiameter=spec[2]; p.DotSpacing=spec[3];
+                        p.LineDiameter=decoded[4]; p.LineSpacing=decoded[5];
+                        p.DotDiameter=decoded[6]; p.DotSpacing=decoded[7];
                     }
                     return true;
                 }
@@ -251,10 +243,6 @@ namespace WallDetailTool
             if (nod.Contains(recordName)) record=(Xrecord)tr.GetObject(nod.GetAt(recordName),OpenMode.ForWrite);
             else { record=new Xrecord(); nod.SetAt(recordName,record); tr.AddNewlyCreatedDBObject(record,true); }
             record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.EffectiveH),
-                new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength),
-                new TypedValue((int)DxfCode.Real,localThickness));
-            if (hanging)
-                record.Data=new ResultBuffer(new TypedValue((int)DxfCode.Real,p.EffectiveH),
                     new TypedValue((int)DxfCode.Real,p.LeftLength),new TypedValue((int)DxfCode.Real,p.RightLength),
                     new TypedValue((int)DxfCode.Real,localThickness),
                     new TypedValue((int)DxfCode.Real,p.LineDiameter),new TypedValue((int)DxfCode.Real,p.LineSpacing),
