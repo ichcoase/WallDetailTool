@@ -1,5 +1,15 @@
 # WallDetailTool
 
+## V0.2.0 板上反坎（2026-10-26 归档）
+
+本版在 `v0.1.0` 梁上反坎基线上增加板上反坎。AutoCAD 2023/2024、.NET Framework 4.8、x64；反坎识别固定按 `1 CAD 单位＝1 mm`，不读取 `INSUNITS` 自动换算。使用 `NETLOAD` 加载 `D:\Waste\WallDtailTool\bin\V02Release20261026\WallDetailTool.dll`（SHA-256 `628932AC9D93BAACB6D8EA4D58CC81FBF7932B8A64A8F6ED1E44D9FF89BD5915`）；若同一 AutoCAD 会话已加载旧版，请在保存图纸后重启 AutoCAD 再加载新版。运行 `WDTTOOLBAR`，分别使用“反坎绘制”和“板上反坎”两个按钮。后者先打开本次绘制参数窗口，确定后选择轮廓并直接生成；取消窗口不选轮廓。独立识别命令为 `WDTUPSLABCONTOUR`。
+
+板上反坎支持局部闭合矩形、开放倒 U，以及反坎加等厚水平矩形楼板的完整截面。局部模式输入板厚 `h`，没有楼板左右边界，无法自动判断水平钢筋越界；按用户后续确认，生成时不再弹局部边界审核提示。完整模式由实际楼板识别取得板厚和左右边界，水平段越界时分别报告左右越界量并允许继续或取消。倒 U 线筋、点筋、宽高标注和普通块按现有流程生成；高级设置保存的保护层 `c`、显示尺寸与圆弧半径 `R` 直接用于下一次绘制。本次窗口可改线筋、点筋规格与间距、局部 `h`、`H` 和左右水平直段长度。300 mm 宽反坎顶部为左角、顶部直段、右角各一根点筋；仅有一排时标 `3φ6`。点筋中心不与线筋中心线重合，点筋可见轮廓与线筋内缘相切。
+
+**验证状态：**本版 Release/x64 编译和五组纯几何测试通过；用户对板上反坎及最新点筋规则反馈“基本没问题”。这不是 AutoCAD 2023/2024 全项验收。CAD 中的块内容、一次 UNDO/REDO、BEDIT、保存重开、源轮廓保护及两个按钮回归仍见 [V0.2 最终检查清单](tests/V02_RELEASE_CHECKLIST.md) 的待验证项。AutoCAD 2023 Core Console 在设置 current profile 时报错；本轮 GUI 中只到 `NETLOAD`，尚无插件命令运行结果。AutoCAD 2024 本机未找到。请只在测试 DWG 副本中执行待验证项。结构构造仍须工程师审核。
+
+下面 V0.1 与 Phase7 段落保留作历史记录；其旧 DLL 路径、命令交互和验收状态不代表 V0.2.0。
+
 ## V0.1 交付（2026-10-23）
 
 本地稳定基线 DLL：`D:\Waste\WallDtailTool\bin\V01Stable20261023\WallDetailTool.dll`（Release/x64/.NET Framework 4.8；引用 AutoCAD 2023 托管程序集；SHA-256 `2B8C04522B5C9F82AB8FBD0DC033DA3CE517D92C042FBC474BF65AB3ED95FAB4`）。在 AutoCAD 2023/2024 中重启后 `NETLOAD` 此 DLL，执行 `WDTTOOLBAR`，分别使用“反坎绘制”和“高级设置”；旧 `WDTUPDRAW`、`WDTPANEL`、`WDTUPCONTOUR`、`WDTTEST`、`WDTREBAR` 等命令保留。1 CAD 单位按 1 mm 使用。生成前先在绘制窗口填写或沿用参数，选轮廓后直接生成；用一次 UNDO 撤销本次生成。不要把历史 Phase7 的侧边栏/预览说明用于此版本。

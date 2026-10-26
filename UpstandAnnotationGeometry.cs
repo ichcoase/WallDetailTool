@@ -59,7 +59,7 @@ namespace WallDetailTool
             var result=new UpstandAnnotationLayout { TextHeight=textHeight, Elevation=g.Elevation };
             double offset=Math.Max(20,.5*textHeight);
             string lineText=Spec(p.LineDiameter,p.LineSpacing);
-            int dotsPerRow=2+steel.TopDots.Count+steel.CornerDots.Count;
+            int dotsPerRow=steel.TopDots.Count+steel.CornerDots.Count;
             string dotText=steel.LeftDots.Count==1 ? dotsPerRow.ToString(CultureInfo.InvariantCulture)+"φ"+Num(p.DotDiameter) :
                 Spec(p.DotDiameter,p.DotSpacing);
             double run=Math.Max(100,Math.Max(lineText.Length,dotText.Length)*textHeight*.8);
@@ -138,17 +138,15 @@ namespace WallDetailTool
             // One shared underline with a branch to every dot in the single row.
             bool onLeft=freeLeft>=freeRight;
             double y=g.Top+Math.Max(25,.55*height);
-            double rise=y-steel.LeftDots[0].Y;
+            double rise=y-steel.CornerDots[0].Y;
             double shift=Math.Min(g.Width*.3,rise*.55)*(onLeft ? -1 : 1);
             double anchorX=onLeft ? g.Left-Math.Max(60,1.5*height) :
                 g.Right+Math.Max(60,1.5*height);
             var label=new UpstandLabelLayout { Text=value,Rightward=onLeft,KeepLastLeaderEnd=true,
                 TextAnchor=new AnnotationPoint(anchorX,y+4) };
-            var row=new List<ContourPoint> { steel.LeftDots[0] };
-            row.Add(steel.CornerDots[0]);
+            var row=new List<ContourPoint> { steel.CornerDots[0] };
             row.AddRange(steel.TopDots);
             row.Add(steel.CornerDots[1]);
-            row.Add(steel.RightDots[0]);
             foreach (ContourPoint dot in row)
                 label.Leaders.Add(new AnnotationSegment(new AnnotationPoint(dot.X,dot.Y),
                     new AnnotationPoint(dot.X+shift,y)));

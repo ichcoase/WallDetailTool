@@ -1,5 +1,11 @@
 # WallDetailTool 架构
 
+## V0.2 板上反坎增量（2026-10-26）
+
+`SlabUpstandGeometry` 保存输入种类、反坎宽高、板顶／底／厚及可选的楼板左右边界。`SlabUpstandRecognizer` 与 `SlabUpstandCommand` 独立于 V0.1 `UpstandRecognizer` 和 `WDTUPCONTOUR`；局部矩形／倒 U 的板顶取反坎底部，完整模式另外校验等厚水平矩形楼板。`SlabUpstandRebarGeometry` 计算连续倒 U 多段线、相切圆弧、水平长度及越界量；`SlabUpstandRebarCommand` 负责 CAD 实体、标注、普通块与提交。`SlabUpstandForm` 提供独立绘制窗口和按钮命令 `WDTUPSLABDRAW`。旧 `WDTUPSLABREBARTEST` 是兼容命令入口，不表示完整自动验收。
+
+点筋沿倒 U 线筋的内缘相切布置，角部点筋参与顶部中心距上限计算；顶部点筋数量取满足上限的最少数。单排标注只统计该顶部一排的角部与直段点筋，两排及以上保持间距格式。梁上反坎继续复用相同的点筋布局和标注几何，但 `WDTUPDRAW` 的识别入口及生成流程未因 V0.2 改写。CAD 事务、块内容、撤销和保存重开的动态行为需要实际 AutoCAD 验证，参见 `tests/V02_RELEASE_CHECKLIST.md`。
+
 ## V0.1 阶段 4 增量架构（2026-10-22）
 
 现有 `WDTUPDRAW` 复用阶段 1 的 `UpstandGeometry`、阶段 2 的 `UpstandRebarLayout` 和阶段 3 的 `UpstandAnnotationLayout`。预览继续使用不驻留的临时实体。确认时创建唯一普通 `BlockTableRecord`，把已计算的世界坐标实体整体平移到以反坎左下角为原点的块局部坐标，插入位于该点、旋转 0° 的 `BlockReference`。关键钢筋在父事务内，标注逐项在嵌套事务内；成功的图元进入同一块。参照扩展字典 `WDT_UPSTAND_PARAMS` 保存该批参数和几何快照，图纸 NOD `WDT_UPSTAND_LAST` 保存该 DWG 上次确认值。COPY 同一参照按普通块语义共享定义；源混凝土轮廓仍无持续关联。
