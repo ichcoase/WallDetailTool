@@ -1,0 +1,10 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>BeamSideContourTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><OutputPath>bin\V04Calculation\</OutputPath><BaseIntermediateOutputPath>obj\BeamSideContourTests\</BaseIntermediateOutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
+    <Compile Include="..\UpstandGeometry.cs"/>
+    <Compile Include="..\BeamSideGeometry.cs"/><Compile Include="..\BeamSideContourRecognizer.cs"/>
+    <Compile Include="..\BeamSideCurve.cs"/><Compile Include="..\BeamSideRebarGeometry.cs"/><Compile Include="..\BeamSideDots.cs"/>
+    <Compile Include="BeamSideTestSupport.cs"/><Compile Include="BeamSideContourTests.cs"/>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>
