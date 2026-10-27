@@ -1,8 +1,24 @@
 # WallDetailTool 架构
 
+## V0.4 第二阶段：CAD 接入（2026-10-27）
+
+计算层基线 `a48c90114f9233b489a8010e3852a3fb365e0b38` 保持不变。新增 `BeamSideDrawForm`、`BeamSideDrawState/Request/Record`、`BeamSideAnnotationGeometry` 及 `BeamSideCadCommand`，全部纳入主项目；工具条增加“梁侧挂板”，命令为 `WDTBEAMSIDE`。旧入口保留，共用梁/板排筋关系未改。普通窗口示意只用 System.Drawing，不参与排筋。
+
+独立窗口在选择对象前固定方向、局部/完整模式、两端弯折和标注侧；首次模式不预选，必须明确选择，已有成功记录保留模式；L/V 首次为空，上下共用；成功记录读取只用本类型键。窗口关闭/取消无外部写入，确定返回不可变请求。请求持有计算参数、四类图层及单位解释的快照，闭包另持目标 Document，通过 ExecuteInCommandContextAsync 执行，选择前及提交前核对目标文档/INSUNITS，没有全局 pending。
+
+计算层仍仅接受 WCS 毫米。新 CAD 适配按请求同一比例读取 LINE/LWPOLYLINE 的 X/Y/Z、点选及所有输出（宽度、点筋大小、字高、尺寸、基点）。毫米/无单位按 1:1；非毫米窗口必须明确选择换算或本次按毫米解释，不修改 INSUNITS，也不重写旧节点单位流程。点选 UCS 经 CurrentUserCoordinateSystem 转为 WCS，接口约定和官方参考见 [接口文档](docs/V04_CALCULATION_API.md)。完整等高外框 SplitRegions 必须点取连接 X 后 Resolve，多候选明确点选并重验。
+
+实体适配只遍历计算结果：一条连续宽多段线和每个返回中心一根闭合点筋；世界坐标乘单位比例后，只减一次基点及 Elevation 建块，再以同一基点插入。规格、尺寸端点及真实引出点直接来自结果；新标注排版使用已有 UpstandLabelLayout/TEXT 构造，明确世界正向及左右对齐，点筋始终直径@输入间距，文字分行避让。尺寸沿用 TSSD_25/TSSD；非毫米实体覆盖 Dimscale=25×比例、Dimlfac=1/比例，已有样式和图层不改属性。
+
+`CreateBeamSideBlock` 在单一父事务内建立图层、独立普通块、钢筋、块参照、快照及 LAST；可选标注各用既有嵌套事务逐项回滚并报告。外层命令以 UNDO Begin/End 分组。源对象只读；几何/保存失败父事务回滚，标注失败保留关键钢筋并保存成功参数。默认尺寸样式缺失且无原生 _ARCHTICK 时，在可选事务内创建独立 WDT-ARCHTICK 建筑斜杠；新增样式使用它，不改原生箭头或调用 SETVAR，避免失败时事务外残留。旧样式帮助方法仅增加可选箭头重载，原调用行为保持。
+
+本类型 NOD 键 `WDT_BEAM_SIDE_LAST`（20项版本化数值）；块扩展字典键 `WDT_BEAM_SIDE_PARAMS`（BeamSideBlock 类型、31项请求/几何数值、四类图层字符串）。方向、模式、L/V、弯折、实际规格/间距、显示参数、标注侧、单位解释和几何边界均有快照。高级设置仍读原用户设置，不另建全局系统。坏记录完整拒绝并使用首次输入，不进行部分迁移或串读旧四类键。
+
+窗口/请求/编解码、单位及标注自动测试与 CAD 运行证据分别记录；测试专用程序集只用于新图副本，不进入生产命令。当前隔离控制台启动成功，但新旧 DLL 均在 NETLOAD 阶段受阻，实际 CAD 事务与外观仍待验收；不能以窗口或编译通过替代。详见 [V0.4 清单](tests/V04_RELEASE_CHECKLIST.md)。
+
 ## V0.4 梁侧挂板计算层（2026-10-27）
 
-本轮范围按用户收紧为计算层正式集成，CAD 入口在下一任务。原中心线和轮廓草稿已分别整理为 `BeamSideRebarGeometry.cs`、`BeamSideGeometry.cs`，点筋草稿整理为正式 `BeamSideDots.cs`；没有保留草稿算法的第二条调用路径。新增 `BeamSideContourRecognizer.cs`、`BeamSideCurve.cs`，五个文件均加入主项目 Compile。原四类节点计算、命令、窗口及上下共用关系未改。
+前一轮范围按用户收紧为计算层正式集成，当时 CAD 入口留待后续；本轮接入见上节。原中心线和轮廓草稿已分别整理为 `BeamSideRebarGeometry.cs`、`BeamSideGeometry.cs`，点筋草稿整理为正式 `BeamSideDots.cs`；没有保留草稿算法的第二条调用路径。新增 `BeamSideContourRecognizer.cs`、`BeamSideCurve.cs`，五个文件均加入主项目 Compile。原四类节点计算、命令、窗口及上下共用关系未改。
 
 统一契约：输入轮廓、块体/梁矩形和输出顶点/点筋/尺寸/锚点均为 WCS 毫米，Z 单独为 Elevation。计算临时局部坐标以连接面块体下端为原点，X 指向块体，Y 始终向上；X、Y 同时还原世界坐标后才进行梁边界检查。偏移复用已验收节点的“保护层＋显示线宽/2”，规格直径独立。详见 [计算层接口](docs/V04_CALCULATION_API.md)。
 

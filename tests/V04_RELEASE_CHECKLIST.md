@@ -1,4 +1,58 @@
-# V0.4 梁侧挂板计算层交付清单
+# V0.4 梁侧挂板交付清单
+
+## 第二阶段交付（2026-10-27）
+
+基线 a48c90114f9233b489a8010e3852a3fb365e0b38。当前状态：窗口→轮廓选择→计算→实体/标注→普通块→成功参数保存已完成源码接入；新 DLL 含可操作入口，供用户在 CAD 中加载验收。以下自动结果不能代替 CAD 动态验证，未宣称用户验收通过。
+
+- [x] 工具条新增“梁侧挂板”及 WDTBEAMSIDE，旧命令保留；独立窗口包含方向、局部/完整模式、规格间距、L/V、两端世界上下弯折和标注侧，示意同步。首次必须明确选择轮廓模式，L/V 留空；已有成功记录保留上次模式及参数，无虚构工程默认。
+- [x] 取消/关闭不启动选择、不写草稿；不可变请求捕获参数、共享高级设置、图层和单位解释，闭包目标文档在命令上下文执行，图纸/单位改变拒绝。
+- [x] LINE/LWPOLYLINE 只读读取、平面/Elevation/圆弧检查、输入输出同一比例换算；非毫米必须明确选择换算或本次毫米解释，不改 INSUNITS。点选转 WCS，多候选及完整无缝外框明确选择。
+- [x] 只消费已提交计算结果；一条连续线筋，各段起终宽和 bulge 设置；每个返回中心一根闭合点筋，规格不套旧节点根数规则，Unknown 提示人工审核。
+- [x] 真实锚点普通引线、正向 TEXT、左右标注、原生宽高尺寸，复用既有样式及图层且不覆盖属性。缺少原生建筑标记时，事务内创建独立 WDT-ARCHTICK，不改变 DIMBLK 或全局设置。
+- [x] 世界到块局部只转换一次，基点及 Elevation 保留；源混凝土不入块。关键钢筋/块/快照/LAST 同一父事务，可选标注逐项嵌套回滚并报告，外层 UNDO 分组。
+- [x] 本类型 WDT_BEAM_SIDE_LAST、WDT_BEAM_SIDE_PARAMS 独立键，版本化完整解码；高级设置仍沿原系统。成功记录和块几何/类型/单位快照同事务更新，失败/取消不更新。
+- [x] 全部新增源码进入旧式 csproj；.NET Framework 4.8/x64 构建，生产输出不含 CAD 托管依赖或测试程序集。
+
+### 本轮自动验证及构建证据
+
+| 检查 | 本轮实际结果 |
+| --- | --- |
+| V0.4 计算三组 | PASS：轮廓837、钢筋1825、点筋45616项；输出 tests/bin/V04CadCalculation |
+| 原五组＋HangingNodeTests | 六组均 PASS，Hanging 2974项；输出 tests/bin/V04CadRegression |
+| BeamSideWindowTests | BEAM_SIDE_WINDOW_RECORD_PASS checks=1532，含左右/弯折/标注侧、首次模式明确选择、L/V分别必填、确认/取消重开、请求快照、单位明确选择、字段/坏记录/块快照、目标文档/单位守卫、正向标注位置及比例 |
+| NodeDrawWindowTests | NODE_DRAW_WINDOW_PASS checks=158；两窗口测试输出 tests/bin/V04WindowFinal |
+| 新窗口图像 | 默认毫米、左右及非毫米必须选择的截图已视觉检查；仅独立 WinForms，不是 CAD 内窗口验收 |
+| CAD 专项程序集 | BeamSideCadTests 编译通过；真实执行未完成，不记 PASS |
+| 主项目 | Release/x64/.NET Framework4.8，AutoCAD2023托管引用，编译成功 |
+
+纯测试因引用旧 UpstandRebarParameters 类型有既有两条 CS0649 警告（左右锚固字段未赋值），测试通过。计算层源码本轮没有修改或复制；共享窗口源码未改，仍运行旧窗口回归以核对兼容。
+
+最终 DLL：D:\Waste\WallDtailTool\bin\V04Delivery20261027Final2\WallDetailTool.dll
+
+SHA-256：C213293EAAF68E963EA1AF57C7736F5BCD9D4599BD4F9264DF1665F6759EE210
+
+程序集方法/类型检查确认含 ShowBeamSideForm、BeamSideDrawForm、BeamSideDrawRequest 和 BeamSideAnnotationGeometry，主项目 Compile 明确包含 BeamSideCadCommand。不是第一阶段无入口 DLL。源码与本清单同次本地提交，提交标识见最终回复及 git log；不推送、不打标签。
+
+### CAD 实测边界与阻碍
+
+1. 使用新建 tests/profile_v04_integration20261027/V04_CAD_Copy.dwg（来自既有测试图的副本），未覆盖原图、不关闭用户 AutoCAD。
+2. 普通权限的 AutoCAD2023 accoreconsole 启动因 HKCU AutoCAD 根键访问错误5退出1；经工具权限机制运行 /isolate 后启动/退出成功。没有手工更改注册表、TRUSTEDPATHS 或 SECURELOAD。
+3. 隔离控制台加载 Test2 插件及测试程序集均报告“无法加载…程序集”，WDTBEAMSIDEAUTOTEST 为未知命令；没有 BEAM_SIDE_CAD_PASS，未执行实体/持久化/UNDO 专项。控制台自身返回0不代表测试通过。
+4. 同配置加载此前已交付的 V031Delivery20261026Final/WallDetailTool.dll 也失败，WDTTEST 未注册。只读诊断：SECURELOAD=1，TRUSTEDPATHS 不含项目输出目录，findfile 能找到 DLL。加载未提供更详细异常，不能将原因认定为新代码错误或认定只有信任路径一个原因；未通过更改安全设置绕过。
+5. 原始日志、测试图和隔离配置保留在上述 ignored 测试目录，不提交。Windows 图形界面及 AutoCAD2024 本轮未运行。
+
+测试专用 [BeamSideCadTests](BeamSideCadTests.cs) 拒绝非 V04_CAD_Copy.dwg：计划覆盖真实宽度/bulge/基点/Elevation、实体数量、两条 TEXT/原生尺寸、块快照与 Last、旧类型键/图层属性、关键失败回滚和可选标注失败、保存重开及一次 UNDO/REDO。可用 [安全测试入口](run_v04_cad.ps1) 在合适环境复制指定 DWG、构建专用程序集后运行；不含关闭安全设置的命令。该计划和编译成功不等同实际通过。
+
+- [ ] CAD 内入口与完整流程；左右、四种弯折、局部/完整、多候选/连接 X 选择和非毫米单位。
+- [ ] 实际钢筋与标注外观、BEDIT、原图保护、取消/失败无残留及无参数更新。
+- [ ] 一次 UNDO/REDO、保存重开、本类型与旧四类及多文档参数隔离、活动文档切换。
+- [ ] AutoCAD2023/2024 的图形界面及用户验收。
+
+### 一个简短用户验收流程
+
+若本会话已加载旧版，请在方便时手动重启 CAD 后再测试。在毫米新图/副本中画一个 300×600 的局部矩形，NETLOAD 加载上方 DLL（若询问可仅本次加载），运行 WDTBEAMSIDE，选“向右/局部”，以 L=400、V=100 作界面和算术试例后选择矩形。核对普通块、两条规格、宽高尺寸和原矩形保留；做一次撤销/重做，另存测试图重开，再开窗口核对本类型成功参数。该数值只是测试，不是工程锚固推荐。左右/完整及其他专项继续按未验证清单验收。
+
+## 第一阶段历史记录（计算层，2026-10-27）
 
 日期：2026-10-27。本轮用户将任务收紧为“计算层完成、主项目正式集成、测试及本地提交”。状态：计算层完成，CAD 入口尚未接入；整体 V0.4 未作为可操作 CAD 功能交付或验收。
 

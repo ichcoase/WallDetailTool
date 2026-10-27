@@ -1,6 +1,6 @@
 # V0.4 梁侧挂板计算层接口
 
-本层已纳入 WallDetailTool 主项目（.NET Framework 4.8/x64），不创建 CAD 对象、不访问文档或设置、不写 DWG。当前没有 CAD 命令入口。本文件是下一接入任务的接口依据，完整产品需求仍见 [需求书](V04_BEAM_SIDE_BLOCK_PRD.md)。
+本计算层已纳入 WallDetailTool 主项目（.NET Framework 4.8/x64），自身不创建 CAD 对象、不访问文档或设置、不写 DWG。第二阶段已新增 WDTBEAMSIDE 及 BeamSideCadCommand 作为调用者，计算接口保持不变。完整产品需求见 [需求书](V04_BEAM_SIDE_BLOCK_PRD.md)，CAD 交付与验收状态见 [清单](../tests/V04_RELEASE_CHECKLIST.md)。
 
 ## 1. 坐标与单位
 
@@ -20,7 +20,7 @@
 
 - `fullSection=false`：接受局部闭合矩形及向梁开口 U；若有多个互不接触的候选，`Candidates` 按位置排序，`SelectCandidate(worldX,worldY)` 要求目标内部点，只返回已校验的不可变候选。额外零散线、相交/重叠候选拒绝。
 - `fullSection=true`：接受一个相连的完整规则梁/块体截面，可以是整体外边界，也可带完整竖向连接缝；两矩形共享连接面部分的重复边允许，其余重复边拒绝。等高、近等高、上下错位均支持；不能用宽高比例判断梁或块体，方向指定块体所在侧。分支、空洞、多级块体、缺边、水平内部缝及不连通区域拒绝。
-- 完整等高外框若没有连接缝，仅凭矩形无法确定梁宽与块体宽，`SplitRegions` 返回该不可变外框及方向。调用者应要求明确选择连接 X，再调用 `SplitRegions[i].Resolve(worldConnectionX)`；它检查两侧均大于 1 mm，并返回完整 `BeamSideGeometry`。这是已实现的人工选择接口，不产生猜测候选；下一窗口不得将其默认为局部矩形。
+- 完整等高外框若没有连接缝，仅凭矩形无法确定梁宽与块体宽，`SplitRegions` 返回该不可变外框及方向。调用者应要求明确选择连接 X，再调用 `SplitRegions[i].Resolve(worldConnectionX)`；它检查两侧均大于 1 mm，并返回完整 `BeamSideGeometry`。这是已实现的人工选择接口，不产生猜测候选；CAD 窗口不得将其默认为局部矩形，当前首次窗口要求明确选择识别模式。
 
 识别容差为 1 mm；有限数值、正交性、连接长度和拓扑均检查。上限 4096 段、每轴 256 个归并坐标，超出明确拒绝。局部尺寸和完整梁/块体尺寸须大于 1 mm。`Candidates` 和 `SplitRegions` 均为只读副本。
 
@@ -56,4 +56,4 @@
 
 连接面顶点索引为 Line[3] 与 Line[8]；圆弧起点为 1、4、6、9。前 3 段和最后 3 段分别组成上端和下端 L。CAD 层不应依赖这些索引重新算长度，优先使用返回的结果字段。
 
-下一任务只负责实体、正向 TEXT/引线布局、尺寸样式、普通块、事务和独立成功记录，不在 CAD 层再复制计算算法。保存参数、取消/失败、UNDO/REDO、保存重开及多文档必须另作真实 CAD 验证。
+现有 BeamSideCadCommand 负责实体、正向 TEXT/引线、尺寸、普通块、事务及独立记录，没有复制排筋。BeamSideDrawRequest 捕获参数、图层及单位解释；BeamSideUnitTransform 统一双向比例，块局部只做一次基点位移。点选先由 Editor.CurrentUserCoordinateSystem 转 WCS 再换为毫米，依据 [Autodesk UCS .NET 示例](https://help.autodesk.com/cloudhelp/2022/ENU/OARX-DevGuide-Managed/files/GUID-096085E3-5AD5-4454-BF10-C9177FDB5979.htm)。BeamSideAnnotationGeometry 只排标注位置，其输出已为图形单位。保存参数、取消/失败、UNDO/REDO、保存重开及多文档仍须另作真实 CAD 验证，不能以编解码测试替代。

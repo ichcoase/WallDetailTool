@@ -339,10 +339,13 @@ namespace WallDetailTool
         }
 
         private static ObjectId EnsureUpstandDimensionStyle(Database db,Transaction tr,ObjectId textStyleId)
+        { return EnsureUpstandDimensionStyle(db,tr,textStyleId,ObjectId.Null); }
+
+        private static ObjectId EnsureUpstandDimensionStyle(Database db,Transaction tr,ObjectId textStyleId,ObjectId arrowOverride)
         {
             DimStyleTable styles=(DimStyleTable)tr.GetObject(db.DimStyleTableId,OpenMode.ForRead);
             if (styles.Has(AnnotationDimensionStyle)) return styles[AnnotationDimensionStyle];
-            ObjectId architecturalTick=ArchitecturalTickId(db,tr);
+            ObjectId architecturalTick=arrowOverride.IsNull?ArchitecturalTickId(db,tr):arrowOverride;
             var style=new DimStyleTableRecord();
             try
             {

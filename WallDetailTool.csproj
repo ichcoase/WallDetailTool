@@ -52,6 +52,11 @@
     <Compile Include="BeamSideCurve.cs" />
     <Compile Include="BeamSideRebarGeometry.cs" />
     <Compile Include="BeamSideDots.cs" />
+    <Compile Include="BeamSideDrawState.cs" />
+    <Compile Include="BeamSideDrawForm.cs" />
+    <Compile Include="BeamSideAnnotationGeometry.cs" />
+    <Compile Include="BeamSideCadCommand.cs" />
+    <Compile Include="TestVisibility.cs" />
     <Compile Include="NodeOrientation.cs" />
     <Compile Include="SlabUpstandGeometry.cs" />
     <Compile Include="SlabUpstandCommand.cs" />
