@@ -1,5 +1,27 @@
 # V0.5 普通悬挑板候选交付验证
 
+## 2026-10-28 自动F、绘图预设与折线标注修订（当前交付）
+
+源码基线2afc688。本次新增要求覆盖下方历史基线中的手填F、首次空白和水平直引。完整初值见 [预设表](../docs/V05_DRAWING_PRESETS.md)，接口/记录兼容见 [接口](../docs/V05_CALCULATION_API.md)。
+
+- [x] CantileverGeometryTests：`CANTILEVER_PREREQUISITES_PASS checks=4714`。新增不同板厚/保护层/面底筋直径×左右×四模式，端头至实际底筋中心线恒10mm，模式4同路径；旧F=0/999不影响结果，自动F无法容纳R/直段时拒绝。
+- [x] CantileverWindowTests：`CANTILEVER_WINDOW_RECORD_ANNOTATION_PASS checks=2364`。首次全部可编辑项有值、四模式可生成请求、无F输入框、成功记录优先/缺项补预设、模式切换草稿、取消不提交、单位比例、实际总数2根数量表达/多根间距（含每排2根但合计4根仍按间距）、单组折线引出/真实锚点、水平末段/文字线上方、左右及模式4引线无交叉（含E/Lin悬殊）、v1/v2记录及快照兼容、读取不改输入旧快照。全13组运行后补充总数4根案例，另单独重跑本组达到2364项；生产源码未再修改。原生TEXT实际宽度与CAD事务仍未运行。
+- [x] 原五组及HangingNodeTests通过（后者2974项），NodeDrawWindowTests通过158项。
+- [x] V0.4四组Contour/Dots/Rebar/Window通过837/51529/1825/3180项。旧节点标注规则源码没有修改。
+- [x] Release/x64/.NET4.8、AutoCAD2023托管引用编译成功，输出仅WallDetailTool.dll/PDB，未复制CAD程序集。测试编译有既有UpstandRebarParameters未赋值字段CS0649警告，不影响运行通过。
+- [x] 独立WinForms窗口渲染已查看，F为自动说明，其余数值/按钮显示完整；不等于CAD命令上下文、字体或持久化验收。
+- [ ] 真实CAD折线/字体/文字避让、10mm图面量测、两根点筋标注、旧块不重画、UNDO/REDO、保存重开及多文档，均待用户验收。2023/2024均未运行CAD。
+
+本次按审查后的build.ps1相同MSBuild参数，通过Python子进程显式输出新目录；按run_v05_geometry.ps1相同的13个测试项目逐项编译/执行EXE并检查通过标记，未启动CAD/隔离NETLOAD、未改安全设置。没有推送或打标签。
+
+新DLL：`D:\Waste\WallDtailTool\bin\V05AutoF20261028\WallDetailTool.dll`
+
+SHA-256：`FFD537863176178095E0ADABF93AD728DF3AA8EF80B94E994D2C156F2FCF1BA7`。
+
+用户单一验收：新图加载新DLL，运行WDTCANTILEVER，用模式4分别选择1500×200与150×200矩形（左右各一），沿用窗口预设或本图成功值；检查无需填F、面筋和点筋为折线引出、模式4两组面筋规格独立、窄板实际合计2根时标2φ实际直径，再量测自由端头中心线比底筋水平中心线高10mm。测试图/预设不代表工程推荐。旧DLL已加载无法替换时仅由用户自行保存后重启CAD，本工具不自动关闭。
+
+## 2afc688基线交付历史（以下不是本轮测试或当前F/标注口径）
+
 日期2026-10-28，承接计算阶段7f7ad7a，V0.4归档基线e370995。带实际入口的候选DLL，未记用户CAD验收通过。
 
 - [x] V0.4归档提交/标签/验收DLL SHA-256只读核对一致。

@@ -52,7 +52,8 @@ internal static class CantileverGeometryTests
             var top=layout.Bars[0].Vertices;var bot=layout.Bars[1].Vertices;
             Check(bot.Count==2);Check(!ReferenceEquals(top,bot));
             Near(bot[0].Point.X,1234-sign*200);
-            Near(top[top.Count-1].Point.Y,567-31-100);
+            Near(top[top.Count-1].Point.Y,bot[0].Point.Y+10);
+            Near(layout.EffectiveF,130);
             Near(top[top.Count-2].Point.X,1234+sign*(1500-31));
             Check(top[top.Count-1].Point.Y<top[top.Count-2].Point.Y);
             if((int)mode<3)
@@ -139,6 +140,25 @@ internal static class CantileverGeometryTests
         var largeBottom=new CantileverSpecifications(CantileverSupportMode.NoInnerUp,new CantileverSpecification(CantileverBarRole.Top,12,150),new CantileverSpecification(CantileverBarRole.Bottom,100,200));
         var thick=new CantileverPathInputs(1500,300,25,20,12,180,250,0,100,200,0);
         Reject(()=>CantileverDots.Calculate(frame,CantileverRebarGeometry.Calculate(frame,largeBottom,thick),thick,12,200));
+        foreach(var direction in new[]{CantileverDirection.Left,CantileverDirection.Right})
+        foreach(CantileverSupportMode mode in Enum.GetValues(typeof(CantileverSupportMode)))
+        foreach(double thickness in new[]{150.0,200,300}) foreach(double cover in new[]{20.0,25,40})
+        foreach(double topDiameter in new[]{12.0,16,20}) foreach(double bottomDiameter in new[]{8.0,12,16})
+        {
+            var f=new CantileverFrame(direction,700,900,300);
+            var specs=new CantileverSpecifications(mode,new CantileverSpecification((int)mode>=3?CantileverBarRole.InnerExtension:CantileverBarRole.Top,topDiameter,150),
+                new CantileverSpecification(CantileverBarRole.Bottom,bottomDiameter,200),mode==CantileverSupportMode.InnerWithAdditional?new CantileverSpecification(CantileverBarRole.Additional,20,100):null);
+            var p=new CantileverPathInputs(1500,thickness,cover,20,12,180,250,600,999,200,450);
+            var steel=CantileverRebarGeometry.Calculate(f,specs,p);
+            var end=steel.Bars[0].Vertices[steel.Bars[0].Vertices.Count-1].Point;
+            Near(end.Y-steel.Bars[1].Vertices[0].Point.Y,10);
+            Check(steel.EffectiveF>20);
+            if(mode==CantileverSupportMode.InnerWithAdditional)Near(steel.Bars[2].Vertices[steel.Bars[2].Vertices.Count-1].Point.Y,end.Y);
+            // Retired manual F has no influence, including zero.
+            var other=CantileverRebarGeometry.Calculate(f,specs,new CantileverPathInputs(1500,thickness,cover,20,12,180,250,600,0,200,450));
+            Near(other.EffectiveF,steel.EffectiveF);
+        }
+        Reject(()=>CantileverRebarGeometry.Calculate(frame,simple,new CantileverPathInputs(1500,80,25,20,12,180,250,0,0,200,0)));
         Console.WriteLine("CANTILEVER_PREREQUISITES_PASS checks="+checks);
     }
 }

@@ -20,10 +20,10 @@ namespace WallDetailTool
     internal sealed class CantileverRebarLayout
     {
         internal readonly ReadOnlyCollection<CantileverBarPath> Bars;
-        internal CantileverRebarLayout(List<CantileverBarPath> bars) { Bars=bars.AsReadOnly(); }
+        internal readonly double EffectiveF;
+        internal CantileverRebarLayout(List<CantileverBarPath> bars,double effectiveF) { Bars=bars.AsReadOnly();EffectiveF=effectiveF; }
     }
-    // All lengths below are explicit inputs in mm, never engineering defaults.
-    // A,V,E,F,B use the user-confirmed projections in V05_LENGTH_ORIGINS.svg.
+    // F is a legacy input slot only; new paths always derive it in Calculate.
     internal sealed class CantileverPathInputs
     {
         internal readonly double Length,Thickness,Cover,Radius,DisplayWidth,A,V,E,F,B,Lin;
@@ -37,7 +37,7 @@ namespace WallDetailTool
             // Unused mode-specific inputs may be zero, but never nonfinite/negative.
             foreach(double value in new[]{a,v,e,f,b,lin})
                 if(CantileverNumbers.Finite(value)<0) throw new ArgumentException("控制长度不能为负。");
-            A=a;V=v;E=e;F=CantileverNumbers.Positive(f);B=CantileverNumbers.Positive(b);Lin=lin;
+            A=a;V=v;E=e;F=f;B=CantileverNumbers.Positive(b);Lin=lin;
         }
     }
     internal static class CantileverRebarGeometry
@@ -49,7 +49,17 @@ namespace WallDetailTool
             double bottom=-p.Thickness+p.Cover+specs.Groups[1].Diameter/2;
             double free=p.Length-p.Cover-specs.Groups[0].Diameter/2;
             if(bottom>=top || free<=0) throw new ArgumentException("板厚或悬挑长度不足。");
-            if(top-p.F-p.DisplayWidth/2< -p.Thickness-1e-8 || bottom-p.DisplayWidth/2< -p.Thickness-1e-8)
+            // Build the actual bottom path first. The only 10mm rule lives here,
+            // in millimetres; UI/CAD consume the resulting vertices unchanged.
+            double bottomEnd=p.Length-p.Cover-specs.Groups[1].Diameter/2;
+            if(bottomEnd<=0) throw new ArgumentException("底筋长度不足，请调整板长/保护层/底筋直径。");
+            var bottomPath=new CantileverBarPath(specs.Groups[1],Round(frame,new List<CantileverPoint>{
+                new CantileverPoint(-p.B,bottom),new CantileverPoint(bottomEnd,bottom)},p.Radius));
+            double endY=bottomPath.Vertices[0].Point.Y-frame.TopY+10;
+            double effectiveF=CantileverNumbers.Finite(top-endY);
+            if(effectiveF<=p.Radius+1e-8)
+                throw new ArgumentException("自动F不足以容纳R和自由端直段；请调整板厚、保护层、面/底筋直径或R，端头仍须高于底筋中心线10mm。");
+            if(endY-p.DisplayWidth/2< -p.Thickness-1e-8 || bottom-p.DisplayWidth/2< -p.Thickness-1e-8)
                 throw new ArgumentException("自由端下弯或底筋显示轮廓超出悬挑板厚度。");
             var bars=new List<CantileverBarPath>();
             foreach(var spec in specs.Groups)
@@ -57,9 +67,7 @@ namespace WallDetailTool
                 var corners=new List<CantileverPoint>();
                 if(spec.Role==CantileverBarRole.Bottom)
                 {
-                    double end=p.Length-p.Cover-spec.Diameter/2;
-                    if(end<=0) throw new ArgumentException("底筋长度不足。");
-                    corners.Add(new CantileverPoint(-p.B,bottom));corners.Add(new CantileverPoint(end,bottom));
+                    bars.Add(bottomPath);continue;
                 }
                 else
                 {
@@ -76,12 +84,12 @@ namespace WallDetailTool
                             CantileverNumbers.Finite(-frame.BeamWidth-CantileverNumbers.Positive(p.E));
                         corners.Add(new CantileverPoint(start,top));
                     }
-                    corners.Add(new CantileverPoint(free,top));corners.Add(new CantileverPoint(free,top-p.F));
+                    corners.Add(new CantileverPoint(free,top));corners.Add(new CantileverPoint(free,endY));
                 }
                 bars.Add(new CantileverBarPath(spec,Round(frame,corners,p.Radius)));
             }
             foreach(var bar in bars) ValidateStroke(bar,p.DisplayWidth);
-            return new CantileverRebarLayout(bars);
+            return new CantileverRebarLayout(bars,effectiveF);
         }
         private static List<BeamSideStroke> Strokes(CantileverBarPath bar,double width)
         {

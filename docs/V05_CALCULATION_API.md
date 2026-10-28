@@ -8,19 +8,21 @@ CantileverDots.Calculate(frame,steel,inputs,displayDiameter,spacing)返回Upper/
 
 CantileverDrawRequest持有不可变方向/模式、15数值、5共享参数、4图层、单位比例/原单位代码/本次毫米覆盖。外部数组防御复制，Specs本身不可变。目标Document由命令闭包持有，TargetMatches检查引用同一文档及单位代码。
 
-CantileverDrawState只供一次窗口。初次工程控制输入为空，模式必须明确选择；关闭不保留草稿。窗口不写DWG或用户设置；确认之后ExecuteInCommandContextAsync才选择轮廓并生成。
+CantileverDrawState只供一次窗口，所有可编辑项有绘图初值，首次默认模式1/向右；成功记录优先于共享值和绘图预设。旧记录无关模式的0字段由预设补齐，切换保留原始文字；关闭不保留草稿。F没有输入框，固定显示自动说明；L/h仅取轮廓。窗口不写DWG或用户设置，确认后才进入命令上下文。见 [完整预设表](V05_DRAWING_PRESETS.md)。
+
+自动F只在CantileverRebarGeometry.Calculate：从正式底筋水平段结果读取Y，端头Y=底筋Y+10mm；EffectiveF返回实际投影。CantileverPathInputs.F只是旧接口保留槽，不控制计算；请求Value(4)固定0。窗口和CAD直接使用计算顶点，不重复保护层/直径公式。自动F≤R或不能容纳合法直段时拒绝，不降10mm或缩R。
 
 | LAST索引 | 字段 |
 |---|---|
-| 0 | 记录版本1 |
+| 0 | 新记录版本2；兼容读取v1 |
 | 1、2 | 方向±1、支座模式1..4 |
-| 3..9 | b、A、V、E、F、B、Lin（无关模式字段为0） |
+| 3..9 | b、A、V、E、保留F槽0、B、Lin（无关模式字段为0） |
 | 10..17 | 主面筋直径/间距、底筋直径/间距、附加筋直径/间距、点筋直径/间距 |
 | 18..22 | c、显示线宽、显示点径、R、字高 |
 | 23..25 | 图形单位/mm、INSUNITS代码、明确毫米覆盖0/1 |
 
-NOD键WDT_CANTILEVER_LAST，26项DXF Real；坏记录完整拒绝并回首次输入，不部分恢复或串读其他类型。块扩展字典键WDT_CANTILEVER_PARAMS：首项DXF Text为CantileverSlab，随后上述26项＋SupportX/TopY/L/h/Elevation（共31项数字），最后4项图层字符串。EncodeSnapshot/DecodeSnapshot作纯数据往返验证，尚无编辑既有块命令。
+NOD键WDT_CANTILEVER_LAST，26项DXF Real；坏记录完整拒绝并回绘图初值，不部分恢复或串读其他类型。v1索引7须为合法正数旧F，读入后忽略；v2索引7必须0。其余旧参数保留。块扩展字典键WDT_CANTILEVER_PARAMS：首项DXF Text为CantileverSlab，随后上述26项＋SupportX/TopY/L/h/Elevation（共31项数字），最后4项图层字符串。EncodeSnapshot/DecodeSnapshot仅作内存数据读取，读取不回写旧块，无编辑既有块命令。仅新生成事务成功写新记录v2。
 
-CAD输出：每组一条开口宽LWPOLYLINE，点筋调用现有闭合两顶点多段线，每个X位置只有上下各一根；模式4另外一条固定26×26向下截止符号。正向TEXT/水平LINE引线及交接斜杠复用既有服务，尺寸复用RotatedDimension，非毫米Dimlfac=1/Scale。普通块内实体仅一次减基点/标高，块引用在该基点插入。源混凝土不纳入块。
+CAD输出：每组一条开口宽LWPOLYLINE，点筋调用现有闭合两顶点多段线，每个X位置只有上下各一根；模式4另外一条固定26×26向下截止符号。正向TEXT/交接斜杠复用既有服务，面筋和点筋为一个真实锚点的斜段＋水平文字段，底筋仍直引；CAD仅更新最后水平段的实测终点，不删除斜段。点筋规格按全部Upper+Lower的总数判断，恰好2根为2φ直径，否则φ直径@输入间距，不加总数。尺寸复用RotatedDimension，非毫米Dimlfac=1/Scale。普通块内实体仅一次减基点/标高，块引用在该基点插入，源混凝土不纳入块。
 
 自动测试和源码编译不能验证AutoCAD原生实体的实际表现。详见 [交付清单](../tests/V05_RELEASE_CHECKLIST.md)，真实CAD由用户加载验收，不重试已知失败的隔离环境。

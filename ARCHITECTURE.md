@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-28 V0.5 自动F与折线标注修订
+
+CantileverRebarGeometry先构建实际底筋路径，取水平中心线Y＋10作为面筋自由端端头，返回EffectiveF，窗口/CAD不重复偏移公式。CantileverDrawState补齐所有可编辑预设，成功记录优先，草稿只存本窗口；旧F槽不参与新请求。LAST/快照保持26/31数值而版本升级2，v1只内存读取兼容，旧块无自动更新。CantileverAnnotationGeometry从真实共用直段有序选择面筋锚点，点筋单处按实际总数选择2φ或直径@间距；折线由BuildUpstandLabel创建，V0.5专用BuildCantileverLabel仅调整最后水平终点到实测TEXT宽度。旧节点BuildHorizontalNodeLabel及排筋/标注规则本轮未改。详见 [预设及兼容](docs/V05_DRAWING_PRESETS.md)。
+
 ## 2026-10-28 V0.5 计算层增量
 
 CantileverGeometry/RebarGeometry/Dots/DrawState/DrawForm/AnnotationGeometry/CadCommand加入旧式主项目。局部X向悬挑侧，Y始终世界向上；左右仅转换X和bulge。四模式保留独立钢筋身份，模式4共路径，底筋独立；Lin与26×26向下符号分离。上下两排点筋共X，由上排角筋按s向梁侧递推，下排只取相切Y；无竖边中部点筋。没有修改旧节点排筋算法。复用现有BeamSideCurve/Stroke、轮廓读取/识别、实体、字体、图层、标注、尺寸及记录服务；梁侧挂板原水平文字构造抽为共用BuildHorizontalNodeLabel，原包装保持邻行检查。新增WDTCANTILEVER和工具条入口。不可变请求/目标文档、单位和独立记录见 [V0.5接口](docs/V05_CALCULATION_API.md)。自动验证不代替用户CAD验收。

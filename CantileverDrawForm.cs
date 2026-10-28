@@ -28,7 +28,7 @@ namespace WallDetailTool
             var selectors=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=2 };
             selectors.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,25));selectors.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,75));
             direction=Choice("Direction",new[]{"向右伸出","向左伸出"},state.Saved!=null&&state.Saved.Direction==CantileverDirection.Left?1:0);
-            mode=Choice("Mode",new[]{"1 无内跨 · 支座端向上","2 无内跨 · 支座端向下","3 全部由内跨板伸出","4 内跨伸出筋＋独立附加筋"},state.Saved==null?-1:(int)state.Saved.Mode-1);
+            mode=Choice("Mode",new[]{"1 无内跨 · 支座端向上","2 无内跨 · 支座端向下","3 全部由内跨板伸出","4 内跨伸出筋＋独立附加筋"},state.Saved==null?0:(int)state.Saved.Mode-1);
             Row(selectors,0,"方向",direction);Row(selectors,1,"支座模式",mode);
             root.Controls.Add(selectors,0,0);root.SetColumnSpan(selectors,2);
             var grid=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=15 };
@@ -39,6 +39,11 @@ namespace WallDetailTool
             {
                 grid.RowStyles.Add(new RowStyle(SizeType.Absolute,30));
                 fields[i]=new TextBox { Name="Parameter"+i,Text=state.Initial[i],Dock=DockStyle.Fill };
+                if(i==4)
+                {
+                    fields[i].Enabled=false;
+                    Row(grid,i,"自由端下弯",new Label { Name="AutomaticF",Text="自动：底筋中心线以上10 mm",Dock=DockStyle.Fill });continue;
+                }
                 Row(grid,i,names[i]+" (mm)",fields[i]);
             }
             root.Controls.Add(grid,0,1);
@@ -66,11 +71,12 @@ namespace WallDetailTool
             for(int i=0;i<15;i++)
             {
                 bool used=true;if(i==1||i==2) used=m==1||m==2;
+                if(i==4) used=false;
                 if(i==3) used=m>=3;if(i==6||i==11||i==12) used=m==4;
                 fields[i].Enabled=used;
             }
             sketch.Leftward=direction.SelectedIndex==1;sketch.Mode=m;sketch.Invalidate();
-            explanation.Text="示意不按比例；工程长度首次留空。\n\nA：悬挑侧梁面 → 支座竖筋中心线。\nV：面筋水平中心线 → 支座端点。\nE：内跨侧梁面 → 伸出筋绘制终点。\nF：面筋水平中心线 → 自由端下弯端点。\nB：悬挑侧梁面 → 底筋支座端点。\nLin：内跨侧梁面 → 附加筋截止端。\n\nV、F均为含圆弧的竖向投影。\n附加斜勾固定投影26×26，向下。\n上下两排点筋竖向对齐，无竖边中部点筋。\n允许支座筋突出梁，需人工审核。";
+            explanation.Text="示意不按比例；数值为可修改的绘图预设。\n\nA：悬挑侧梁面 → 支座竖筋中心线。\nV：面筋水平中心线 → 支座端点。\nE：内跨侧梁面 → 伸出筋绘制终点。\nB：悬挑侧梁面 → 底筋支座端点。\nLin：内跨侧梁面 → 附加筋截止端。\n\n自由端下弯：自动，端头高于底筋中心线10 mm。\nV、F均为含圆弧的竖向投影。\n附加斜勾固定投影26×26，向下。\n上下两排点筋竖向对齐，无竖边中部点筋。\n允许支座筋突出梁，需人工审核。\n预设不是图集推荐或规范合格结论。";
         }
         internal CantileverDrawRequest CreateRequest()
         {

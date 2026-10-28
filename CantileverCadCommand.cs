@@ -121,11 +121,11 @@ namespace WallDetailTool
                 block.DowngradeOpen();
                 foreach(var item in annotation.Labels)
                 {
-                    var label=item.Layout;double y=label.Leaders[0].A.Y;
-                    var above=annotation.Labels.Where(q=>q.Layout.Rightward==label.Rightward&&q.Layout.Leaders[0].A.Y>y+1e-8).Select(q=>q.Layout.Leaders[0].A.Y).ToArray();
+                    var label=item.Layout;double y=label.Leaders.Last().A.Y;
+                    var above=annotation.Labels.Where(q=>q.Layout.Rightward==label.Rightward&&q.Layout.Leaders.Last().A.Y>y+1e-8).Select(q=>q.Layout.Leaders.Last().A.Y).ToArray();
                     double? neighbour=above.Length==0?(double?)null:above.Min();
                     TryAppendAnnotation(db,id,local,r.Layer(2),71,item.Name+"规格",failures,optional=>
-                        BuildHorizontalNodeLabel(db,optional,label,annotation.Dimensions,r.Layer(2),(left,right)=>
+                        BuildCantileverLabel(db,optional,label,annotation.Dimensions,r.Layer(2),(left,right)=>
                         {
                             if(label.Rightward==(r.Direction==CantileverDirection.Right))
                                 annotation.Dimensions.HeightLine=BeamSideAnnotationGeometry.HeightLineOutsideLabels(annotation.Dimensions,label.Rightward?right:left,scale,label.Rightward);
@@ -151,6 +151,34 @@ namespace WallDetailTool
                 WriteBeamSideRecord(tr,nod,CantileverDrawRecord.LastKey,CantileverDrawRecord.Encode(r).Select(v=>new TypedValue((int)DxfCode.Real,v)).ToArray());
                 tr.Commit();return reference.ObjectId;
             }
+        }
+        // V0.5-only folded leader adapter. The shared node rules are unchanged.
+        // BuildUpstandLabel supplies TEXT, phi symbol, slash and both LINE pieces.
+        private static List<Entity> BuildCantileverLabel(Database db,Transaction tr,UpstandLabelLayout label,
+            UpstandAnnotationLayout layout,string layer,Action<double,double> reserve,double? neighbour)
+        {
+            CheckBeamSideAnnotationLayer(db,tr,layer);
+            var entities=BuildUpstandLabel(db,label,layout,"0",EnsureUpstandTextStyle(db,tr));
+            try
+            {
+                var text=entities.OfType<DBText>().Single();text.Rotation=0;text.IsMirroredInX=false;text.IsMirroredInY=false;text.AdjustAlignment(db);
+                var bounds=text.GeometricExtents;var elbow=label.Leaders.Last().B;
+                double row=elbow.Y,gap=label.TextAnchor.Y-row;
+                double rise=row+gap-bounds.MinPoint.Y;
+                if(rise>0) { text.TransformBy(Matrix3d.Displacement(new Vector3d(0,rise,0)));bounds=text.GeometricExtents; }
+                double end=label.Rightward?bounds.MaxPoint.X:bounds.MinPoint.X;
+                if(bounds.MinPoint.Y<=row || (neighbour.HasValue&&row<neighbour.Value&&bounds.MaxPoint.Y>=neighbour.Value) ||
+                    (label.Rightward?end-label.TextAnchor.X:label.TextAnchor.X-end)<=1e-8)
+                    throw new InvalidOperationException("悬挑板规格文字空间不足，请人工调整标注。");
+                // Preserve the diagonal segment; only the final horizontal end
+                // follows measured TEXT width. No movement of the real anchor.
+                var horizontal=entities.OfType<Line>().Last();
+                horizontal.EndPoint=new Point3d(end,row,layout.Elevation);
+                reserve(Math.Min(bounds.MinPoint.X,entities.OfType<Line>().Min(l=>Math.Min(l.StartPoint.X,l.EndPoint.X))),
+                    Math.Max(bounds.MaxPoint.X,entities.OfType<Line>().Max(l=>Math.Max(l.StartPoint.X,l.EndPoint.X))));
+                return entities;
+            }
+            catch { foreach(var entity in entities) entity.Dispose();throw; }
         }
         internal static CantileverDrawRequest ReadCantileverLast(Database db,string[] layers,Editor editor=null)
         {

@@ -21,13 +21,14 @@ namespace WallDetailTool
                 throw new ArgumentException("悬挑板参数不完整。");
             this.values=(double[])values.Clone();this.advanced=(double[])advanced.Clone();this.layers=(string[])layers.Clone();
             foreach(double v in this.values) if(CantileverNumbers.Finite(v)<0) throw new ArgumentException("参数不能为负。");
+            this.values[4]=0; // v2 reserves the old manual F slot. Never replay it.
             foreach(double v in this.advanced) if(CantileverNumbers.Finite(v)<0) throw new ArgumentException("高级参数不能为负。");
             for(int i=1;i<5;i++) CantileverNumbers.Positive(this.advanced[i]);
             if(this.advanced[1]>1000||this.advanced[2]>1000) throw new ArgumentException("显示尺寸不得超过1000mm。");
             foreach(string name in this.layers)
                 if(String.IsNullOrWhiteSpace(name)||name.IndexOfAny(new[]{'<','>','/','\\','"',':',';','?','*','|',','})>=0)
                     throw new ArgumentException("图层名称无效。");
-            foreach(int i in new[]{0,4,5,7,8,9,10,13,14}) CantileverNumbers.Positive(this.values[i]);
+            foreach(int i in new[]{0,5,7,8,9,10,13,14}) CantileverNumbers.Positive(this.values[i]);
             if((int)mode<3) { CantileverNumbers.Positive(this.values[1]);CantileverNumbers.Positive(this.values[2]); }
             else CantileverNumbers.Positive(this.values[3]);
             if(mode==CantileverSupportMode.InnerWithAdditional) CantileverNumbers.Positive(this.values[6]);
@@ -53,7 +54,7 @@ namespace WallDetailTool
         internal const int Count=26;
         internal static double[] Encode(CantileverDrawRequest r)
         {
-            var v=new double[Count];v[0]=1;v[1]=(int)r.Direction;v[2]=(int)r.Mode;
+            var v=new double[Count];v[0]=2;v[1]=(int)r.Direction;v[2]=(int)r.Mode;
             for(int i=0;i<15;i++) v[3+i]=r.Value(i);
             for(int i=0;i<5;i++) v[18+i]=r.Advanced(i);
             v[23]=r.Scale;v[24]=r.UnitCode;v[25]=r.OverrideMillimetres?1:0;return v;
@@ -62,9 +63,10 @@ namespace WallDetailTool
         {
             if(source==null||source.Length!=Count) throw new ArgumentException("悬挑板记录项数无效。");
             var v=(double[])source.Clone();foreach(double n in v) CantileverNumbers.Finite(n);
-            if(v[0]!=1||(v[1]!=1&&v[1]!=-1)||v[2]!=Math.Floor(v[2])||v[2]<1||v[2]>4||
+            if((v[0]!=1&&v[0]!=2)||(v[1]!=1&&v[1]!=-1)||v[2]!=Math.Floor(v[2])||v[2]<1||v[2]>4||
                 v[24]!=Math.Floor(v[24])||(v[25]!=0&&v[25]!=1)) throw new ArgumentException("悬挑板记录版本或开关无效。");
             var values=new double[15];var advanced=new double[5];Array.Copy(v,3,values,0,15);Array.Copy(v,18,advanced,0,5);
+            if(v[0]==1&&values[4]<=0 || v[0]==2&&values[4]!=0) throw new ArgumentException("记录F槽与版本不一致。");
             if(v[24]<0||v[24]>32767) throw new ArgumentException("图纸单位代码无效。");
             return new CantileverDrawRequest((CantileverDirection)(int)v[1],(CantileverSupportMode)(int)v[2],values,advanced,layers,v[23],(int)v[24],v[25]==1);
         }
@@ -91,8 +93,14 @@ namespace WallDetailTool
         internal CantileverDrawState(CantileverDrawRequest saved,double[] shared,string[] layers,double[] specs)
         {
             Saved=saved;advanced=(double[])shared.Clone();this.layers=(string[])layers.Clone();Initial=new string[15];
-            for(int i=0;i<15;i++) Initial[i]=saved==null?"":saved.Value(i)>0?saved.Value(i).ToString("g",CultureInfo.CurrentCulture):"";
-            if(saved==null) for(int i=7;i<15;i++) Initial[i]=specs[(i-7)%2+(i>=13?2:0)].ToString("g",CultureInfo.CurrentCulture);
+            var presets=new[]{300.0,180,250,600,0,200,450,12,150,12,150,12,150,6,200};
+            if(specs==null||specs.Length!=4) throw new ArgumentException("共享规格不完整。");
+            for(int i=7;i<15;i++) presets[i]=specs[(i-7)%2+(i>=13?2:0)];
+            for(int i=0;i<15;i++) Initial[i]=(saved!=null&&saved.Value(i)>0?saved.Value(i):presets[i]).ToString("g",CultureInfo.CurrentCulture);
+            // Existing successful snapshots take precedence; no writes to the
+            // shared settings, and absent design fields fall back to presets.
+            if(saved!=null) for(int i=0;i<5;i++) advanced[i]=saved.Advanced(i);
+            Initial[4]="";
         }
         internal CantileverDrawRequest Create(string[] text,CantileverDirection direction,CantileverSupportMode mode,double scale,int units,bool mmOverride)
         {
@@ -100,13 +108,14 @@ namespace WallDetailTool
             var values=new double[15];
             for(int i=0;i<15;i++)
             {
+                if(i==4) continue;
                 bool used=!(i==1||i==2)?true:(int)mode<3;
                 if(i==3) used=(int)mode>=3;
                 if(i==6||i==11||i==12) used=mode==CantileverSupportMode.InnerWithAdditional;
                 if(!used) continue;
                 if(!double.TryParse(text[i],NumberStyles.Float,CultureInfo.CurrentCulture,out values[i])||
                     double.IsNaN(values[i])||double.IsInfinity(values[i])||values[i]<=0)
-                    throw new ArgumentException("请填写所有启用项的有效正数毫米值；控制长度首次必须明确输入。");
+                    throw new ArgumentException("请填写所有启用项的有效正数毫米值。");
             }
             return new CantileverDrawRequest(direction,mode,values,advanced,layers,scale,units,mmOverride);
         }
