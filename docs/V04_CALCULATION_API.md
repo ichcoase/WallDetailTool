@@ -50,12 +50,14 @@
 | TopInsideLength / BottomInsideLength | 分别由线/弧实际长度复算的两端 L |
 | LineWidth / DotDisplayDiameter / Elevation | CAD 显示尺寸及 Z |
 | BoundaryStatus / BoundaryMessage | Unknown 时必须提示“梁边界未知，梁内端部需人工审核”；Checked 只表示几何容纳 |
-| WidthA/B、HeightA/B | 世界坐标实际宽高尺寸端点；高度点取连接面上下端 |
-| LineLabelAnchor / DotLabelAnchor | 不同高度的真实外侧竖直直段接触点和实际点筋中心；优先少移动线筋锚点，再选低位点筋，不为布局增筋 |
+| WidthA/B、HeightA/B | 世界坐标实际宽高尺寸端点；高度点取块体右边实际顶底，两种伸出方向相同 |
+| LineLabelAnchor / DotLabelAnchor | 优先选择最接近块体中部且可排布的真实点筋中心，再沿真实外侧竖直直段向上调整线筋锚点；两条水平引线，线筋规格在上，不为布局增筋或移筋 |
 | LineSpecification / DotSpecification | 含 %%132 的规格；点筋始终按实际直径和输入 s，绝不改成根数格式 |
 
 连接面顶点索引为 Line[3] 与 Line[8]；圆弧起点为 1、4、6、9。前 3 段和最后 3 段分别组成上端和下端 L。CAD 层不应依赖这些索引重新算长度，优先使用返回的结果字段。
 
-`BeamSideAnnotationGeometry` 两种规格均在真实锚点高度水平直引，无斜向接驳，保留线筋交接斜杠。TEXT 正向在上，两行预留至少 1.6 字高加基线偏移的高度差。高度尺寸左伸在块右、右伸在块左，与标注侧无关；宽度在上，输出已为图形单位。空间不足时明确报告非关键标注失败；CAD 层按实际 TEXT 边界再次校验上下避让，将单条水平 LINE 截至真实文字末端，失败不造空白锚点。参数/块快照结构不变，已有旧块不自动重布。
+2026-10-28完整新指令覆盖先前侧别和锚点优先级：`BeamSideAnnotationGeometry` 两种规格仍水平直引，点筋选靠近竖向中部的已有点，线筋锚点在其上方，保留交接斜杠。TEXT正向在上，至少1.6字高加基线偏移的行间空间。高度尺寸两方向均在块体右侧，宽度在上；输出为图形单位。`HeightLineOutsideLabels(layout, actualRightEdge, drawingScale)` 接收同为图形单位的实际TEXT/引线右界，返回在原右侧位置与`右界+max(50mm×比例,1.5×图形字高)`之间更靠右的尺寸点，Y不变。CAD在两条可选标注构建后、创建尺寸前更新该位置，最后只做一次块局部位移。不用字符数猜字体宽度；空间不足/文字边界不可用明确报告，不造空白锚点。记录结构不变，旧块不自动重布。
+
+300宽默认参数经独立测量符合边界净距和最少数量，生产BeamSideDots算法本轮未改；完整坐标和实际距离见 [300宽核查](V04_300_WIDTH_CHECK.md)。新增测试覆盖不同显示直径、临界、非零基点及左右变换。本轮按用户要求未运行CAD，历史失败不作为新测试结果。
 
 现有 BeamSideCadCommand 负责实体、正向 TEXT/引线、尺寸、普通块、事务及独立记录，没有复制排筋。BeamSideDrawRequest 捕获参数、图层及单位解释；BeamSideUnitTransform 统一双向比例，块局部只做一次基点位移。点选先由 Editor.CurrentUserCoordinateSystem 转 WCS 再换为毫米，依据 [Autodesk UCS .NET 示例](https://help.autodesk.com/cloudhelp/2022/ENU/OARX-DevGuide-Managed/files/GUID-096085E3-5AD5-4454-BF10-C9177FDB5979.htm)。BeamSideAnnotationGeometry 只排标注位置，其输出已为图形单位。保存参数、取消/失败、UNDO/REDO、保存重开及多文档仍须另作真实 CAD 验证，不能以编解码测试替代。

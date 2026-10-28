@@ -20,7 +20,7 @@ namespace WallDetailTool
             double x=(p.AnnotationRight?right:left)+side*offset;
             double lineY=steel.LineLabelAnchor.Y,dotY=steel.DotLabelAnchor.Y;
             double required=1.6*p.TextHeight+Math.Max(4,.08*p.TextHeight);
-            if(Math.Abs(lineY-dotY)<required-1e-8 ||
+            if(lineY-dotY<required-1e-8 ||
                 lineY-steel.Line[6].Y<36/(2*Math.Sqrt(2))+5-1e-8 ||
                 steel.Line[5].Y-lineY<36/(2*Math.Sqrt(2))+5-1e-8)
                 throw new InvalidOperationException("真实钢筋位置不足以分开两条水平规格标注，请人工标注；不生成指向空白的引线。");
@@ -35,9 +35,16 @@ namespace WallDetailTool
             result.WidthA=Point(steel.WidthA,unit);result.WidthB=Point(steel.WidthB,unit);
             result.WidthLine=Point(new ContourPoint((steel.WidthA.X+steel.WidthB.X)/2,top+offset),unit);
             result.HeightA=Point(steel.HeightA,unit);result.HeightB=Point(steel.HeightB,unit);
-            result.HeightLine=Point(new ContourPoint(steel.Geometry.Direction==BeamSideDirection.Left?
-                block.Right+offset:block.Left-offset,(steel.HeightA.Y+steel.HeightB.Y)/2),unit);
+            result.HeightLine=Point(new ContourPoint(block.Right+offset,(steel.HeightA.Y+steel.HeightB.Y)/2),unit);
             return result;
+        }
+        // All arguments/output are drawing units. CAD supplies measured TEXT /
+        // leader right bounds; no guessed font width controls the final dimension.
+        internal static AnnotationPoint HeightLineOutsideLabels(UpstandAnnotationLayout layout,double actualRightEdge,double drawingScale)
+        {
+            var unit=new BeamSideUnitTransform(drawingScale);BeamSideMath.Finite(actualRightEdge);
+            double gap=Math.Max(unit.LengthToDrawing(50),1.5*layout.TextHeight);
+            return new AnnotationPoint(Math.Max(layout.HeightLine.X,actualRightEdge+gap),layout.HeightLine.Y);
         }
         private static AnnotationPoint Point(ContourPoint point,BeamSideUnitTransform unit)
         { var q=unit.ToDrawing(point);return new AnnotationPoint(q.X,q.Y); }

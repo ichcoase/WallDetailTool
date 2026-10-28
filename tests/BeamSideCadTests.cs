@@ -132,8 +132,14 @@ public static class BeamSideCadTests
                 }
                 var heightDim=entities.OfType<RotatedDimension>().Single(d=>Math.Abs(d.Rotation-Math.PI/2)<1e-7);
                 var heightPoint=heightDim.DimLinePoint.TransformBy(blockRef.BlockTransform);
-                Check(direction==BeamSideDirection.Left?heightPoint.X>g.Block.Right*scale:heightPoint.X<g.Block.Left*scale,"dimension side independent from labels");
-                Near(heightDim.XLine1Point.TransformBy(blockRef.BlockTransform).X,g.ConnectionX*scale);
+                Check(heightPoint.X>g.Block.Right*scale,"height dimension always on block right");
+                Near(heightDim.XLine1Point.TransformBy(blockRef.BlockTransform).X,g.Block.Right*scale);
+                foreach(var text in entities.OfType<DBText>())
+                    Check(heightPoint.X>=text.GeometricExtents.MaxPoint.TransformBy(blockRef.BlockTransform).X+
+                        Math.Max(50,1.5*p.TextHeight)*scale-1e-7,"dimension clears actual TEXT right bound");
+                foreach(var leader in leaders)
+                    Check(heightPoint.X>Math.Max(leader.StartPoint.X,leader.EndPoint.X)+blockRef.Position.X,"dimension clears actual horizontal leaders");
+                Check(layout.LineLabelAnchor.Y>layout.DotLabelAnchor.Y,"line contact above real dot contact");
                 foreach(var dimension in entities.OfType<RotatedDimension>()) { Near(dimension.Dimlfac,1/scale);Near(dimension.Dimscale,25*scale); }
                 var dictionary=(DBDictionary)tr.GetObject(blockRef.ExtensionDictionary,OpenMode.ForRead);
                 var record=(Xrecord)tr.GetObject(dictionary.GetAt(BeamSideDrawRecord.BlockKey),OpenMode.ForRead);

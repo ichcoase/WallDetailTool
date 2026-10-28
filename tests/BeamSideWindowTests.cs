@@ -99,7 +99,9 @@ namespace WallDetailTool
                 BeamSideTest.Check(labels.DotLabel.Rightward==annotation,"annotation side independent of mirror");
                 BeamSideTest.Check(labels.DotLabel.TextAnchor.Y>labels.DotLabel.Leaders.Last().A.Y,"TEXT above underline");
                 BeamSideTest.Near(labels.WidthB.X-labels.WidthA.X,g.Block.Width*scale);BeamSideTest.Near(labels.HeightB.Y-labels.HeightA.Y,g.Block.Height*scale);
-                BeamSideTest.Check(Math.Abs(labels.LineLabel.TextAnchor.Y-labels.DotLabel.TextAnchor.Y)>=1.6*p.TextHeight*scale-1e-8,"text rows separated at real anchors");
+                BeamSideTest.Check(labels.LineLabel.TextAnchor.Y-labels.DotLabel.TextAnchor.Y>=1.6*p.TextHeight*scale-1e-8,"line specification strictly above dot specification");
+                double mid=(g.Block.Bottom+g.Block.Top)/2;
+                BeamSideTest.Check(layout.Dots.All(d=>Math.Abs(layout.DotLabelAnchor.Y-mid)<=Math.Abs(d.Center.Y-mid)+1e-8),"real dot nearest midheight selected before moving line contact");
                 foreach(var label in new[]{labels.LineLabel,labels.DotLabel})
                 {
                     foreach(var leader in label.Leaders)BeamSideTest.Near(leader.A.Y,leader.B.Y,"every leader horizontal");
@@ -108,8 +110,14 @@ namespace WallDetailTool
                 BeamSideTest.Check(layout.Dots.Any(d=>BeamSideMath.Distance(d.Center,layout.DotLabelAnchor)<1e-8),"actual dot contact");
                 BeamSideTest.Near(labels.LineLabel.Leaders[0].A.X,layout.Line[5].X*scale,"line contact on true vertical straight");
                 BeamSideTest.Check(labels.LineLabel.HasSlash,"intersection slash retained");
-                BeamSideTest.Check(direction==BeamSideDirection.Left?labels.HeightLine.X>g.Block.Right*scale:labels.HeightLine.X<g.Block.Left*scale,"dimension side follows extension direction only");
-                BeamSideTest.Near(labels.HeightA.X,g.ConnectionX*scale,"height extension starts at connection edge");
+                BeamSideTest.Check(labels.HeightLine.X>g.Block.Right*scale,"height dimension always on block right");
+                BeamSideTest.Near(labels.HeightA.X,g.Block.Right*scale,"height extension starts at actual right edge");
+                double measuredRight=(g.Block.Right+1200)*scale;
+                var outside=BeamSideAnnotationGeometry.HeightLineOutsideLabels(labels,measuredRight,scale);
+                BeamSideTest.Check(outside.X>=measuredRight+Math.Max(50,1.5*p.TextHeight)*scale-1e-8,"dimension beyond measured long TEXT and leaders");
+                BeamSideTest.Near(outside.Y,labels.HeightLine.Y,"height placement preserves world Y");
+                var unchanged=BeamSideAnnotationGeometry.HeightLineOutsideLabels(labels,(g.Block.Left-900)*scale,scale);
+                BeamSideTest.Near(unchanged.X,labels.HeightLine.X,"left labels cannot pull dimension towards block");
                 BeamSideTest.Check(labels.WidthLine.Y>g.Block.Top*scale,"width above block");
             }
             foreach(var direction in new[]{BeamSideDirection.Left,BeamSideDirection.Right})
@@ -123,6 +131,14 @@ namespace WallDetailTool
             }
             var shortSteel=BeamSideRebarGeometry.Calculate(BeamSideTest.Geometry(height:190),new BeamSideRebarParameters(400,100,bottomUp:false,textHeight:200));
             BeamSideTest.Reject(()=>BeamSideAnnotationGeometry.Calculate(shortSteel,1),"impossible label separation rejected, no blank contact");
+            foreach(double spacing in new[]{100.0,200.0,1000.0})
+            {
+                var g=BeamSideTest.Geometry();var p=new BeamSideRebarParameters(400,100,dotSpacing:spacing);
+                var r=BeamSideRebarGeometry.Calculate(g,p);var labels=BeamSideAnnotationGeometry.Calculate(r,1);
+                BeamSideTest.Check(r.Dots.Any(d=>BeamSideMath.Distance(d.Center,r.DotLabelAnchor)<1e-8),"sparse/dense labels never create or move a dot");
+                BeamSideTest.Check(labels.LineLabel.Leaders[0].A.Y>labels.DotLabel.Leaders[0].A.Y,"line row remains above selected sparse/dense dot");
+                if(spacing==200) { BeamSideTest.Near(r.DotLabelAnchor.Y,215.114381916836,"300 default dot middle-near real centre");BeamSideTest.Near(r.LineLabelAnchor.Y,320.114381916836,"line contact adjusted upwards"); }
+            }
             foreach(int index in new[]{0,1,2,7,9,18,19})
             {
                 var values=BeamSideDrawRecord.Encode(captured);values[index]=index==7?0:99;
