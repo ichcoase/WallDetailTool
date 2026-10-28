@@ -31,7 +31,7 @@ namespace WallDetailTool
             double a,double v,double e,double f,double b,double lin)
         {
             Length=CantileverNumbers.Positive(length);Thickness=CantileverNumbers.Positive(thickness);
-            Cover=CantileverNumbers.Positive(cover);Radius=CantileverNumbers.Positive(radius);
+            Cover=CantileverNumbers.Finite(cover);if(cover<0) throw new ArgumentException("保护层不能为负。");Radius=CantileverNumbers.Positive(radius);
             DisplayWidth=CantileverNumbers.Positive(displayWidth);
             if(radius<=displayWidth/2) throw new ArgumentException("圆弧半径不能容纳显示宽度。");
             // Unused mode-specific inputs may be zero, but never nonfinite/negative.
@@ -49,6 +49,8 @@ namespace WallDetailTool
             double bottom=-p.Thickness+p.Cover+specs.Groups[1].Diameter/2;
             double free=p.Length-p.Cover-specs.Groups[0].Diameter/2;
             if(bottom>=top || free<=0) throw new ArgumentException("板厚或悬挑长度不足。");
+            if(top-p.F-p.DisplayWidth/2< -p.Thickness-1e-8 || bottom-p.DisplayWidth/2< -p.Thickness-1e-8)
+                throw new ArgumentException("自由端下弯或底筋显示轮廓超出悬挑板厚度。");
             var bars=new List<CantileverBarPath>();
             foreach(var spec in specs.Groups)
             {
@@ -78,7 +80,24 @@ namespace WallDetailTool
                 }
                 bars.Add(new CantileverBarPath(spec,Round(frame,corners,p.Radius)));
             }
+            foreach(var bar in bars) ValidateStroke(bar,p.DisplayWidth);
             return new CantileverRebarLayout(bars);
+        }
+        private static List<BeamSideStroke> Strokes(CantileverBarPath bar,double width)
+        {
+            var result=new List<BeamSideStroke>();
+            for(int i=0;i<bar.Vertices.Count-1;i++)
+            {
+                var a=bar.Vertices[i];var b=bar.Vertices[i+1];
+                result.Add(new BeamSideStroke(new BeamSideCurve(new ContourPoint(a.Point.X,a.Point.Y),new ContourPoint(b.Point.X,b.Point.Y),a.Bulge),width));
+            }
+            return result;
+        }
+        private static void ValidateStroke(CantileverBarPath bar,double width)
+        {
+            var strokes=Strokes(bar,width);
+            for(int i=0;i<strokes.Count;i++) for(int j=0;j<i-1;j++)
+                if(strokes[i].Overlaps(strokes[j])) throw new ArgumentException("本根钢筋显示轮廓自相交。");
         }
         private static List<CantileverVertex> Round(CantileverFrame frame,List<CantileverPoint> corners,double radius)
         {

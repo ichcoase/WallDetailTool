@@ -29,6 +29,25 @@ internal static class CantileverGeometryTests
             if(groups.Groups.Count==3) { Near(groups.Groups[2].Diameter,16);Near(groups.Groups[2].Spacing,100); }
             var inputs=new CantileverPathInputs(1500,200,25,20,12,180,250,600,100,200,450);
             var layout=CantileverRebarGeometry.Calculate(f,groups,inputs);
+            var dotLayout=CantileverDots.Calculate(f,layout,inputs,12,200);
+            Check(dotLayout.Upper.Count==dotLayout.Lower.Count);Check(dotLayout.Upper.Count==8);
+            double rho=20-(12+12)/2.0;
+            Near(dotLayout.Upper[0].X,1234+sign*(1500-31-20+rho/Math.Sqrt(2)));
+            Near(dotLayout.Upper[0].Y,567-31-20+rho/Math.Sqrt(2));
+            for(int index=0;index<dotLayout.Upper.Count;index++)
+            {
+                var u=dotLayout.Upper[index];var l=dotLayout.Lower[index];
+                Near(u.X,l.X);Near(l.Y,567-200+25+8/2.0+12);
+                Check(sign*(u.X-1234)-6>=0);Check(u.Y-l.Y>=12);
+                if(index>0)
+                {
+                    var previous=dotLayout.Upper[index-1];double dx=previous.X-u.X,dy=previous.Y-u.Y;
+                    Near(Math.Sqrt(dx*dx+dy*dy),200);Check(sign*dx>0);
+                    if(index>1) Near(Math.Abs(dx),200);
+                }
+            }
+            double clearance=sign*(dotLayout.Upper[dotLayout.Upper.Count-1].X-1234)-6;
+            Check(clearance<=200);Check(clearance+200>200);
             Check(layout.Bars.Count==groups.Groups.Count);
             var top=layout.Bars[0].Vertices;var bot=layout.Bars[1].Vertices;
             Check(bot.Count==2);Check(!ReferenceEquals(top,bot));
@@ -79,6 +98,47 @@ internal static class CantileverGeometryTests
         Reject(()=>CantileverRebarGeometry.Calculate(frame,simple,new CantileverPathInputs(1500,200,25,20,12,180,20,0,100,200,0)));
         Reject(()=>CantileverRebarGeometry.Calculate(frame,simple,new CantileverPathInputs(1500,200,25,20,12,0,250,0,100,200,0)));
         Reject(()=>CantileverRebarGeometry.Calculate(frame,simple,new CantileverPathInputs(1500,50,25,20,12,180,250,0,100,200,0)));
+        var input=new CantileverPathInputs(1500,200,25,20,12,180,250,0,100,200,0);
+        var normal=CantileverRebarGeometry.Calculate(frame,simple,input);
+        Reject(()=>CantileverDots.Calculate(frame,normal,input,50,200));
+        Reject(()=>CantileverDots.Calculate(frame,normal,input,12,10));
+        Reject(()=>CantileverDots.Calculate(frame,normal,input,12,double.MaxValue));
+        // Shared X makes a too-short lower step overlap, even if the upper spacing is valid.
+        Reject(()=>CantileverDots.Calculate(frame,normal,input,12,12));
+        var narrow=new CantileverPathInputs(150,200,25,20,12,180,250,0,100,200,0);
+        var onlyCorner=CantileverDots.Calculate(frame,CantileverRebarGeometry.Calculate(frame,simple,narrow),narrow,12,200);
+        Check(onlyCorner.Upper.Count==1&&onlyCorner.Lower.Count==1);
+        foreach(var direction in new[]{CantileverDirection.Left,CantileverDirection.Right})
+        foreach(double length in new[]{60.0,150,300,600,1500})
+        foreach(double spacing in new[]{25.0,100,200,1000})
+        foreach(double display in new[]{8.0,12})
+        {
+            var f=new CantileverFrame(direction,-1234,2345,300);
+            var p=new CantileverPathInputs(length,300,25,20,12,180,250,0,100,200,0);
+            var line=CantileverRebarGeometry.Calculate(f,simple,p);
+            var dots=CantileverDots.Calculate(f,line,p,display,spacing);
+            Check(dots.Upper.Count==dots.Lower.Count);
+            var last=dots.Upper[dots.Upper.Count-1];double remaining=(int)direction*(last.X-f.SupportX)-display/2;
+            Check(remaining<=spacing+1e-7);Check(remaining>=-1e-7);
+            if(dots.Upper.Count>1)
+            {
+                var previous=dots.Upper[dots.Upper.Count-2];
+                Check((int)direction*(previous.X-f.SupportX)-display/2>spacing-1e-7);
+            }
+            for(int i=0;i<dots.Upper.Count;i++)
+            {
+                Near(dots.Upper[i].X,dots.Lower[i].X);
+                if(i>0)
+                {
+                    var a=dots.Upper[i-1];var b=dots.Upper[i];
+                    Near(Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y)),spacing);
+                    Check(Math.Abs(dots.Lower[i].X-dots.Lower[i-1].X)<=spacing+1e-7);
+                }
+            }
+        }
+        var largeBottom=new CantileverSpecifications(CantileverSupportMode.NoInnerUp,new CantileverSpecification(CantileverBarRole.Top,12,150),new CantileverSpecification(CantileverBarRole.Bottom,100,200));
+        var thick=new CantileverPathInputs(1500,300,25,20,12,180,250,0,100,200,0);
+        Reject(()=>CantileverDots.Calculate(frame,CantileverRebarGeometry.Calculate(frame,largeBottom,thick),thick,12,200));
         Console.WriteLine("CANTILEVER_PREREQUISITES_PASS checks="+checks);
     }
 }

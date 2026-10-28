@@ -229,6 +229,13 @@ namespace WallDetailTool
         }
         private static List<Entity> BuildBeamSideLabel(Database db,Transaction tr,UpstandLabelLayout label,UpstandAnnotationLayout annotation,string layer,Action<double,double> reserveRight)
         {
+            var other=ReferenceEquals(label,annotation.LineLabel)?annotation.DotLabel:annotation.LineLabel;
+            return BuildHorizontalNodeLabel(db,tr,label,annotation,layer,reserveRight,other.Leaders[0].A.Y);
+        }
+        // Shared horizontal TEXT/leader adapter. Caller supplies an optional
+        // neighbouring row; world-positive glyphs and measured width stay here.
+        private static List<Entity> BuildHorizontalNodeLabel(Database db,Transaction tr,UpstandLabelLayout label,UpstandAnnotationLayout annotation,string layer,Action<double,double> reserveRight,double? neighbourY=null)
+        {
             CheckBeamSideAnnotationLayer(db,tr,layer);
             var entities=BuildUpstandLabel(db,label,annotation,"0",EnsureUpstandTextStyle(db,tr));
             try
@@ -243,9 +250,7 @@ namespace WallDetailTool
                 double shift=anchor.Y+clearance-bounds.MinPoint.Y;
                 if(shift>0) { text.TransformBy(Matrix3d.Displacement(new Vector3d(0,shift,0)));bounds=text.GeometricExtents; }
                 double end=label.Rightward?bounds.MaxPoint.X:bounds.MinPoint.X;
-                var other=ReferenceEquals(label,annotation.LineLabel)?annotation.DotLabel:annotation.LineLabel;
-                double otherY=other.Leaders[0].A.Y;
-                if(bounds.MinPoint.Y<=anchor.Y || (anchor.Y<otherY&&bounds.MaxPoint.Y>=otherY) ||
+                if(bounds.MinPoint.Y<=anchor.Y || (neighbourY.HasValue&&anchor.Y<neighbourY.Value&&bounds.MaxPoint.Y>=neighbourY.Value) ||
                     (label.Rightward?end-label.TextAnchor.X:label.TextAnchor.X-end)<=1e-8)
                     throw new InvalidOperationException("实际 TEXT 范围不能满足水平引线及行间避让，请人工标注。");
                 // Keep the shared builder's intersection slash, but replace its

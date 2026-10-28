@@ -34,6 +34,11 @@
     <Compile Include="Commands.cs" />
     <Compile Include="CantileverGeometry.cs" />
     <Compile Include="CantileverRebarGeometry.cs" />
+    <Compile Include="CantileverDots.cs" />
+    <Compile Include="CantileverDrawState.cs" />
+    <Compile Include="CantileverDrawForm.cs" />
+    <Compile Include="CantileverAnnotationGeometry.cs" />
+    <Compile Include="CantileverCadCommand.cs" />
     <Compile Include="RebarCommands.cs" />
     <Compile Include="RebarPalette.cs" />
     <Compile Include="DrawingData.cs" />

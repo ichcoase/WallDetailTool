@@ -46,11 +46,12 @@ namespace WallDetailTool
             if (toolbar==null)
             {
                 toolbar=new PaletteSet("WallDetailTool 工具条",new Guid("7EA33DAD-166B-4058-B37D-56120EE25037"));
-                toolbar.Size=new Size(440,95);
+                toolbar.Size=new Size(530,95);
                 var strip=new ToolStrip { Dock=DockStyle.Fill,GripStyle=ToolStripGripStyle.Hidden };
                 strip.Items.Add(new ToolStripButton("梁节点",null,(s,e)=>RebarPalette.Queue("WDTBEAMNODE")));
                 strip.Items.Add(new ToolStripButton("板节点",null,(s,e)=>RebarPalette.Queue("WDTSLABNODE")));
                 strip.Items.Add(new ToolStripButton("梁侧挂板",null,(s,e)=>RebarPalette.Queue("WDTBEAMSIDE")));
+                strip.Items.Add(new ToolStripButton("悬挑板",null,(s,e)=>RebarPalette.Queue("WDTCANTILEVER")));
                 strip.Items.Add(new ToolStripButton("高级设置",null,(s,e)=>RebarPalette.Queue("WDTUPSETTINGS")));
                 toolbar.Add("工具",strip);
             }

@@ -2,7 +2,7 @@
 
 ## 2026-10-28 V0.5 计算层增量
 
-CantileverGeometry/CantileverRebarGeometry加入旧式主项目。局部X向悬挑侧，Y始终世界向上；左右仅转换X和bulge。四模式保留独立钢筋身份，模式4共路径，底筋独立；Lin与截止符号分离。没有修改旧节点计算或开放新CAD入口。后续不可变请求/目标文档、服务复用及独立记录方案见 [V0.5需求](docs/V05_CANTILEVER_PRD.md)，不将本阶段视为完整节点实现。
+CantileverGeometry/RebarGeometry/Dots/DrawState/DrawForm/AnnotationGeometry/CadCommand加入旧式主项目。局部X向悬挑侧，Y始终世界向上；左右仅转换X和bulge。四模式保留独立钢筋身份，模式4共路径，底筋独立；Lin与26×26向下符号分离。上下两排点筋共X，由上排角筋按s向梁侧递推，下排只取相切Y；无竖边中部点筋。没有修改旧节点排筋算法。复用现有BeamSideCurve/Stroke、轮廓读取/识别、实体、字体、图层、标注、尺寸及记录服务；梁侧挂板原水平文字构造抽为共用BuildHorizontalNodeLabel，原包装保持邻行检查。新增WDTCANTILEVER和工具条入口。不可变请求/目标文档、单位和独立记录见 [V0.5接口](docs/V05_CALCULATION_API.md)。自动验证不代替用户CAD验收。
 
 ## 2026-10-28 水平点筋按s递推（基线ea8ac4b，覆盖旧水平均分口径）
 
