@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="510" viewBox="0 0 1100 510">
+<style>text{font-family:Microsoft YaHei,sans-serif;fill:#26394b;font-size:18px}.dim{stroke:#697988;stroke-width:1.5;fill:none}.bar{stroke:#246bb0;stroke-width:4;fill:none}</style>
+<rect width="1100" height="510" fill="white"/>
+<text x="30" y="35">V0.5 起算点待确认示意（右伸；左伸镜像，斜勾仍向世界坐标下方；不按比例）</text>
+<path d="M40 200H1010V340H470V430H330V340H40Z" fill="#edf0f4" stroke="#82909e"/>
+<path d="M330 200V340M470 200V340" class="dim"/>
+<path d="M90 230H960Q980 230 980 250V300M260 230l18 18M390 310H970" class="bar"/>
+<path d="M90 200V105M260 230V150M330 200V80M470 200V80M980 230V370" class="dim"/>
+<path d="M90 115H330M260 160H330M330 90H470M390 390H470M980 230H1040M980 300H1040" class="dim"/>
+<text x="110" y="100">E：内跨绘制终点距内跨梁面</text>
+<text x="245" y="148">Lin</text><text x="388" y="80">b</text>
+<text x="305" y="462">内跨侧梁面</text><text x="465" y="462">悬挑侧梁面（局部 X=0）</text>
+<text x="350" y="382">B：底筋端点到悬挑侧梁面</text>
+<text x="1000" y="270">F</text><text x="600" y="405">F：面筋水平中心线至自由端下弯端点的竖向投影</text>
+<text x="30" y="490">无内跨：A 从悬挑侧梁面量到支座竖段中心线；V 从水平中心线量到支座弯折端点（竖向投影）。</text>
+<text x="35" y="285">内跨</text><text x="365" y="415">梁</text><text x="700" y="190">普通等厚水平悬挑板</text>
+</svg>

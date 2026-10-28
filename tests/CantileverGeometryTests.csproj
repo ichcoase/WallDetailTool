@@ -1,0 +1,5 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>CantileverGeometryTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><OutputPath>bin\V05Prerequisites\</OutputPath><BaseIntermediateOutputPath>obj\CantileverGeometryTests\</BaseIntermediateOutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Compile Include="..\CantileverGeometry.cs"/><Compile Include="..\CantileverRebarGeometry.cs"/><Compile Include="CantileverGeometryTests.cs"/></ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

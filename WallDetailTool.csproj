@@ -32,6 +32,8 @@
       <Private>False</Private>
     </Reference>
     <Compile Include="Commands.cs" />
+    <Compile Include="CantileverGeometry.cs" />
+    <Compile Include="CantileverRebarGeometry.cs" />
     <Compile Include="RebarCommands.cs" />
     <Compile Include="RebarPalette.cs" />
     <Compile Include="DrawingData.cs" />
