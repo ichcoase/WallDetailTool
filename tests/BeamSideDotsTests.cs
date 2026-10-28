@@ -42,6 +42,14 @@ namespace WallDetailTool
                 if(dot.Role==BeamSideDotRole.UpperHorizontal){BeamSideTest.Near(p.Y,top-off);BeamSideTest.Check(p.X<=cx+E,"upper true straight");}
                 if(dot.Role==BeamSideDotRole.LowerHorizontal){BeamSideTest.Near(p.Y,bottom+off);BeamSideTest.Check(p.X<=cx+E,"lower true straight");}
                 if(dot.Role==BeamSideDotRole.OuterVertical){BeamSideTest.Near(p.X,outer-off);BeamSideTest.Check(p.Y>=bottom+radius-E&&p.Y<=top-radius+E,"outer true straight");}
+                if(dot.Role==BeamSideDotRole.UpperHorizontal||dot.Role==BeamSideDotRole.LowerHorizontal)
+                {
+                    var prior=r.Dots[dot.Role==BeamSideDotRole.UpperHorizontal?i+1:i-1].Center;
+                    double measured=Math.Sqrt(Math.Pow(p.X-prior.X,2)+Math.Pow(p.Y-prior.Y,2));
+                    BeamSideTest.Near(measured,s,"every real horizontal step equals s, including arc transition");
+                    BeamSideTest.Check(prior.X-dr>s-E,"only append when prior boundary clearance exceeds s");
+                    if(Math.Abs(prior.Y-p.Y)<E)BeamSideTest.Near(prior.X-p.X,s,"later steps use full horizontal spacing");
+                }
                 for(int j=0;j<i;j++)BeamSideTest.Check(BeamSideMath.Distance(p,r.Dots[j].Center)>=d-E,"no duplicates or overlap");
                 if(i>0)BeamSideTest.Check(BeamSideMath.Distance(p,r.Dots[i-1].Center)<=s+E,"actual adjacent distance");
                 BeamSideTest.Check(r.Dots.Any(q=>Math.Abs(q.Center.X-p.X)<E&&Math.Abs(q.Center.Y-(height-p.Y))<E),"symmetric");
@@ -70,9 +78,10 @@ namespace WallDetailTool
                 var added=r.Dots.Where(d=>d.Role==(side==0?BeamSideDotRole.UpperHorizontal:BeamSideDotRole.LowerHorizontal)).ToArray();
                 BeamSideTest.Check(added.Length==1&&span.MinimumAdditionalCount==1,"300 needs exactly one added dot per horizontal");
                 var p=added.Single().Center;
-                BeamSideTest.Near(p.X,(expectedX+6)/2,"deterministic free horizontal placement");
+                BeamSideTest.Near(p.X,expectedX-Math.Sqrt(200*200-Math.Pow(557-expectedY,2)),"first exact-spaced arc transition");
                 double gap=Math.Sqrt((p.X-corner.X)*(p.X-corner.X)+(p.Y-corner.Y)*(p.Y-corner.Y));
-                BeamSideTest.Check(gap<=200&&p.X-6<=200&&expectedX-6>200,"actual spacing and boundary, zero not feasible");
+                BeamSideTest.Near(gap,200,"300 real spacing");
+                BeamSideTest.Check(p.X-6<=200&&expectedX-6>200,"actual boundary, zero not feasible");
                 Console.WriteLine(String.Format(CultureInfo.InvariantCulture,
                     "CASE300 {0} connectionX={1:F9} corner=({2:F9},{3:F9}) D={4:F9} added=1 center=({5:F9},{6:F9}) actualSpacing={7:F9} finalClearance={8:F9}",
                     side==0?"upper":"lower",g.ConnectionX,corner.X,corner.Y,corner.X-g.ConnectionX-6,p.X,p.Y,gap,p.X-g.ConnectionX-6));
@@ -119,7 +128,7 @@ namespace WallDetailTool
             var exact=BeamSideDots.Calculate(critical,600,25,12,12,20,200);
             var over=BeamSideDots.Calculate(critical+1e-4,600,25,12,12,20,200);
             BeamSideTest.Check(exact.Spans[0].MinimumAdditionalCount==0&&over.Spans[0].MinimumAdditionalCount==1,"zero-to-one boundary threshold");
-            BeamSideTest.Check(over.Dots[0].Center.X>7,"free dot not forced flush");
+            BeamSideTest.Check(over.Dots[0].Center.X>6,"free dot not forced flush");
             Verify(critical-1e-4,600,20,200);Verify(critical,600,20,200);Verify(critical+1e-4,600,20,200);
             double dy=8-8/Math.Sqrt(2),two=6+200+Math.Sqrt(200*200-dy*dy)+31+20-8/Math.Sqrt(2);
             BeamSideTest.Check(BeamSideDots.Calculate(two,600,25,12,12,20,200).Spans[0].MinimumAdditionalCount==1,"one-to-two exact reach threshold");
@@ -128,6 +137,8 @@ namespace WallDetailTool
             BeamSideTest.Reject(()=>BeamSideDots.Calculate(300,600,25,12,12,12-1e-4,200),"R too small");
             BeamSideTest.Reject(()=>BeamSideDots.Calculate(300,600,25,12,12,20,12-1e-4),"spacing below display diameter");
             BeamSideTest.Reject(()=>BeamSideDots.Calculate(300,600,25,12,12,100,35),"unreachable arc transition");
+            BeamSideTest.Reject(()=>BeamSideDots.Calculate(300,600,25,12,12,100,60),"exact first step outside true straight rejected");
+            BeamSideTest.Reject(()=>BeamSideDots.Calculate(2000000,600,25,12,12,20,35),"iteration limit");
             BeamSideTest.Reject(()=>BeamSideDots.Calculate(300,600,25,12,12,20,Double.PositiveInfinity),"nonfinite");
             var open=BeamSideDots.Calculate(100,600,25,12,12,20,200);
             BeamSideTest.Check(BeamSideMath.Distance(open.Dots.First().Center,open.Dots.Last().Center)>200,"connection face not filled");
@@ -151,6 +162,9 @@ namespace WallDetailTool
                 BeamSideTest.Check(boundaryGap>200&&r.DotSpans[0].MinimumAdditionalCount==1,"display-radius boundary rule at nonzero origin");
                 var nearest=r.Dots.First().Center;
                 BeamSideTest.Check(Math.Abs(nearest.X-origin.X)-diameter/2<=200+E,"measured world end clearance");
+                double worldDistance=Math.Sqrt(Math.Pow(nearest.X-c.X,2)+Math.Pow(nearest.Y-c.Y,2));
+                BeamSideTest.Near(worldDistance,200,"nonzero WCS actual first step");
+                BeamSideTest.Near(nearest.X,origin.X+(int)direction*(249+k-Math.Sqrt(40000-Math.Pow(rho-k,2))),"independent mirrored WCS exact-step X");
                 BeamSideTest.Check(r.DotSpecification=="%%1326@200","display diameter independent from actual specification");
             }
             Console.WriteLine("BEAM_SIDE_DOTS_PASS checks="+BeamSideTest.Checks);

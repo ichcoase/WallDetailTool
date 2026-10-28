@@ -1,5 +1,5 @@
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup><OutputType>Library</OutputType><AssemblyName>BeamSideCadTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><OutputPath>bin\V04CadTests\</OutputPath><BaseIntermediateOutputPath>obj\BeamSideCadTests\</BaseIntermediateOutputPath><AutoCADDir Condition="'$(AutoCADDir)'==''">D:\Software\AutoCAD 2023</AutoCADDir><PluginDir Condition="'$(PluginDir)'==''">..\bin\V04Mirror20261028Final</PluginDir></PropertyGroup>
+  <PropertyGroup><OutputType>Library</OutputType><AssemblyName>BeamSideCadTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><OutputPath>bin\V04CadTests\</OutputPath><BaseIntermediateOutputPath>obj\BeamSideCadTests\</BaseIntermediateOutputPath><AutoCADDir Condition="'$(AutoCADDir)'==''">D:\Software\AutoCAD 2023</AutoCADDir><PluginDir Condition="'$(PluginDir)'==''">..\bin\V04Spacing20261028Final</PluginDir></PropertyGroup>
   <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
     <Reference Include="AcMgd"><HintPath>$(AutoCADDir)\AcMgd.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="AcDbMgd"><HintPath>$(AutoCADDir)\AcDbMgd.dll</HintPath><Private>False</Private></Reference>

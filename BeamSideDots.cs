@@ -54,29 +54,25 @@ namespace WallDetailTool
             return result;
         }
         // A boundary clearance is a scalar limit, not a virtual fixed dot.
-        // Search from zero. For n>0 the first corner-to-straight reach includes
-        // its true perpendicular offset, then n-1 straight centre distances.
+        // Walk from the real corner by exact spacing; leave all remainder at
+        // the connection boundary. The first step includes the arc Y offset.
         private static List<ContourPoint> OpenHorizontal(ContourPoint corner,double y,double dr,double max,
             double diameter,double spacing)
         {
             var points=new List<ContourPoint>();
-            if(corner.X-dr<=spacing+E) return points;
-            double h=Math.Abs(corner.Y-y);
-            if(h>spacing+E) throw new InvalidOperationException("圆角至水平直段无法满足点筋中心距。");
-            double reach=Math.Sqrt(Math.Max(0,spacing*spacing-h*h));
-            double near=Math.Sqrt(Math.Max(0,diameter*diameter-h*h));
-            for(int n=1;n<=10000;n++)
+            var previous=corner;
+            while(previous.X-dr>spacing+E)
             {
-                double low=Math.Max(dr+(n-1)*diameter,corner.X-reach);
-                double high=Math.Min(max,Math.Min(corner.X-near,dr+n*spacing));
-                if(low>high+E) continue;
-                double first=BeamSideMath.Clamp(corner.X-(corner.X-dr)/(n+1),low,high),last=first;
-                if(n>1) last=BeamSideMath.Clamp(dr+(first-dr)/n,
-                    Math.Max(dr,first-(n-1)*spacing),Math.Min(dr+spacing,first-(n-1)*diameter));
-                for(int i=0;i<n;i++) points.Add(new ContourPoint(n==1?first:first+(last-first)*i/(n-1),y));
-                return points;
+                double h=Math.Abs(previous.Y-y);
+                if(h>=spacing) throw new InvalidOperationException("圆角至水平直段无法按输入间距向梁侧递推。");
+                double step=Math.Sqrt(spacing*spacing-h*h);
+                double x=previous.X-step;
+                if(step<=E||x<dr-E||x>max+E)
+                    throw new InvalidOperationException("按输入间距递推的点筋不在真实水平相切直段内；不会调整间距或角点。");
+                if(points.Count>=10000) throw new InvalidOperationException("点筋总数超出 10000 根限制。");
+                previous=new ContourPoint(x,y);points.Add(previous);
             }
-            throw new InvalidOperationException("无法满足水平点筋的边界距离、相切及不重叠约束，或数量超过限制。");
+            return points;
         }
         // Each section has fixed endpoints and interior points constrained to
         // its true straight tangent locus. Endpoint reach intervals use actual
