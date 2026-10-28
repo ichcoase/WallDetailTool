@@ -152,7 +152,7 @@ namespace WallDetailTool
                 tr.Commit();return reference.ObjectId;
             }
         }
-        // V0.5-only folded leader adapter. The shared node rules are unchanged.
+        // V0.5-only orthogonal leader adapter. Shared node rules are unchanged.
         // BuildUpstandLabel supplies TEXT, phi symbol, slash and both LINE pieces.
         private static List<Entity> BuildCantileverLabel(Database db,Transaction tr,UpstandLabelLayout label,
             UpstandAnnotationLayout layout,string layer,Action<double,double> reserve,double? neighbour)
@@ -170,7 +170,7 @@ namespace WallDetailTool
                 if(bounds.MinPoint.Y<=row || (neighbour.HasValue&&row<neighbour.Value&&bounds.MaxPoint.Y>=neighbour.Value) ||
                     (label.Rightward?end-label.TextAnchor.X:label.TextAnchor.X-end)<=1e-8)
                     throw new InvalidOperationException("悬挑板规格文字空间不足，请人工调整标注。");
-                // Preserve the diagonal segment; only the final horizontal end
+                // Preserve the vertical trunk; only the final horizontal end
                 // follows measured TEXT width. No movement of the real anchor.
                 var horizontal=entities.OfType<Line>().Last();
                 horizontal.EndPoint=new Point3d(end,row,layout.Elevation);

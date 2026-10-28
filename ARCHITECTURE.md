@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-28 V0.5 直角标注布局
+
+仅CantileverAnnotationGeometry有功能改动，CantileverCadCommand更新注释；几何、排筋、点筋、DrawState/DrawForm及自动F与5362b96源码一致。内跨伸出筋取自己真实内跨直段，其他组取各自钢筋真实点；竖直连接后水平出字。点筋公共竖线经过一对真实上下中心，共线分支合并，无重复LINE或规格。CAD沿用原有实测TEXT终点及正向字形，旧节点服务未改。详见 [布局契约](docs/V05_ORTHOGONAL_LAYOUT.md)。
+
 ## 2026-10-28 V0.5 自动F与折线标注修订
 
 CantileverRebarGeometry先构建实际底筋路径，取水平中心线Y＋10作为面筋自由端端头，返回EffectiveF，窗口/CAD不重复偏移公式。CantileverDrawState补齐所有可编辑预设，成功记录优先，草稿只存本窗口；旧F槽不参与新请求。LAST/快照保持26/31数值而版本升级2，v1只内存读取兼容，旧块无自动更新。CantileverAnnotationGeometry从真实共用直段有序选择面筋锚点，点筋单处按实际总数选择2φ或直径@间距；折线由BuildUpstandLabel创建，V0.5专用BuildCantileverLabel仅调整最后水平终点到实测TEXT宽度。旧节点BuildHorizontalNodeLabel及排筋/标注规则本轮未改。详见 [预设及兼容](docs/V05_DRAWING_PRESETS.md)。

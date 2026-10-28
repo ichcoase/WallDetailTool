@@ -77,15 +77,17 @@ internal static class CantileverWindowTests
             {
                 var leaders=label.Layout.Leaders;var last=leaders.Last();
                 Near(last.A.Y,last.B.Y);Check(label.Layout.TextAnchor.Y>last.A.Y);
-                if(label.Name!="底筋")
-                { Check(leaders.Count==2);Check(Math.Abs(leaders[0].A.Y-leaders[0].B.Y)>scale);Near(leaders[0].B.X,last.A.X);Near(leaders[0].B.Y,last.A.Y); }
-                else { Check(leaders.Count==1);Near(leaders[0].A.Y,leaders[0].B.Y); }
-                if(label.Name=="面筋"||label.Name=="内跨伸出筋"||label.Name=="底筋")Check(label.Layout.Rightward==(direction==CantileverDirection.Right));
+                Check(leaders.Count==2);Check(Math.Abs(leaders[0].A.Y-leaders[0].B.Y)>scale);
+                Near(leaders[0].A.X,leaders[0].B.X);Near(leaders[0].B.X,last.A.X);Near(leaders[0].B.Y,last.A.Y);
+                if(label.Name=="面筋"||label.Name=="附加筋"||label.Name=="底筋")Check(label.Layout.Rightward==(direction==CantileverDirection.Right));
+                if(label.Name=="内跨伸出筋")Check(label.Layout.Rightward==(direction==CantileverDirection.Left));
             }
             var topLabel=annotation.Labels[0].Layout;var topPath=steel.Bars[0].Vertices;
             Near(topLabel.Leaders[0].A.Y,topPath[topPath.Count-3].Point.Y*scale);
             var dotLabel=annotation.Labels.Single(l=>l.Name=="上下两排点筋").Layout;
-            Check(dots.Lower.Any(q=>Math.Abs(q.X*scale-dotLabel.Leaders[0].A.X)<1e-7&&Math.Abs(q.Y*scale-dotLabel.Leaders[0].A.Y)<1e-7));
+            Check(dots.Upper.Any(q=>Math.Abs(q.X*scale-dotLabel.Leaders[0].A.X)<1e-7&&Math.Abs(q.Y*scale-dotLabel.Leaders[0].A.Y)<1e-7));
+            var pairedLower=dots.Lower.Single(q=>Math.Abs(q.X*scale-dotLabel.Leaders[0].A.X)<1e-7);
+            Check(pairedLower.Y*scale<dotLabel.Leaders[0].A.Y&&pairedLower.Y*scale>dotLabel.Leaders[0].B.Y);
             Check(annotation.Labels.Count(l=>l.Name=="上下两排点筋")==1);Check(dotLabel.Text.Contains("6@200"));
             Near((steel.Bars[0].Vertices.Last().Point.Y-steel.Bars[1].Vertices[0].Point.Y)*scale,10*scale);
             foreach(var first in annotation.Labels) foreach(var second in annotation.Labels)

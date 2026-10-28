@@ -1,5 +1,28 @@
 # V0.5 普通悬挑板候选交付验证
 
+## 2026-10-28 直角引线与模式4布局（当前交付，基线5362b96）
+
+最新规则见 [布局说明](../docs/V05_ORTHOGONAL_LAYOUT.md)，覆盖下方历史斜段、单点接触及组别位置。
+
+- [x] CantileverAnnotationTests：CANTILEVER_ORTHOGONAL_ANNOTATION_PASS checks=56774。左右/四模式/不同板厚与字高/单位/两根及多根点筋；水平竖直线、90°转角、正确侧别/上下、真实钢筋/内跨锚点、避开截止符号、上下两点接触、一条规格、无引线交叉或共线重复、交接斜杠、文字线上方及L尺寸行留白。
+- [x] CantileverWindowTests：CANTILEVER_WINDOW_RECORD_ANNOTATION_PASS checks=2952，保留草稿/取消/预设/旧记录测试，更新90°及侧别断言。
+- [x] CantileverGeometryTests：CANTILEVER_PREREQUISITES_PASS checks=4714。布局矩阵另逐项比较布局前后全部钢筋顶点/bulge、点筋坐标/数量、EffectiveF和请求记录数值，完全相同。
+- [x] 与5362b96比较CantileverGeometry/RebarGeometry/Dots/DrawState/DrawForm源码（统一换行符后）一致；CAD文件只改注释，旧节点标注服务未改。
+- [x] 原五组及HangingNodeTests通过（后者2974项），NodeDrawWindowTests通过158项；V0.4四组通过837/51529/1825/3180项。共14组编译并执行EXE，均有明确通过标记。
+- [x] Release/x64/.NET4.8，使用本机AutoCAD2023引用；仅输出插件DLL/PDB，Private=False，无CAD引用副本。测试项目仍有原有CS0649警告，运行通过。
+- [x] 左右模式4纯布局预览已实际查看，仅验证路由，示意圆弧和文字范围不能代替CAD图面。
+- [ ] 真实CAD字体、正向文字、实测TEXT终点、L/h/Lin尺寸界线及用户验收待执行。2023/2024本轮均未运行CAD；不重试NETLOAD、不启动/关闭CAD、不改安全设置。
+
+本次按审查后的build.ps1参数显式指定新输出，通过Python子进程逐项运行MSBuild和测试EXE；run_v05_geometry.ps1加入新组，脚本本身未另行重复执行。
+
+新DLL：`D:\Waste\WallDtailTool\bin\V05Orthogonal20261028\WallDetailTool.dll`
+
+SHA-256：`7E7A3102635E20D189B9075E6C104A8B04CDA5285B438EC0804AD51DB04E1DEF`。
+
+用户单一验收：在新图/副本加载新DLL，WDTCANTILEVER模式4左右各生成一个节点。右伸应为伸出筋左上、附加筋右上、底筋右下、点筋左下，均先竖直再水平；左伸对应且字不反。检查上下点筋都接公共竖线、规格仅一条、斜杠仍在，文字与尺寸无重叠。预设、自动F、排筋应与上一版相同。旧DLL若占用，仅由用户自行保存后重启CAD，不自动关闭。提交以本轮Git交付为准，不推送、不打标签。
+
+## 5362b96及更早交付历史（非当前布局口径）
+
 ## 2026-10-28 自动F、绘图预设与折线标注修订（当前交付）
 
 源码基线2afc688。本次新增要求覆盖下方历史基线中的手填F、首次空白和水平直引。完整初值见 [预设表](../docs/V05_DRAWING_PRESETS.md)，接口/记录兼容见 [接口](../docs/V05_CALCULATION_API.md)。
