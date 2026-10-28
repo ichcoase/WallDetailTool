@@ -18,7 +18,12 @@ namespace WallDetailTool
             { left=Math.Min(left,steel.Geometry.Beam.Left);right=Math.Max(right,steel.Geometry.Beam.Right);top=Math.Max(top,steel.Geometry.Beam.Top); }
             double offset=Math.Max(50,1.5*p.TextHeight),side=p.AnnotationRight?1:-1;
             double x=(p.AnnotationRight?right:left)+side*offset;
-            double lineY=steel.LineLabelAnchor.Y,dotY=lineY-2.4*p.TextHeight;
+            double lineY=steel.LineLabelAnchor.Y,dotY=steel.DotLabelAnchor.Y;
+            double required=1.6*p.TextHeight+Math.Max(4,.08*p.TextHeight);
+            if(Math.Abs(lineY-dotY)<required-1e-8 ||
+                lineY-steel.Line[6].Y<36/(2*Math.Sqrt(2))+5-1e-8 ||
+                steel.Line[5].Y-lineY<36/(2*Math.Sqrt(2))+5-1e-8)
+                throw new InvalidOperationException("真实钢筋位置不足以分开两条水平规格标注，请人工标注；不生成指向空白的引线。");
             var result=new UpstandAnnotationLayout { TextHeight=unit.LengthToDrawing(p.TextHeight),Elevation=unit.LengthToDrawing(steel.Elevation) };
             result.LineLabel=Label(steel.LineSpecification,steel.LineLabelAnchor,x,lineY,p.AnnotationRight,p.TextHeight,unit);
             result.DotLabel=Label(steel.DotSpecification,steel.DotLabelAnchor,x,dotY,p.AnnotationRight,p.TextHeight,unit);
@@ -30,7 +35,8 @@ namespace WallDetailTool
             result.WidthA=Point(steel.WidthA,unit);result.WidthB=Point(steel.WidthB,unit);
             result.WidthLine=Point(new ContourPoint((steel.WidthA.X+steel.WidthB.X)/2,top+offset),unit);
             result.HeightA=Point(steel.HeightA,unit);result.HeightB=Point(steel.HeightB,unit);
-            result.HeightLine=Point(new ContourPoint(p.AnnotationRight?left-offset:right+offset,(steel.HeightA.Y+steel.HeightB.Y)/2),unit);
+            result.HeightLine=Point(new ContourPoint(steel.Geometry.Direction==BeamSideDirection.Left?
+                block.Right+offset:block.Left-offset,(steel.HeightA.Y+steel.HeightB.Y)/2),unit);
             return result;
         }
         private static AnnotationPoint Point(ContourPoint point,BeamSideUnitTransform unit)

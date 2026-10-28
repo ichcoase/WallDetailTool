@@ -28,7 +28,11 @@ public static class BeamSideCadTests
         {
             foreach(var direction in new[]{BeamSideDirection.Left,BeamSideDirection.Right})
             foreach(bool full in new[]{false,true}) foreach(bool top in new[]{false,true}) foreach(bool bottom in new[]{false,true})
-            foreach(double scale in new[]{1.0,.001}) TestDatabase(direction,full,top,bottom,scale);
+            foreach(double scale in new[]{1.0,.001}) foreach(bool annotationRight in new[]{false,true})
+                TestDatabase(direction,full,top,bottom,scale,annotationRight);
+            foreach(var direction in new[]{BeamSideDirection.Left,BeamSideDirection.Right})
+            foreach(bool side in new[]{false,true}) foreach(double width in new[]{100.0,600.0})
+                TestDatabase(direction,false,false,true,.001,side,width);
             var request=new BeamSideDrawRequest(BeamSideDirection.Right,false,new BeamSideRebarParameters(400,100),1,(int)doc.Database.Insunits,
                 doc.Database.Insunits!=UnitsValue.Millimeters&&doc.Database.Insunits!=UnitsValue.Undefined,Layers);
             var layout=BeamSideRebarGeometry.Calculate(Geometry(BeamSideDirection.Right,false),request.Parameters);
@@ -42,10 +46,10 @@ public static class BeamSideCadTests
         }
         catch(System.Exception ex) { doc.Editor.WriteMessage("\nBEAM_SIDE_CAD_FAIL "+ex.Message); }
     }
-    static BeamSideGeometry Geometry(BeamSideDirection direction,bool full)
+    static BeamSideGeometry Geometry(BeamSideDirection direction,bool full,double width=300)
     {
         double x=-900,y=1700;
-        var block=direction==BeamSideDirection.Right?new BeamSideRect(x,x+300,y,y+600):new BeamSideRect(x-300,x,y,y+600);
+        var block=direction==BeamSideDirection.Right?new BeamSideRect(x,x+width,y,y+600):new BeamSideRect(x-width,x,y,y+600);
         var beam=!full?null:direction==BeamSideDirection.Right?new BeamSideRect(x-500,x,y-200,y+800):new BeamSideRect(x,x+500,y-200,y+800);
         return new BeamSideGeometry(block,beam,direction,full?BeamSideInputKind.FullSection:BeamSideInputKind.LocalRectangle,-37);
     }
@@ -56,16 +60,17 @@ public static class BeamSideCadTests
     }
     static int Blocks(Database db)
     { using(var tr=db.TransactionManager.StartTransaction()) return ((BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead)).Cast<ObjectId>().Count(); }
-    static void TestDatabase(BeamSideDirection direction,bool full,bool top,bool bottom,double scale)
+    static void TestDatabase(BeamSideDirection direction,bool full,bool top,bool bottom,double scale,bool annotationRight,double width=300)
     {
         Database previous=HostApplicationServices.WorkingDatabase;
         using(var db=new Database(true,true))
         try
         {
             HostApplicationServices.WorkingDatabase=db;db.Insunits=scale==1?UnitsValue.Millimeters:UnitsValue.Meters;
-            var p=new BeamSideRebarParameters(400,100,topUp:top,bottomUp:bottom,annotationRight:direction==BeamSideDirection.Left);
+            var p=new BeamSideRebarParameters(400,100,topUp:top,bottomUp:bottom,annotationRight:annotationRight);
             var request=new BeamSideDrawRequest(direction,full,p,scale,(int)db.Insunits,false,Layers);
-            var g=Geometry(direction,full);var layout=BeamSideRebarGeometry.Calculate(g,p);var unit=new BeamSideUnitTransform(scale);
+            var g=Geometry(direction,full,width);var layout=BeamSideRebarGeometry.Calculate(g,p);var unit=new BeamSideUnitTransform(scale);
+            if(width==100)Check(layout.DotSpans[0].MinimumAdditionalCount==0&&layout.DotSpans[2].MinimumAdditionalCount==0,"narrow CAD block has no horizontal straight dots");
             ObjectId source;
             using(var tr=db.TransactionManager.StartTransaction())
             {
@@ -84,7 +89,7 @@ public static class BeamSideCadTests
                 source=space.AppendEntity(poly);tr.AddNewlyCreatedDBObject(poly,true);tr.Commit();
             }
             double z;var segments=Commands.ReadBeamSideSegments(db,new[]{source},unit,out z);Near(z,g.Elevation);
-            Near(BeamSideContourRecognizer.Recognize(segments,z,direction,false).Candidates.Single().Block.Width,300);
+            Near(BeamSideContourRecognizer.Recognize(segments,z,direction,false).Candidates.Single().Block.Width,width);
             var failures=new List<string>();ObjectId reference=Commands.CreateBeamSideBlock(db,request,layout,failures);
             Check(failures.Count==0,"complete annotations: "+String.Join(";",failures));
             var saved=Commands.ReadBeamSideLast(db,Layers);Check(saved!=null&&saved.Direction==direction&&saved.FullSection==full,"LAST roundtrip");
@@ -110,6 +115,25 @@ public static class BeamSideCadTests
                 Check(entities.OfType<DBText>().Count()==2&&entities.OfType<RotatedDimension>().Count()==2,"two TEXT and two native dimensions");
                 foreach(var text in entities.OfType<DBText>()) { Near(text.Rotation,0);Check(!text.IsMirroredInX&&!text.IsMirroredInY,"upright TEXT"); }
                 Check(entities.OfType<DBText>().Any(t=>t.TextString==layout.DotSpecification),"always actual diameter @ input spacing");
+                var leaders=entities.OfType<Line>().ToArray();Check(leaders.Length==2,"two single straight leaders, no diagonal connector");
+                foreach(var leader in leaders)
+                {
+                    Near(leader.StartPoint.Y,leader.EndPoint.Y);
+                    var start=leader.StartPoint.TransformBy(blockRef.BlockTransform);
+                    bool dot=Math.Abs(start.Y-layout.DotLabelAnchor.Y*scale)<1e-7;
+                    Near(start.X,(dot?layout.DotLabelAnchor.X:layout.LineLabelAnchor.X)*scale);
+                    Near(start.Y,(dot?layout.DotLabelAnchor.Y:layout.LineLabelAnchor.Y)*scale);
+                    var text=entities.OfType<DBText>().Single(t=>t.TextString==(dot?layout.DotSpecification:layout.LineSpecification));
+                    var bounds=text.GeometricExtents;
+                    Near(leader.EndPoint.X,annotationRight?bounds.MaxPoint.X:bounds.MinPoint.X);
+                    Check(bounds.MinPoint.Y>leader.StartPoint.Y,"TEXT above actual horizontal line");
+                    foreach(var other in leaders.Where(l=>l!=leader))
+                        Check(other.StartPoint.Y<bounds.MinPoint.Y||other.StartPoint.Y>bounds.MaxPoint.Y,"other leader misses TEXT");
+                }
+                var heightDim=entities.OfType<RotatedDimension>().Single(d=>Math.Abs(d.Rotation-Math.PI/2)<1e-7);
+                var heightPoint=heightDim.DimLinePoint.TransformBy(blockRef.BlockTransform);
+                Check(direction==BeamSideDirection.Left?heightPoint.X>g.Block.Right*scale:heightPoint.X<g.Block.Left*scale,"dimension side independent from labels");
+                Near(heightDim.XLine1Point.TransformBy(blockRef.BlockTransform).X,g.ConnectionX*scale);
                 foreach(var dimension in entities.OfType<RotatedDimension>()) { Near(dimension.Dimlfac,1/scale);Near(dimension.Dimscale,25*scale); }
                 var dictionary=(DBDictionary)tr.GetObject(blockRef.ExtensionDictionary,OpenMode.ForRead);
                 var record=(Xrecord)tr.GetObject(dictionary.GetAt(BeamSideDrawRecord.BlockKey),OpenMode.ForRead);

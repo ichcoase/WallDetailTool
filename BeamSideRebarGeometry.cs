@@ -28,7 +28,7 @@ namespace WallDetailTool
         }
     }
     [Flags]
-    internal enum BeamSideDotRole { Interior=0, UpperEndpoint=1, UpperCorner=2, LowerCorner=4, LowerEndpoint=8 }
+    internal enum BeamSideDotRole { UpperHorizontal=1, UpperCorner=2, LowerCorner=4, LowerHorizontal=8, OuterVertical=16 }
     internal struct BeamSideDot
     {
         internal readonly ContourPoint Center;
@@ -37,8 +37,8 @@ namespace WallDetailTool
     }
     internal sealed class BeamSideDotSpan
     {
-        internal readonly int First,Last,MinimumInteriorCount;
-        internal BeamSideDotSpan(int first,int last,int count) { First=first;Last=last;MinimumInteriorCount=count; }
+        internal readonly int First,Last,MinimumAdditionalCount;
+        internal BeamSideDotSpan(int first,int last,int count) { First=first;Last=last;MinimumAdditionalCount=count; }
     }
     internal sealed class BeamSideRebarLayout
     {
@@ -72,11 +72,18 @@ namespace WallDetailTool
             DotSpecification=Spec(parameters.DotDiameter,parameters.DotSpacing);
             var block=geometry.Block;
             WidthA=new ContourPoint(block.Left,block.Top);WidthB=new ContourPoint(block.Right,block.Top);
-            double outer=geometry.Direction==BeamSideDirection.Right?block.Right:block.Left;
-            HeightA=new ContourPoint(outer,block.Bottom);HeightB=new ContourPoint(outer,block.Top);
-            LineLabelAnchor=new ContourPoint((line[5].X+line[6].X)/2,(line[5].Y+line[6].Y)/2);
-            DotLabelAnchor=dots.OrderBy(d=>parameters.AnnotationRight?-d.Center.X:d.Center.X)
-                .ThenBy(d=>Math.Abs(d.Center.Y-(block.Bottom+block.Top)/2)).First().Center;
+            HeightA=new ContourPoint(geometry.ConnectionX,block.Bottom);HeightB=new ContourPoint(geometry.ConnectionX,block.Top);
+            // Pick two real, vertically separated contacts. The line contact may
+            // slide only on its outer straight; no synthetic dot is introduced.
+            double mid=(line[5].Y+line[6].Y)/2,margin=36/(2*Math.Sqrt(2))+5;
+            double low=line[6].Y+margin,high=line[5].Y-margin;
+            double separation=1.6*parameters.TextHeight+Math.Max(4,.08*parameters.TextHeight);
+            var choices=dots.SelectMany(dot=>new[]{dot.Center.Y-separation,dot.Center.Y+separation,mid}
+                .Where(y=>low<=high&&y>=low&&y<=high&&Math.Abs(y-dot.Center.Y)>=separation-1e-8)
+                .Select(y=>new { Dot=dot.Center,Y=y,Move=Math.Abs(y-mid) }))
+                .OrderBy(c=>c.Move).ThenBy(c=>c.Dot.Y).ToList();
+            LineLabelAnchor=new ContourPoint(line[5].X,choices.Count>0?choices[0].Y:mid);
+            DotLabelAnchor=choices.Count>0?choices[0].Dot:dots.OrderByDescending(d=>Math.Abs(d.Center.Y-mid)).First().Center;
         }
         private static string Spec(double diameter,double spacing)
         { return "%%132"+diameter.ToString("g",CultureInfo.InvariantCulture)+"@"+spacing.ToString("g",CultureInfo.InvariantCulture); }

@@ -115,11 +115,11 @@ namespace WallDetailTool
             }
             using(var steel=new Pen(Color.Firebrick,2.5f))
                 g.DrawLines(steel,new[]{P(c-55,t+10+(TopUp?-20:20)),P(c-55,t+10),P(o-10,t+10),P(o-10,b-10),P(c-55,b-10),P(c-55,b-10+(BottomUp?-20:20))});
-            foreach(var p in new[]{P(c+5,t+18),P(o-18,t+18),P(o-18,(t+b)/2),P(o-18,b-18),P(c+5,b-18)})
+            foreach(var p in new[]{P(o-18,t+18),P(o-18,(t+b)/2),P(o-18,b-18)})
                 g.FillEllipse(Brushes.Firebrick,p.X-2.5f,p.Y-2.5f,5,5);
-            var anchor=P(o-18,(t+b)/2);float elbow=AnnotationRight?Width-100:100,y=b+4;
+            var anchor=P(o-18,b-18);var lineAnchor=P(o-10,t+35);float end=AnnotationRight?Width-15:15;
             using(var leader=new Pen(Color.SteelBlue,1))
-            { g.DrawLine(leader,anchor,new PointF(elbow,y));g.DrawLine(leader,elbow,y,AnnotationRight?Width-15:15,y); }
+            { g.DrawLine(leader,anchor,new PointF(end,anchor.Y));g.DrawLine(leader,lineAnchor,new PointF(end,lineAnchor.Y)); }
             g.DrawString("梁",Font,Brushes.DimGray,P(c-110,22));
             g.DrawString("L / V 示意（非比例）",Font,Brushes.DimGray,8,3);
         }

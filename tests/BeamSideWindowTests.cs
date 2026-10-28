@@ -99,8 +99,30 @@ namespace WallDetailTool
                 BeamSideTest.Check(labels.DotLabel.Rightward==annotation,"annotation side independent of mirror");
                 BeamSideTest.Check(labels.DotLabel.TextAnchor.Y>labels.DotLabel.Leaders.Last().A.Y,"TEXT above underline");
                 BeamSideTest.Near(labels.WidthB.X-labels.WidthA.X,g.Block.Width*scale);BeamSideTest.Near(labels.HeightB.Y-labels.HeightA.Y,g.Block.Height*scale);
-                BeamSideTest.Near(Math.Abs(labels.LineLabel.TextAnchor.Y-labels.DotLabel.TextAnchor.Y),2.4*p.TextHeight*scale,"text rows separated");
+                BeamSideTest.Check(Math.Abs(labels.LineLabel.TextAnchor.Y-labels.DotLabel.TextAnchor.Y)>=1.6*p.TextHeight*scale-1e-8,"text rows separated at real anchors");
+                foreach(var label in new[]{labels.LineLabel,labels.DotLabel})
+                {
+                    foreach(var leader in label.Leaders)BeamSideTest.Near(leader.A.Y,leader.B.Y,"every leader horizontal");
+                    BeamSideTest.Near(label.TextAnchor.Y-label.Leaders[0].A.Y,Math.Max(4,.08*p.TextHeight)*scale,"text above own horizontal line");
+                }
+                BeamSideTest.Check(layout.Dots.Any(d=>BeamSideMath.Distance(d.Center,layout.DotLabelAnchor)<1e-8),"actual dot contact");
+                BeamSideTest.Near(labels.LineLabel.Leaders[0].A.X,layout.Line[5].X*scale,"line contact on true vertical straight");
+                BeamSideTest.Check(labels.LineLabel.HasSlash,"intersection slash retained");
+                BeamSideTest.Check(direction==BeamSideDirection.Left?labels.HeightLine.X>g.Block.Right*scale:labels.HeightLine.X<g.Block.Left*scale,"dimension side follows extension direction only");
+                BeamSideTest.Near(labels.HeightA.X,g.ConnectionX*scale,"height extension starts at connection edge");
+                BeamSideTest.Check(labels.WidthLine.Y>g.Block.Top*scale,"width above block");
             }
+            foreach(var direction in new[]{BeamSideDirection.Left,BeamSideDirection.Right})
+            foreach(bool annotation in new[]{false,true}) foreach(double width in new[]{100.0,600.0})
+            {
+                var p=new BeamSideRebarParameters(400,100,annotationRight:annotation);
+                var g=BeamSideTest.Geometry(width:width,height:800,x:450,y:-1700,direction:direction);
+                var steel=BeamSideRebarGeometry.Calculate(g,p);var labels=BeamSideAnnotationGeometry.Calculate(steel,1);
+                BeamSideTest.Check(steel.DotSpans[0].MinimumAdditionalCount==(width==100?0:2),"narrow zero/wide minimum horizontal dots");
+                BeamSideTest.Near(labels.DotLabel.Leaders[0].A.Y,labels.DotLabel.Leaders[0].B.Y,"narrow high actual dot horizontal contact");
+            }
+            var shortSteel=BeamSideRebarGeometry.Calculate(BeamSideTest.Geometry(height:190),new BeamSideRebarParameters(400,100,bottomUp:false,textHeight:200));
+            BeamSideTest.Reject(()=>BeamSideAnnotationGeometry.Calculate(shortSteel,1),"impossible label separation rejected, no blank contact");
             foreach(int index in new[]{0,1,2,7,9,18,19})
             {
                 var values=BeamSideDrawRecord.Encode(captured);values[index]=index==7?0:99;

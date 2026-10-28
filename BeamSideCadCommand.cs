@@ -228,17 +228,26 @@ namespace WallDetailTool
             var entities=BuildUpstandLabel(db,label,annotation,"0",EnsureUpstandTextStyle(db,tr));
             try
             {
-                foreach(var text in entities.OfType<DBText>()) { text.Rotation=0;text.IsMirroredInX=false;text.IsMirroredInY=false; }
-                var elbow=label.Leaders.Last().A;
-                bool underline=entities.OfType<Line>().Any(line=>Math.Abs(line.StartPoint.X-elbow.X)<1e-8&&
-                    Math.Abs(line.StartPoint.Y-elbow.Y)<1e-8&&Math.Abs(line.EndPoint.Y-elbow.Y)<1e-8&&line.Length>1e-8);
-                if(!underline)
-                {
-                    var text=entities.OfType<DBText>().Single();text.AdjustAlignment(db);
-                    var bounds=text.GeometricExtents;double end=label.Rightward?bounds.MaxPoint.X:bounds.MinPoint.X;
-                    if((label.Rightward?end-elbow.X:elbow.X-end)<=1e-8) throw new InvalidOperationException("无法取得有效文字范围以建立水平引线。");
-                    entities.Add(new Line(new Point3d(elbow.X,elbow.Y,annotation.Elevation),new Point3d(end,elbow.Y,annotation.Elevation)) { Layer="0",ColorIndex=256 });
-                }
+                foreach(var item in entities.OfType<DBText>()) { item.Rotation=0;item.IsMirroredInX=false;item.IsMirroredInY=false; }
+                var anchor=label.Leaders[0].A;
+                var text=entities.OfType<DBText>().Single();text.AdjustAlignment(db);
+                var bounds=text.GeometricExtents;
+                // Glyphs may descend below their baseline. Place their actual
+                // lower bound above the line before checking the other row.
+                double clearance=label.TextAnchor.Y-anchor.Y;
+                double shift=anchor.Y+clearance-bounds.MinPoint.Y;
+                if(shift>0) { text.TransformBy(Matrix3d.Displacement(new Vector3d(0,shift,0)));bounds=text.GeometricExtents; }
+                double end=label.Rightward?bounds.MaxPoint.X:bounds.MinPoint.X;
+                var other=ReferenceEquals(label,annotation.LineLabel)?annotation.DotLabel:annotation.LineLabel;
+                double otherY=other.Leaders[0].A.Y;
+                if(bounds.MinPoint.Y<=anchor.Y || (anchor.Y<otherY&&bounds.MaxPoint.Y>=otherY) ||
+                    (label.Rightward?end-label.TextAnchor.X:label.TextAnchor.X-end)<=1e-8)
+                    throw new InvalidOperationException("实际 TEXT 范围不能满足水平引线及行间避让，请人工标注。");
+                // Keep the shared builder's intersection slash, but replace its
+                // leader pieces with one horizontal LINE to measured TEXT extent.
+                foreach(var line in entities.OfType<Line>().ToArray()) { entities.Remove(line);line.Dispose(); }
+                entities.Add(new Line(new Point3d(anchor.X,anchor.Y,annotation.Elevation),
+                    new Point3d(end,anchor.Y,annotation.Elevation)) { Layer="0",ColorIndex=256 });
                 return entities;
             }
             catch { foreach(var entity in entities) entity.Dispose();throw; }

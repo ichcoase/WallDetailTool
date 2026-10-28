@@ -1,10 +1,10 @@
 # V0.4 梁侧挂板计算层接口
 
-本计算层已纳入 WallDetailTool 主项目（.NET Framework 4.8/x64），自身不创建 CAD 对象、不访问文档或设置、不写 DWG。第二阶段已新增 WDTBEAMSIDE 及 BeamSideCadCommand 作为调用者，计算接口保持不变。完整产品需求见 [需求书](V04_BEAM_SIDE_BLOCK_PRD.md)，CAD 交付与验收状态见 [清单](../tests/V04_RELEASE_CHECKLIST.md)。
+本计算层已纳入 WallDetailTool 主项目（.NET Framework 4.8/x64），自身不创建 CAD 对象、不访问文档或设置、不写 DWG。WDTBEAMSIDE / BeamSideCadCommand 为调用者；本文已按2026-10-28反馈同步角色、数量和标注锚点语义。完整产品需求见 [需求书](V04_BEAM_SIDE_BLOCK_PRD.md)，CAD 交付与验收状态见 [清单](../tests/V04_RELEASE_CHECKLIST.md)。
 
 ## 1. 坐标与单位
 
-所有接口边界均为世界坐标毫米：`ContourSegment` 输入、`BeamSideRect`、识别候选及最终 `Line`、`Dots`、尺寸点和标注锚点。Elevation 为共同 Z。CAD 层应先检查二维平面、LINE/LWPOLYLINE 直线段及单位，再把几何换算为毫米；不能把 bulge 弧段直接当弦传入。输出实体需按同一单位比例换回图形单位。图纸单位的提示及明确确认属于下一任务。
+所有接口边界均为世界坐标毫米：`ContourSegment` 输入、`BeamSideRect`、识别候选及最终 `Line`、`Dots`、尺寸点和标注锚点。Elevation 为共同 Z。CAD 层检查二维平面、LINE/LWPOLYLINE 直线段及单位后换算为毫米；不能把 bulge 弧段直接当弦传入。输出按同一比例换回图形单位；现有窗口负责非毫米提示及明确确认。
 
 临时标准空间以连接面块体下端 `(ConnectionX, Block.Bottom)` 为原点，方向符号 `s=(int)Direction`（右 1、左 -1）：
 
@@ -28,13 +28,13 @@
 
 ## 3. 排筋唯一入口
 
-`BeamSideRebarGeometry.Calculate(geometry, parameters)` 返回 `BeamSideRebarLayout`，失败抛出 `InvalidOperationException` 并说明原因，不返回部分有效的实体列表。`BeamSideRebarParameters` 为不可变参数，L/V 必须显式提供；其余初始值沿用现有节点。高级设置由未来 CAD 请求传入，不在计算层另存。
+`BeamSideRebarGeometry.Calculate(geometry, parameters)` 返回 `BeamSideRebarLayout`，失败抛出 `InvalidOperationException` 并说明原因，不返回部分有效的实体列表。`BeamSideRebarParameters` 为不可变参数，L/V 必须显式提供；其余初始值沿用现有节点。高级设置由完整 CAD 请求传入，不在计算层另存。
 
 中心线偏移为 `Cover+LineDisplayWidth/2`，不取规格直径。`a=L-V-πR/2 > 0`，水平深入距离 `a+R`。统一 R 不缩小；线筋为一条连续多段线，两端竖直 V、四个 90° 圆弧、三个块体侧边及梁内水平 a。线/弧相切、零长度、中心线接触/自交/重叠及显示外轮廓内部重叠均检查；显示外轮廓仅相切不增加无依据净距。开口线端为平端头，不虚增圆帽。完整梁检查实际直线条带与圆环扇区的极值及边界，不是包围盒碰撞推测。
 
-点筋固定位置为上下连接面端点（显示外缘与连接面齐平）及外侧上下圆角点。普通角点取线筋内侧等距圆弧轨迹的 45° 角平分位置，内部点仅在真实三条相切直段上。端点恰位于圆角内偏移轨迹的水平切点方向时，同一根同时承担端点/角点角色；近似但不能同时满足位置和相切时拒绝，不删除角点。R 小于 `(线宽+点筋显示直径)/2` 拒绝，等于时点筋中心轨迹退化为圆心且可满足相切，允许精确容纳。
+2026-10-28 用户确认：仅固定外侧上下圆角点，取消连接面端点及齐平约束。角点取内侧等距圆弧轨迹的 45° 位置，新增点只在真实三条相切直段上。R 小于 `(线宽+点筋显示直径)/2` 拒绝，等于时轨迹退化为圆心且允许精确容纳。没有端点合并角色或近端点过近的旧拒绝条件；实际点须在块体内且不重叠。
 
-每条开放区段在固定两端、直段范围、中心距 `[显示直径, 输入s]` 下按根数递增做解析可达区间搜索；圆角过渡用真实中心坐标的垂直偏差。首个可行数量即该约束下最少根数，中间点等分并优先对称。没有跨连接面首尾闭合检查，也不在中部补点。上限 10000 根。计算精度为绝对 1e-8 mm，超出有限数值计算范围拒绝；不是工程净距或规范合格校核。
+水平直段从 0 根搜索。用户补充的宽块约束为 `最近实际中心的局部X - DotDisplayDiameter/2 <= DotSpacing`，即靠梁边界至最近点筋显示外缘的水平空距上限。角点满足时不加水平点；超限才在真实直段搜索最少新增点，最近点不固定在边界，不以虚拟点的欧氏中心距替代此约束。竖边在上下角点间搜索最少内部点。实际相邻中心距范围为 `[显示直径, 输入s]`，圆角过渡使用真实垂直偏差及可达区间，优先等分、上下对称。不跨连接面闭合或补点；上限 10000 根，绝对精度 1e-8 mm，非有限数值拒绝；不推断工程净距或规范合格。
 
 ## 4. 供 CAD 直接消费的结果
 
@@ -44,16 +44,18 @@
 | --- | --- |
 | Geometry / Parameters | 完整识别及参数快照；NodeType 为 BeamSideBlock |
 | Line | 世界坐标 12 个顶点，Bulge 属于从本顶点开始的段，开口线；每段起终宽均用 LineWidth |
-| Dots | 世界坐标中心及角色位标记；合并点只出现一次，角色可同时含端点/角点 |
-| DotSpans | 上边、外侧竖边、下边各段首末索引和最少内部根数；合并的区段首末相同 |
+| Dots | 世界坐标中心及角色 UpperHorizontal、UpperCorner、OuterVertical、LowerCorner、LowerHorizontal；角点唯一，无 Endpoint 或虚拟点 |
+| DotSpans | 上水平、外侧竖直、下水平各段实际 First/Last 索引及 MinimumAdditionalCount（不计必需角点）；水平0根时首末均为对应角点；竖边含上下角点 |
 | HorizontalInsideLength / HorizontalDepth | a / a+R |
 | TopInsideLength / BottomInsideLength | 分别由线/弧实际长度复算的两端 L |
 | LineWidth / DotDisplayDiameter / Elevation | CAD 显示尺寸及 Z |
 | BoundaryStatus / BoundaryMessage | Unknown 时必须提示“梁边界未知，梁内端部需人工审核”；Checked 只表示几何容纳 |
-| WidthA/B、HeightA/B | 世界坐标尺寸端点，测量块体实际宽高 |
-| LineLabelAnchor / DotLabelAnchor | 真实线筋竖段中点、按 AnnotationRight 选择的实际点筋中心 |
+| WidthA/B、HeightA/B | 世界坐标实际宽高尺寸端点；高度点取连接面上下端 |
+| LineLabelAnchor / DotLabelAnchor | 不同高度的真实外侧竖直直段接触点和实际点筋中心；优先少移动线筋锚点，再选低位点筋，不为布局增筋 |
 | LineSpecification / DotSpecification | 含 %%132 的规格；点筋始终按实际直径和输入 s，绝不改成根数格式 |
 
 连接面顶点索引为 Line[3] 与 Line[8]；圆弧起点为 1、4、6、9。前 3 段和最后 3 段分别组成上端和下端 L。CAD 层不应依赖这些索引重新算长度，优先使用返回的结果字段。
+
+`BeamSideAnnotationGeometry` 两种规格均在真实锚点高度水平直引，无斜向接驳，保留线筋交接斜杠。TEXT 正向在上，两行预留至少 1.6 字高加基线偏移的高度差。高度尺寸左伸在块右、右伸在块左，与标注侧无关；宽度在上，输出已为图形单位。空间不足时明确报告非关键标注失败；CAD 层按实际 TEXT 边界再次校验上下避让，将单条水平 LINE 截至真实文字末端，失败不造空白锚点。参数/块快照结构不变，已有旧块不自动重布。
 
 现有 BeamSideCadCommand 负责实体、正向 TEXT/引线、尺寸、普通块、事务及独立记录，没有复制排筋。BeamSideDrawRequest 捕获参数、图层及单位解释；BeamSideUnitTransform 统一双向比例，块局部只做一次基点位移。点选先由 Editor.CurrentUserCoordinateSystem 转 WCS 再换为毫米，依据 [Autodesk UCS .NET 示例](https://help.autodesk.com/cloudhelp/2022/ENU/OARX-DevGuide-Managed/files/GUID-096085E3-5AD5-4454-BF10-C9177FDB5979.htm)。BeamSideAnnotationGeometry 只排标注位置，其输出已为图形单位。保存参数、取消/失败、UNDO/REDO、保存重开及多文档仍须另作真实 CAD 验证，不能以编解码测试替代。
