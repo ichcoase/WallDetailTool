@@ -27,24 +27,24 @@ namespace WallDetailTool
             var result=new UpstandAnnotationLayout { TextHeight=unit.LengthToDrawing(p.TextHeight),Elevation=unit.LengthToDrawing(steel.Elevation) };
             result.LineLabel=Label(steel.LineSpecification,steel.LineLabelAnchor,x,lineY,p.AnnotationRight,p.TextHeight,unit);
             result.DotLabel=Label(steel.DotSpecification,steel.DotLabelAnchor,x,dotY,p.AnnotationRight,p.TextHeight,unit);
-            double slash=36/(2*Math.Sqrt(2));var touch=steel.LineLabelAnchor;
+            double slash=36/(2*Math.Sqrt(2));var touch=steel.LineLabelAnchor;double mirror=(int)steel.Geometry.Direction;
             result.LineLabel.HasSlash=true;result.LineLabel.SlashCenter=Point(touch,unit);
-            result.LineLabel.SlashA=Point(new ContourPoint(touch.X-slash,touch.Y+slash),unit);
-            result.LineLabel.SlashB=Point(new ContourPoint(touch.X+slash,touch.Y-slash),unit);
+            result.LineLabel.SlashA=Point(new ContourPoint(touch.X-mirror*slash,touch.Y+slash),unit);
+            result.LineLabel.SlashB=Point(new ContourPoint(touch.X+mirror*slash,touch.Y-slash),unit);
             result.LineLabel.SlashWidth=unit.LengthToDrawing(10);
             result.WidthA=Point(steel.WidthA,unit);result.WidthB=Point(steel.WidthB,unit);
             result.WidthLine=Point(new ContourPoint((steel.WidthA.X+steel.WidthB.X)/2,top+offset),unit);
             result.HeightA=Point(steel.HeightA,unit);result.HeightB=Point(steel.HeightB,unit);
-            result.HeightLine=Point(new ContourPoint(block.Right+offset,(steel.HeightA.Y+steel.HeightB.Y)/2),unit);
+            result.HeightLine=Point(new ContourPoint(mirror>0?block.Right+offset:block.Left-offset,(steel.HeightA.Y+steel.HeightB.Y)/2),unit);
             return result;
         }
         // All arguments/output are drawing units. CAD supplies measured TEXT /
         // leader right bounds; no guessed font width controls the final dimension.
-        internal static AnnotationPoint HeightLineOutsideLabels(UpstandAnnotationLayout layout,double actualRightEdge,double drawingScale)
+        internal static AnnotationPoint HeightLineOutsideLabels(UpstandAnnotationLayout layout,double actualRightEdge,double drawingScale,bool right=true)
         {
             var unit=new BeamSideUnitTransform(drawingScale);BeamSideMath.Finite(actualRightEdge);
             double gap=Math.Max(unit.LengthToDrawing(50),1.5*layout.TextHeight);
-            return new AnnotationPoint(Math.Max(layout.HeightLine.X,actualRightEdge+gap),layout.HeightLine.Y);
+            return new AnnotationPoint(right?Math.Max(layout.HeightLine.X,actualRightEdge+gap):Math.Min(layout.HeightLine.X,actualRightEdge-gap),layout.HeightLine.Y);
         }
         private static AnnotationPoint Point(ContourPoint point,BeamSideUnitTransform unit)
         { var q=unit.ToDrawing(point);return new AnnotationPoint(q.X,q.Y); }

@@ -72,7 +72,8 @@ namespace WallDetailTool
             DotSpecification=Spec(parameters.DotDiameter,parameters.DotSpacing);
             var block=geometry.Block;
             WidthA=new ContourPoint(block.Left,block.Top);WidthB=new ContourPoint(block.Right,block.Top);
-            HeightA=new ContourPoint(block.Right,block.Bottom);HeightB=new ContourPoint(block.Right,block.Top);
+            double heightX=geometry.Direction==BeamSideDirection.Right?block.Right:block.Left;
+            HeightA=new ContourPoint(heightX,block.Bottom);HeightB=new ContourPoint(heightX,block.Top);
             // Prefer a real dot nearest the block mid-height, then move only
             // the line contact upwards on its true outer vertical straight.
             double mid=(line[5].Y+line[6].Y)/2,margin=36/(2*Math.Sqrt(2))+5;

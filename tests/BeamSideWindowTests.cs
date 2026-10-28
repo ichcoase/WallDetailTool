@@ -48,7 +48,7 @@ namespace WallDetailTool
                 foreach(int d in new[]{0,1}) foreach(int t in new[]{0,1}) foreach(int b in new[]{0,1}) foreach(int a in new[]{0,1})
                 {
                     Find<ComboBox>(f,"Direction").SelectedIndex=d;Find<ComboBox>(f,"TopBend").SelectedIndex=t;
-                    Find<ComboBox>(f,"BottomBend").SelectedIndex=b;Find<ComboBox>(f,"AnnotationSide").SelectedIndex=a;
+                    Find<ComboBox>(f,"BottomBend").SelectedIndex=b;Find<ComboBox>(f,"AnnotationSide").SelectedIndex=a+1;
                     var r=f.CreateRequest();var sketch=Find<BeamSideSketch>(f,"Sketch");
                     BeamSideTest.Check(r.Direction==(d==0?BeamSideDirection.Right:BeamSideDirection.Left),"direction request");
                     BeamSideTest.Check(r.Parameters.TopUp==(t==1)&&r.Parameters.BottomUp==(b==0)&&r.Parameters.AnnotationRight==(a==0),"independent world choices");
@@ -110,13 +110,14 @@ namespace WallDetailTool
                 BeamSideTest.Check(layout.Dots.Any(d=>BeamSideMath.Distance(d.Center,layout.DotLabelAnchor)<1e-8),"actual dot contact");
                 BeamSideTest.Near(labels.LineLabel.Leaders[0].A.X,layout.Line[5].X*scale,"line contact on true vertical straight");
                 BeamSideTest.Check(labels.LineLabel.HasSlash,"intersection slash retained");
-                BeamSideTest.Check(labels.HeightLine.X>g.Block.Right*scale,"height dimension always on block right");
-                BeamSideTest.Near(labels.HeightA.X,g.Block.Right*scale,"height extension starts at actual right edge");
-                double measuredRight=(g.Block.Right+1200)*scale;
-                var outside=BeamSideAnnotationGeometry.HeightLineOutsideLabels(labels,measuredRight,scale);
-                BeamSideTest.Check(outside.X>=measuredRight+Math.Max(50,1.5*p.TextHeight)*scale-1e-8,"dimension beyond measured long TEXT and leaders");
+                bool right=direction==BeamSideDirection.Right;double sign=right?1:-1,edge=right?g.Block.Right:g.Block.Left;
+                BeamSideTest.Check(sign*(labels.HeightLine.X-edge*scale)>0,"height side follows extension");
+                BeamSideTest.Near(labels.HeightA.X,edge*scale,"height extension at outer edge");
+                double measuredRight=(edge+sign*1200)*scale;
+                var outside=BeamSideAnnotationGeometry.HeightLineOutsideLabels(labels,measuredRight,scale,right);
+                BeamSideTest.Check(sign*(outside.X-measuredRight)>=Math.Max(50,1.5*p.TextHeight)*scale-1e-8,"dimension beyond measured TEXT on either side");
                 BeamSideTest.Near(outside.Y,labels.HeightLine.Y,"height placement preserves world Y");
-                var unchanged=BeamSideAnnotationGeometry.HeightLineOutsideLabels(labels,(g.Block.Left-900)*scale,scale);
+                var unchanged=BeamSideAnnotationGeometry.HeightLineOutsideLabels(labels,(edge-sign*900)*scale,scale,right);
                 BeamSideTest.Near(unchanged.X,labels.HeightLine.X,"left labels cannot pull dimension towards block");
                 BeamSideTest.Check(labels.WidthLine.Y>g.Block.Top*scale,"width above block");
             }
@@ -139,7 +140,8 @@ namespace WallDetailTool
                 BeamSideTest.Check(labels.LineLabel.Leaders[0].A.Y>labels.DotLabel.Leaders[0].A.Y,"line row remains above selected sparse/dense dot");
                 if(spacing==200) { BeamSideTest.Near(r.DotLabelAnchor.Y,215.114381916836,"300 default dot middle-near real centre");BeamSideTest.Near(r.LineLabelAnchor.Y,320.114381916836,"line contact adjusted upwards"); }
             }
-            foreach(int index in new[]{0,1,2,7,9,18,19})
+            MirrorAndSideTests();
+            foreach(int index in new[]{0,1,2,7,9,11,18,19})
             {
                 var values=BeamSideDrawRecord.Encode(captured);values[index]=index==7?0:99;
                 if(index==18) values[index]=1.5;
@@ -151,6 +153,35 @@ namespace WallDetailTool
             BeamSideTest.Reject(()=>BeamSideDrawRecord.DecodeSnapshot(new double[30],Layers,out captured),"truncated block snapshot");
             BeamSideTest.Check(new[]{"WDT_UPSTAND_LAST","WDT_BEAM_HANGING_LAST","WDT_SLAB_UPSTAND_LAST","WDT_SLAB_HANGING_LAST"}.All(k=>k!=BeamSideDrawRecord.LastKey),"dedicated type key");
             Console.WriteLine("BEAM_SIDE_WINDOW_RECORD_PASS checks="+BeamSideTest.Checks);
+        }
+        static void MirrorAndSideTests()
+        {
+            using(var f=new BeamSideDrawForm(State(),"毫米",4,1,false))
+            {
+                Fill(f);var side=Find<ComboBox>(f,"AnnotationSide");var dir=Find<ComboBox>(f,"Direction");
+                BeamSideTest.Check(side.SelectedIndex==0&&!f.CreateRequest().AnnotationSideManual,"fresh automatic");
+                dir.SelectedIndex=1;BeamSideTest.Check(!f.CreateRequest().Parameters.AnnotationRight,"auto follows left");
+                side.SelectedIndex=1;dir.SelectedIndex=0;dir.SelectedIndex=1;
+                var manual=f.CreateRequest();BeamSideTest.Check(manual.AnnotationSideManual&&manual.Parameters.AnnotationRight,"explicit right survives direction switch");
+                using(var reopened=new BeamSideDrawForm(State(BeamSideDrawRecord.Decode(BeamSideDrawRecord.Encode(manual),Layers)),"毫米",4,1,false))
+                    BeamSideTest.Check(reopened.CreateRequest().AnnotationSideManual&&reopened.CreateRequest().Parameters.AnnotationRight,"manual roundtrip");
+                side.SelectedIndex=0;var auto=f.CreateRequest();
+                using(var reopened=new BeamSideDrawForm(State(BeamSideDrawRecord.Decode(BeamSideDrawRecord.Encode(auto),Layers)),"毫米",4,1,false))
+                { Find<ComboBox>(reopened,"Direction").SelectedIndex=0;BeamSideTest.Check(!reopened.CreateRequest().AnnotationSideManual&&reopened.CreateRequest().Parameters.AnnotationRight,"auto roundtrip follows new direction"); }
+                var old=BeamSideDrawRecord.Encode(manual);old[0]=1;old[11]=1;
+                var legacy=BeamSideDrawRecord.Decode(old,Layers);
+                BeamSideTest.Check(!legacy.AnnotationSideManual&&!legacy.Parameters.AnnotationRight,"legacy right is not presumed manual");
+            }
+            foreach(double scale in new[]{1.0,.001}) foreach(bool full in new[]{false,true})
+            {
+                const double cx=450;
+                var r=BeamSideAnnotationGeometry.Calculate(BeamSideRebarGeometry.Calculate(BeamSideTest.Geometry(x:cx,y:-700,full:full),new BeamSideRebarParameters(400,100)),scale);
+                var l=BeamSideAnnotationGeometry.Calculate(BeamSideRebarGeometry.Calculate(BeamSideTest.Geometry(x:cx,y:-700,full:full,direction:BeamSideDirection.Left),new BeamSideRebarParameters(400,100,annotationRight:false)),scale);
+                foreach(var pair in new[]{new[]{r.LineLabel.TextAnchor,l.LineLabel.TextAnchor},new[]{r.DotLabel.TextAnchor,l.DotLabel.TextAnchor},new[]{r.HeightLine,l.HeightLine},new[]{r.HeightA,l.HeightA},new[]{r.LineLabel.SlashA,l.LineLabel.SlashA}})
+                { BeamSideTest.Near(pair[0].X+pair[1].X,2*cx*scale,"mirror X");BeamSideTest.Near(pair[0].Y,pair[1].Y,"mirror Y"); }
+                foreach(var pair in new[]{new[]{r.LineLabel,l.LineLabel},new[]{r.DotLabel,l.DotLabel}})
+                { BeamSideTest.Check(pair[0].Rightward&&!pair[1].Rightward,"upright text alignment differs"); for(int i=0;i<pair[0].Leaders.Count;i++){ BeamSideTest.Near(pair[0].Leaders[i].A.X+pair[1].Leaders[i].A.X,2*cx*scale);BeamSideTest.Near(pair[0].Leaders[i].B.X+pair[1].Leaders[i].B.X,2*cx*scale); } }
+            }
         }
     }
 }

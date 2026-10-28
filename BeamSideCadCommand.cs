@@ -193,8 +193,11 @@ namespace WallDetailTool
                 block.DowngradeOpen();
                 if(annotation!=null)
                 {
-                    Action<double> reserveRight=edge=>annotation.HeightLine=
-                        BeamSideAnnotationGeometry.HeightLineOutsideLabels(annotation,edge,unit.Scale);
+                    bool dimensionRight=request.Direction==BeamSideDirection.Right;
+                    Action<double,double> reserveRight=(left,right)=> {
+                        if(request.Parameters.AnnotationRight==dimensionRight)
+                            annotation.HeightLine=BeamSideAnnotationGeometry.HeightLineOutsideLabels(annotation,dimensionRight?right:left,unit.Scale,dimensionRight);
+                    };
                     TryAppendAnnotation(db,blockId,local,request.Layer(2),71,"线筋标注",failures,
                         optional=>BuildBeamSideLabel(db,optional,annotation.LineLabel,annotation,request.Layer(2),reserveRight));
                     TryAppendAnnotation(db,blockId,local,request.Layer(2),71,"点筋标注",failures,
@@ -224,7 +227,7 @@ namespace WallDetailTool
             var layer=(LayerTableRecord)tr.GetObject(layers[name],OpenMode.ForRead);
             if(layer.IsLocked) throw new InvalidOperationException("标注目标图层已锁定："+name);
         }
-        private static List<Entity> BuildBeamSideLabel(Database db,Transaction tr,UpstandLabelLayout label,UpstandAnnotationLayout annotation,string layer,Action<double> reserveRight)
+        private static List<Entity> BuildBeamSideLabel(Database db,Transaction tr,UpstandLabelLayout label,UpstandAnnotationLayout annotation,string layer,Action<double,double> reserveRight)
         {
             CheckBeamSideAnnotationLayer(db,tr,layer);
             var entities=BuildUpstandLabel(db,label,annotation,"0",EnsureUpstandTextStyle(db,tr));
@@ -250,7 +253,7 @@ namespace WallDetailTool
                 foreach(var line in entities.OfType<Line>().ToArray()) { entities.Remove(line);line.Dispose(); }
                 entities.Add(new Line(new Point3d(anchor.X,anchor.Y,annotation.Elevation),
                     new Point3d(end,anchor.Y,annotation.Elevation)) { Layer="0",ColorIndex=256 });
-                reserveRight(Math.Max(bounds.MaxPoint.X,Math.Max(anchor.X,end)));
+                reserveRight(Math.Min(bounds.MinPoint.X,Math.Min(anchor.X,end)),Math.Max(bounds.MaxPoint.X,Math.Max(anchor.X,end)));
                 return entities;
             }
             catch { foreach(var entity in entities) entity.Dispose();throw; }

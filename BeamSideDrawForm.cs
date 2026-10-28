@@ -41,7 +41,8 @@ namespace WallDetailTool
             var options=Grid(3);var saved=state.Saved==null?null:state.Saved.Parameters;
             top=Choice("TopBend",new[]{"向下（世界坐标）","向上（世界坐标）"},saved!=null&&saved.TopUp?1:0);
             bottom=Choice("BottomBend",new[]{"向上（世界坐标）","向下（世界坐标）"},saved!=null&&!saved.BottomUp?1:0);
-            annotation=Choice("AnnotationSide",new[]{"右侧引出","左侧引出"},saved!=null&&!saved.AnnotationRight?1:0);
+            annotation=Choice("AnnotationSide",new[]{"自动（随伸出方向）","手动右侧引出","手动左侧引出"},
+                state.Saved==null||!state.Saved.AnnotationSideManual?0:saved.AnnotationRight?1:2);
             Row(options,0,"上端弯折",top);Row(options,1,"下端弯折",bottom);Row(options,2,"点筋整组标注",annotation);content.Controls.Add(options,0,4);
             var unitPanel=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=1,RowCount=2 };
             unitPanel.RowStyles.Add(new RowStyle(SizeType.Absolute,38));unitPanel.RowStyles.Add(new RowStyle(SizeType.Percent,100));
@@ -82,10 +83,11 @@ namespace WallDetailTool
         private void RefreshSketch()
         {
             sketch.ExtendsRight=direction.SelectedIndex==0;sketch.TopUp=top.SelectedIndex==1;
-            sketch.BottomUp=bottom.SelectedIndex==0;sketch.AnnotationRight=annotation.SelectedIndex==0;sketch.Full=mode.SelectedIndex==1;sketch.Invalidate();
+            sketch.BottomUp=bottom.SelectedIndex==0;sketch.AnnotationRight=AnnotationRight;sketch.Full=mode.SelectedIndex==1;sketch.Invalidate();
             description.Text=(mode.SelectedIndex<0?"请明确选择局部或完整模式；完整等高外框不能按局部处理。":mode.SelectedIndex==0?"局部：梁边界未知，梁内端部需人工审核。":"完整：选择梁及块体；等高外框无连接缝时还须点取连接面 X。")+
                 "\nL、V 为上下端共用输入；L 含梁内水平段、90°圆弧和竖段，V 不含圆弧。\n保护层、显示尺寸、R、字高和图层使用共享高级设置。";
         }
+        private bool AnnotationRight { get { return annotation.SelectedIndex==0?direction.SelectedIndex==0:annotation.SelectedIndex==1; } }
         internal BeamSideDrawRequest CreateRequest()
         {
             if(mode.SelectedIndex<0) throw new InvalidOperationException("请明确选择局部轮廓或完整截面；完整等高外框不能默认按局部处理。");
@@ -93,7 +95,7 @@ namespace WallDetailTool
             bool mmOverride=requiresChoice&&(normalScale<=0||units.SelectedIndex==1);
             double scale=mmOverride||!requiresChoice?1:normalScale;
             return state.Create(Array.ConvertAll(fields,t=>t.Text),direction.SelectedIndex==0?BeamSideDirection.Right:BeamSideDirection.Left,
-                mode.SelectedIndex==1,top.SelectedIndex==1,bottom.SelectedIndex==0,annotation.SelectedIndex==0,scale,unitCode,mmOverride);
+                mode.SelectedIndex==1,top.SelectedIndex==1,bottom.SelectedIndex==0,AnnotationRight,scale,unitCode,mmOverride,annotation.SelectedIndex!=0);
         }
     }
     internal sealed class BeamSideSketch : Control

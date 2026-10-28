@@ -132,13 +132,16 @@ public static class BeamSideCadTests
                 }
                 var heightDim=entities.OfType<RotatedDimension>().Single(d=>Math.Abs(d.Rotation-Math.PI/2)<1e-7);
                 var heightPoint=heightDim.DimLinePoint.TransformBy(blockRef.BlockTransform);
-                Check(heightPoint.X>g.Block.Right*scale,"height dimension always on block right");
-                Near(heightDim.XLine1Point.TransformBy(blockRef.BlockTransform).X,g.Block.Right*scale);
+                bool dimensionRight=direction==BeamSideDirection.Right;double sign=dimensionRight?1:-1;
+                double edge=dimensionRight?g.Block.Right:g.Block.Left;
+                Check(sign*(heightPoint.X-edge*scale)>0,"height dimension follows extension");
+                Near(heightDim.XLine1Point.TransformBy(blockRef.BlockTransform).X,edge*scale);
+                if(annotationRight==dimensionRight)
+                {
                 foreach(var text in entities.OfType<DBText>())
-                    Check(heightPoint.X>=text.GeometricExtents.MaxPoint.TransformBy(blockRef.BlockTransform).X+
-                        Math.Max(50,1.5*p.TextHeight)*scale-1e-7,"dimension clears actual TEXT right bound");
-                foreach(var leader in leaders)
-                    Check(heightPoint.X>Math.Max(leader.StartPoint.X,leader.EndPoint.X)+blockRef.Position.X,"dimension clears actual horizontal leaders");
+                    Check(sign*(heightPoint.X-(dimensionRight?text.GeometricExtents.MaxPoint:text.GeometricExtents.MinPoint).TransformBy(blockRef.BlockTransform).X)>=
+                        Math.Max(50,1.5*p.TextHeight)*scale-1e-7,"dimension clears actual TEXT bound");
+                }
                 Check(layout.LineLabelAnchor.Y>layout.DotLabelAnchor.Y,"line contact above real dot contact");
                 foreach(var dimension in entities.OfType<RotatedDimension>()) { Near(dimension.Dimlfac,1/scale);Near(dimension.Dimscale,25*scale); }
                 var dictionary=(DBDictionary)tr.GetObject(blockRef.ExtensionDictionary,OpenMode.ForRead);

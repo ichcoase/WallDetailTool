@@ -6,13 +6,13 @@ namespace WallDetailTool
     internal sealed class BeamSideDrawRequest
     {
         internal readonly BeamSideDirection Direction;
-        internal readonly bool FullSection,MillimetreOverride;
+        internal readonly bool FullSection,MillimetreOverride,AnnotationSideManual;
         internal readonly BeamSideRebarParameters Parameters;
         internal readonly double DrawingUnitsPerMillimetre;
         internal readonly int SourceUnitCode;
         private readonly string[] layers;
         internal BeamSideDrawRequest(BeamSideDirection direction,bool full,BeamSideRebarParameters p,
-            double scale,int sourceUnitCode,bool mmOverride,string[] layers)
+            double scale,int sourceUnitCode,bool mmOverride,string[] layers,bool annotationSideManual=true)
         {
             if((direction!=BeamSideDirection.Left&&direction!=BeamSideDirection.Right)||p==null)
                 throw new InvalidOperationException("节点方向或参数无效。");
@@ -24,6 +24,9 @@ namespace WallDetailTool
                 if(String.IsNullOrWhiteSpace(name)||name.IndexOfAny(new[]{'<','>','/','\\','"',':',';','?','*','|',','})>=0)
                     throw new InvalidOperationException("图层名称无效。");
             Direction=direction;FullSection=full;Parameters=p;DrawingUnitsPerMillimetre=scale;
+            AnnotationSideManual=annotationSideManual;
+            if(!annotationSideManual&&p.AnnotationRight!=(direction==BeamSideDirection.Right))
+                throw new InvalidOperationException("自动标注侧须跟随伸出方向。");
             SourceUnitCode=sourceUnitCode;MillimetreOverride=mmOverride;this.layers=(string[])layers.Clone();
         }
         internal string Layer(int i) { return layers[i]; }
@@ -53,8 +56,8 @@ namespace WallDetailTool
         internal static double[] Encode(BeamSideDrawRequest r)
         {
             var p=r.Parameters;
-            return new[]{1.0,(int)r.Direction,r.FullSection?1:0,p.LineDiameter,p.LineSpacing,p.DotDiameter,p.DotSpacing,
-                p.Length,p.Vertical,p.TopUp?1:0,p.BottomUp?1:0,p.AnnotationRight?1:0,p.Cover,p.LineDisplayWidth,
+            return new[]{2.0,(int)r.Direction,r.FullSection?1:0,p.LineDiameter,p.LineSpacing,p.DotDiameter,p.DotSpacing,
+                p.Length,p.Vertical,p.TopUp?1:0,p.BottomUp?1:0,r.AnnotationSideManual?(p.AnnotationRight?1:0):-1,p.Cover,p.LineDisplayWidth,
                 p.DotDisplayDiameter,p.Radius,p.TextHeight,r.DrawingUnitsPerMillimetre,r.SourceUnitCode,r.MillimetreOverride?1:0};
         }
         private static bool Flag(double v)
@@ -63,10 +66,13 @@ namespace WallDetailTool
         {
             if(source==null||source.Length!=Count) throw new InvalidOperationException("梁侧挂板成功参数记录格式不支持。");
             var v=(double[])source.Clone();BeamSideMath.Finite(v);
-            if(v[0]!=1 || (v[1]!=1&&v[1]!=-1) || v[18]<0 || v[18]>32767 || v[18]!=Math.Floor(v[18]))
+            if((v[0]!=1&&v[0]!=2) || (v[1]!=1&&v[1]!=-1) || v[18]<0 || v[18]>32767 || v[18]!=Math.Floor(v[18]))
                 throw new InvalidOperationException("梁侧挂板记录版本、方向或单位无效。");
-            var p=new BeamSideRebarParameters(v[7],v[8],v[12],v[3],v[4],v[5],v[6],v[13],v[14],v[15],Flag(v[9]),Flag(v[10]),Flag(v[11]),v[16]);
-            return new BeamSideDrawRequest((BeamSideDirection)(int)v[1],Flag(v[2]),p,v[17],(int)v[18],Flag(v[19]),layers);
+            bool manual=v[0]==2&&v[11]!=-1;
+            if(v[0]==1||manual) Flag(v[11]);
+            bool right=manual?Flag(v[11]):v[1]==1;
+            var p=new BeamSideRebarParameters(v[7],v[8],v[12],v[3],v[4],v[5],v[6],v[13],v[14],v[15],Flag(v[9]),Flag(v[10]),right,v[16]);
+            return new BeamSideDrawRequest((BeamSideDirection)(int)v[1],Flag(v[2]),p,v[17],(int)v[18],Flag(v[19]),layers,manual);
         }
         internal static double[] EncodeSnapshot(BeamSideDrawRequest r,BeamSideGeometry g)
         {
@@ -109,7 +115,7 @@ namespace WallDetailTool
             InitialText=Array.ConvertAll(numbers,v=>v>0?v.ToString("g",CultureInfo.CurrentCulture):"");
         }
         internal BeamSideDrawRequest Create(string[] text,BeamSideDirection direction,bool full,bool topUp,bool bottomUp,
-            bool annotationRight,double scale,int unitCode,bool mmOverride)
+            bool annotationRight,double scale,int unitCode,bool mmOverride,bool annotationSideManual=true)
         {
             if(text==null||text.Length!=6) throw new InvalidOperationException("参数项数无效。");
             var v=new double[6];
@@ -117,7 +123,7 @@ namespace WallDetailTool
                 if(!double.TryParse(text[i],NumberStyles.Float,CultureInfo.CurrentCulture,out v[i])||double.IsNaN(v[i])||double.IsInfinity(v[i])||v[i]<=0)
                     throw new InvalidOperationException("请填写有效正数毫米值；L、V 首次必须明确输入。");
             var p=new BeamSideRebarParameters(v[4],v[5],advanced[0],v[0],v[1],v[2],v[3],advanced[1],advanced[2],advanced[3],topUp,bottomUp,annotationRight,advanced[4]);
-            return new BeamSideDrawRequest(direction,full,p,scale,unitCode,mmOverride,layers);
+            return new BeamSideDrawRequest(direction,full,p,scale,unitCode,mmOverride,layers,annotationSideManual);
         }
     }
 }
