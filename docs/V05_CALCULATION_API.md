@@ -1,5 +1,9 @@
 # V0.5 悬挑板接口与记录
 
+## 2026-10-29 标注接口补充
+
+CantileverAnnotationGeometry.Calculate仍从正式steel/dots结果提取真实接触段，不修改输入。新增CantileverTextSize(width,height)为图形单位的实测矩形；CAD测量事务复用BuildUpstandLabel取得实际DBText.GeometricExtents，随后ApplyMeasuredLayout(result,sizes)选择紧凑真实锚点、左右方向及行位。最终BuildCantileverLabel将实际字形近侧/下侧边界对齐TextAnchor，末条水平线到实测远侧边。无字符数估算、全节点包围盒推远或新设置系统。规格身份及记录接口不变。布局详见 [最新契约](V05_COMPACT_LAYOUT.md)；下方原接口中的固定底筋端点/向外出字为历史布局。
+
 长度均WCS毫米。CantileverFrame：悬挑侧梁面顶点SupportX/TopY，局部+X向自由端、+Y保持世界向上；左右仅镜像X及bulge。BeamWidth仅定位，不是待生成尺寸。
 
 CantileverRebarGeometry.Calculate(frame,specifications,inputs)返回独立不可变钢筋路径列表，索引0主面筋/伸出筋、1底筋、2附加筋（仅模式4）。顶点含世界X/Y及bulge。显示宽度由输入单独控制，底筋自身直径控制偏移；模式4两组面筋共用主筋中心线路径，各自保留直径/间距，不错层、不串接。各筋解析宽度边界自交检查复用BeamSideCurve/Stroke，不调用梁边界CheckInside。

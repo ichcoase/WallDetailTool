@@ -1,6 +1,29 @@
 # V0.5 普通悬挑板候选交付验证
 
-## 2026-10-28 直角引线与模式4布局（当前交付，基线5362b96）
+## 2026-10-29 紧凑标注（当前交付，基线a3bc0eb）
+
+需求及实现边界见 [紧凑布局](../docs/V05_COMPACT_LAYOUT.md)，覆盖旧的全包围盒外侧出字、底筋固定端点和下方必须向外展开限制。
+
+- [x] CantileverAnnotationTests：CANTILEVER_COMPACT_ANNOTATION_PASS checks=83664。四模式/左右、不同L/h/字高/单位/E/Lin、2根及多根点筋、明确宽文字范围样本；真实锚点、90°、短水平段、文字紧靠折点、半区中心目标、错高避让、文字/引线无交叉、L/Lin基准界线避让、左右对应及长E不推远板侧规格。
+- [x] CantileverWindowTests：CANTILEVER_WINDOW_RECORD_ANNOTATION_PASS checks=2928。保留模式草稿、取消、预设、旧记录、独立请求等验证，底筋与点筋按新布局允许向内出字。
+- [x] CantileverGeometryTests：CANTILEVER_PREREQUISITES_PASS checks=4714。布局矩阵另逐项比较布局前后全部钢筋顶点/bulge、点筋坐标/数量、EffectiveF及请求编码不变。
+- [x] CantileverGeometry/RebarGeometry/Dots/DrawState/DrawForm及UpstandAnnotationGeometry与a3bc0eb逐文件核对一致；旧节点服务未修改，记录及成功写入格式不变。
+- [x] 原五组通过明确PASS标记；HangingNodeTests 2974项、NodeDrawWindowTests 158项；V0.4 Contour/Dots/Rebar/Window分别837/51529/1825/3180项。共14组实际编译并执行EXE通过。
+- [x] 审查build.ps1、MSBuild/.NET4.8和本机AutoCAD2023托管引用，按相同Release/x64参数明确新输出目录；输出仅DLL/PDB，CAD引用Private=False。测试项目保留原有CS0649字段警告。
+- [x] 左右模式4纯布局示意已实际查看，文字范围为明确测试样本，不是CAD实测字体；圆弧仅示意。
+- [ ] AutoCAD2023/2024本轮均未运行，真实TEXT范围、字体替代、尺寸文字/箭头/界线及最终图面待用户验收。没有重试隔离NETLOAD、启动/关闭用户CAD或修改安全设置。
+
+构建方式：通过Python子进程执行build.ps1所列MSBuild参数和run_v05_geometry.ps1所列14组测试项目/EXE。SDK目录读取受限后使用权限机制完成构建，没有改变环境安全设置；未把编译等同CAD通过。
+
+新DLL：`D:\Waste\WallDtailTool\bin\V05Compact20261029\WallDetailTool.dll`
+
+SHA-256：`296C333A9EA562D6161DC1C3E90D756137CDE62259EE841F9974A7CB7554C7B9`。
+
+用户单一验收：在新图/副本加载此DLL，WDTCANTILEVER模式4对1500×200轮廓左右各生成一处；核对下方点筋在支座半区、底筋在自由端半区，靠近板体且无重叠，上方文字靠折点且无多余长水平线。再把E从600改10000生成比较，板侧三组标注不应被内跨远端推走。确认双排点筋均接公共竖线且整组只一条规格、文字正向、斜杠和Lin清晰，钢筋/点筋/自动F与上一版一致。旧DLL占用时由用户自行保存后重启CAD。源码提交见本轮Git交付，不推送、不打标签。
+
+## 以下为a3bc0eb及更早历史，旧DLL不是本轮加载路径
+
+## 2026-10-28 直角引线与模式4布局（历史交付，基线5362b96）
 
 最新规则见 [布局说明](../docs/V05_ORTHOGONAL_LAYOUT.md)，覆盖下方历史斜段、单点接触及组别位置。
 
@@ -23,7 +46,7 @@ SHA-256：`7E7A3102635E20D189B9075E6C104A8B04CDA5285B438EC0804AD51DB04E1DEF`。
 
 ## 5362b96及更早交付历史（非当前布局口径）
 
-## 2026-10-28 自动F、绘图预设与折线标注修订（当前交付）
+## 2026-10-28 自动F、绘图预设与折线标注修订（历史交付）
 
 源码基线2afc688。本次新增要求覆盖下方历史基线中的手填F、首次空白和水平直引。完整初值见 [预设表](../docs/V05_DRAWING_PRESETS.md)，接口/记录兼容见 [接口](../docs/V05_CALCULATION_API.md)。
 

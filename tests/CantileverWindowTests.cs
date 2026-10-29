@@ -72,6 +72,7 @@ internal static class CantileverWindowTests
             var steel=CantileverRebarGeometry.Calculate(frame,copy.Specifications,p);
             var dots=CantileverDots.Calculate(frame,steel,p,12,200);
             var annotation=CantileverAnnotationGeometry.Calculate(frame,copy,p,steel,dots,37);
+            CantileverAnnotationGeometry.ApplyMeasuredLayout(annotation,annotation.Labels.Select(l=>new CantileverTextSize(200*scale,62.5*scale)).ToArray());
             Check(annotation.Labels.Count==(mode==CantileverSupportMode.InnerWithAdditional?4:3));
             foreach(var label in annotation.Labels)
             {
@@ -79,7 +80,7 @@ internal static class CantileverWindowTests
                 Near(last.A.Y,last.B.Y);Check(label.Layout.TextAnchor.Y>last.A.Y);
                 Check(leaders.Count==2);Check(Math.Abs(leaders[0].A.Y-leaders[0].B.Y)>scale);
                 Near(leaders[0].A.X,leaders[0].B.X);Near(leaders[0].B.X,last.A.X);Near(leaders[0].B.Y,last.A.Y);
-                if(label.Name=="面筋"||label.Name=="附加筋"||label.Name=="底筋")Check(label.Layout.Rightward==(direction==CantileverDirection.Right));
+                if(label.Name=="面筋"||label.Name=="附加筋")Check(label.Layout.Rightward==(direction==CantileverDirection.Right));
                 if(label.Name=="内跨伸出筋")Check(label.Layout.Rightward==(direction==CantileverDirection.Left));
             }
             var topLabel=annotation.Labels[0].Layout;var topPath=steel.Bars[0].Vertices;
@@ -142,6 +143,7 @@ internal static class CantileverWindowTests
             var steel=CantileverRebarGeometry.Calculate(frame,request.Specifications,p);
             var dots=CantileverDots.Calculate(frame,steel,p,12,200);
             var labels=CantileverAnnotationGeometry.Calculate(frame,request,p,steel,dots,0);
+            CantileverAnnotationGeometry.ApplyMeasuredLayout(labels,labels.Labels.Select(l=>new CantileverTextSize(200,62.5)).ToArray());
             foreach(var first in labels.Labels)foreach(var second in labels.Labels)
             {
                 if(ReferenceEquals(first,second))continue;

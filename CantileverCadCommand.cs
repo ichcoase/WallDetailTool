@@ -119,7 +119,14 @@ namespace WallDetailTool
                 try { foreach(var entity in entities) { entity.TransformBy(local);Append(block,tr,entity); } }
                 finally { foreach(var entity in entities) if(entity.ObjectId.IsNull) entity.Dispose(); }
                 block.DowngradeOpen();
-                foreach(var item in annotation.Labels)
+                bool labelsReady=false;
+                try
+                {
+                    CantileverAnnotationGeometry.ApplyMeasuredLayout(annotation,MeasureCantileverText(db,annotation));
+                    labelsReady=true;
+                }
+                catch(System.Exception ex) { failures.Add("规格测量/紧凑布局："+ex.Message); }
+                foreach(var item in annotation.Labels.Where(l=>labelsReady))
                 {
                     var label=item.Layout;double y=label.Leaders.Last().A.Y;
                     var above=annotation.Labels.Where(q=>q.Layout.Rightward==label.Rightward&&q.Layout.Leaders.Last().A.Y>y+1e-8).Select(q=>q.Layout.Leaders.Last().A.Y).ToArray();
@@ -152,6 +159,28 @@ namespace WallDetailTool
                 tr.Commit();return reference.ObjectId;
             }
         }
+        private static List<CantileverTextSize> MeasureCantileverText(Database db,CantileverAnnotationResult annotation)
+        {
+            var sizes=new List<CantileverTextSize>();
+            // Measurement does not append entities or commit resources.
+            using(var tr=db.TransactionManager.StartTransaction())
+            {
+                var style=EnsureUpstandTextStyle(db,tr);
+                foreach(var item in annotation.Labels)
+                {
+                    var entities=BuildUpstandLabel(db,item.Layout,annotation.Dimensions,"0",style);
+                    try
+                    {
+                        var text=entities.OfType<DBText>().Single();
+                        text.Rotation=0;text.IsMirroredInX=false;text.IsMirroredInY=false;text.AdjustAlignment(db);
+                        var bounds=text.GeometricExtents;
+                        sizes.Add(new CantileverTextSize(bounds.MaxPoint.X-bounds.MinPoint.X,bounds.MaxPoint.Y-bounds.MinPoint.Y));
+                    }
+                    finally { foreach(var entity in entities) entity.Dispose(); }
+                }
+            }
+            return sizes;
+        }
         // V0.5-only orthogonal leader adapter. Shared node rules are unchanged.
         // BuildUpstandLabel supplies TEXT, phi symbol, slash and both LINE pieces.
         private static List<Entity> BuildCantileverLabel(Database db,Transaction tr,UpstandLabelLayout label,
@@ -163,9 +192,10 @@ namespace WallDetailTool
             {
                 var text=entities.OfType<DBText>().Single();text.Rotation=0;text.IsMirroredInX=false;text.IsMirroredInY=false;text.AdjustAlignment(db);
                 var bounds=text.GeometricExtents;var elbow=label.Leaders.Last().B;
-                double row=elbow.Y,gap=label.TextAnchor.Y-row;
-                double rise=row+gap-bounds.MinPoint.Y;
-                if(rise>0) { text.TransformBy(Matrix3d.Displacement(new Vector3d(0,rise,0)));bounds=text.GeometricExtents; }
+                double row=elbow.Y;
+                double shiftX=label.TextAnchor.X-(label.Rightward?bounds.MinPoint.X:bounds.MaxPoint.X);
+                double shiftY=label.TextAnchor.Y-bounds.MinPoint.Y;
+                text.TransformBy(Matrix3d.Displacement(new Vector3d(shiftX,shiftY,0)));bounds=text.GeometricExtents;
                 double end=label.Rightward?bounds.MaxPoint.X:bounds.MinPoint.X;
                 if(bounds.MinPoint.Y<=row || (neighbour.HasValue&&row<neighbour.Value&&bounds.MaxPoint.Y>=neighbour.Value) ||
                     (label.Rightward?end-label.TextAnchor.X:label.TextAnchor.X-end)<=1e-8)

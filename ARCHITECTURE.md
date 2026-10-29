@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-29 V0.5 按真实TEXT范围收紧布局
+
+仅改CantileverAnnotationGeometry与CantileverCadCommand。Calculate整理真实接触段；CAD复用BuildUpstandLabel测量真实DBText范围，ApplyMeasuredLayout再选择紧凑锚点、方向和行位；最后校正字形边界及水平末端。下方以板内1/4、3/4为中心目标，轴向线/实测文字范围排除重叠，必要时错高。上方不使用全节点包围盒，E远端不推远板侧规格；L/Lin界线冲突先换真实锚点，必要时只上移该规格行。旧共用标注、排筋、点筋、预设、自动F及记录源码保持a3bc0eb不变。尺寸定义/普通块/成功记录事务仍走既有服务，旧块不更新。见 [布局接口及边界](docs/V05_COMPACT_LAYOUT.md)。下方前版实现描述属于历史。
+
 ## 2026-10-28 V0.5 直角标注布局
 
 仅CantileverAnnotationGeometry有功能改动，CantileverCadCommand更新注释；几何、排筋、点筋、DrawState/DrawForm及自动F与5362b96源码一致。内跨伸出筋取自己真实内跨直段，其他组取各自钢筋真实点；竖直连接后水平出字。点筋公共竖线经过一对真实上下中心，共线分支合并，无重复LINE或规格。CAD沿用原有实测TEXT终点及正向字形，旧节点服务未改。详见 [布局契约](docs/V05_ORTHOGONAL_LAYOUT.md)。

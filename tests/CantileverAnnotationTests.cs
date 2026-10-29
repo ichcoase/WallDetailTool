@@ -49,13 +49,16 @@ internal static class CantileverAnnotationTests
             foreach(var dir in new[]{CantileverDirection.Left,CantileverDirection.Right})
             foreach(double e in new[]{30.0,600,10000})foreach(double lin in new[]{30.0,300,450,12000})
                 Run(dir,CantileverSupportMode.InnerWithAdditional,1500,200,62.5,1,e,lin,false);
+            foreach(var dir in new[]{CantileverDirection.Left,CantileverDirection.Right})
+            foreach(double factor in new[]{.5,2.0,4.0})
+                Run(dir,CantileverSupportMode.InnerWithAdditional,1500,200,62.5,1,10000,450,false,factor);
             Run(CantileverDirection.Right,CantileverSupportMode.InnerWithAdditional,1500,200,62.5,1,600,450,true);
             Run(CantileverDirection.Left,CantileverSupportMode.InnerWithAdditional,1500,200,62.5,1,600,450,true);
-            Console.WriteLine("CANTILEVER_ORTHOGONAL_ANNOTATION_PASS checks="+checks);
+            Console.WriteLine("CANTILEVER_COMPACT_ANNOTATION_PASS checks="+checks);
         }
         catch(Exception ex) { Console.WriteLine(ex);Environment.ExitCode=1; }
     }
-    static void Run(CantileverDirection direction,CantileverSupportMode mode,double length,double thickness,double height,double scale,double e,double lin,bool preview)
+    static void Run(CantileverDirection direction,CantileverSupportMode mode,double length,double thickness,double height,double scale,double e,double lin,bool preview,double widthFactor=1)
     {
         var request=new CantileverDrawRequest(direction,mode,new[]{300.0,180,250,e,0,200,lin,12,150,8,200,16,100,6,200},
             new[]{25.0,12,12,20,height},Layers,scale,4,false);
@@ -63,6 +66,9 @@ internal static class CantileverAnnotationTests
         var steel=CantileverRebarGeometry.Calculate(frame,request.Specifications,p);var dots=CantileverDots.Calculate(frame,steel,p,12,200);
         var before=Geometry(steel,dots);var record=CantileverDrawRecord.Encode(request);
         var a=CantileverAnnotationGeometry.Calculate(frame,request,p,steel,dots,37);int sign=(int)direction;
+        // Explicit measured-box fixtures, not a character-count estimate.
+        var sizes=a.Labels.Select(l=>new CantileverTextSize((l.Name=="内跨伸出筋"?600:l.Name=="面筋"||l.Name=="附加筋"?400:350)*height/62.5*scale*widthFactor,height*scale)).ToArray();
+        CantileverAnnotationGeometry.ApplyMeasuredLayout(a,sizes);
         Check(a.Labels.Count==(mode==CantileverSupportMode.InnerWithAdditional?4:3),"no empty labels");
         for(int index=0;index<steel.Bars.Count;index++)
         {
@@ -72,8 +78,8 @@ internal static class CantileverAnnotationTests
             Check(Contains(new AnnotationSegment(new AnnotationPoint(va.X,va.Y),new AnnotationPoint(vb.X,vb.Y)),start),"anchor on own actual horizontal steel");
             Check(label.HasSlash,"steel slash retained");Near(label.SlashCenter.X,label.Leaders[0].A.X,"slash at actual contact X");Near(label.SlashCenter.Y,label.Leaders[0].A.Y,"slash at actual contact Y");
             bool inner=bar.Specification.Role==CantileverBarRole.InnerExtension;bool bottom=bar.Specification.Role==CantileverBarRole.Bottom;
-            Check(label.Rightward==(inner?sign<0:sign>0),"role-specific text direction");
-            Check((inner?-sign:sign)*(end.X-start.X)>0,"correct horizontal exit side");
+            if(!bottom)Check(label.Rightward==(inner?sign<0:sign>0),"role-specific upper text direction");
+            if(!bottom)Check((inner?-sign:sign)*(end.X-start.X)>0,"correct upper horizontal exit side");
             if(inner)
             {
                 double x=(start.X-frame.SupportX)*sign;Check(x< -frame.BeamWidth&&x> -frame.BeamWidth-p.E,"inner extension contact strictly in inner span");
@@ -83,11 +89,12 @@ internal static class CantileverAnnotationTests
             if(bottom)Check(end.Y<frame.TopY-p.Thickness,"bottom label below slab");
             else Check(end.Y>frame.TopY,"top labels above slab");
         }
-        var dotLabel=a.Labels.Single(l=>l.Name=="上下两排点筋").Layout;int pair=dots.Upper.Count-1;
+        var dotLabel=a.Labels.Single(l=>l.Name=="上下两排点筋").Layout;
+        int pair=Enumerable.Range(0,dots.Upper.Count).Single(i=>Math.Abs(dots.Upper[i].X*scale-dotLabel.Leaders[0].A.X)<1e-7);
         Check(dotLabel.Leaders.Count==2,"one merged vertical trunk and one horizontal line");
         foreach(var dot in new[]{dots.Upper[pair],dots.Lower[pair]})
             Check(Contains(new AnnotationSegment(Mm(dotLabel.Leaders[0].A,scale),Mm(dotLabel.Leaders[0].B,scale)),new AnnotationPoint(dot.X,dot.Y)),"both true dot centres connected");
-        Check(dotLabel.Rightward==(sign<0),"dot text on support side");Check(dotLabel.Leaders.Last().A.Y/scale<frame.TopY-p.Thickness,"dot text below slab");
+        Check(dotLabel.Leaders.Last().A.Y/scale<frame.TopY-p.Thickness,"dot text below slab");
         int total=dots.Upper.Count+dots.Lower.Count;
         Check(dotLabel.Text==(total==2?"点筋 2φ6":"点筋 φ6@200"),"actual total count semantics unchanged");
         foreach(var item in a.Labels)
@@ -98,20 +105,73 @@ internal static class CantileverAnnotationTests
             Near(first.B.X,last.A.X,"joint X");Near(first.B.Y,last.A.Y,"joint Y");
             Check(Math.Abs(first.B.Y-first.A.Y)>1e-8&&Math.Abs(last.B.X-last.A.X)>1e-8,"no zero segments");
             Check(label.TextAnchor.Y>last.A.Y,"text above its horizontal line");
-            var text=Mm(label.TextAnchor,scale);
-            Check(label.Rightward?text.X>steel.Bars.SelectMany(b=>b.Vertices).Max(v=>v.Point.X):text.X<steel.Bars.SelectMany(b=>b.Vertices).Min(v=>v.Point.X),"text outside all vertical leader columns");
+            var size=sizes[a.Labels.IndexOf(item)];
+            Near(Math.Abs(last.B.X-last.A.X),size.Width+Math.Max(4,.08*height)*scale,"only measured width plus small gap");
+            Near(Math.Abs(label.TextAnchor.X-last.A.X),Math.Max(4,.08*height)*scale,"text close to elbow");
+            double centre=(label.TextAnchor.X-frame.SupportX*scale)*sign+(label.Rightward?sign:-sign)*size.Width/2;
+            if(length>=1500&&height<=62.5&&widthFactor<=2&&item.Name=="底筋")Check(centre>length*scale/2&&centre<length*scale,"bottom text in free half");
+            if(length>=1500&&height<=62.5&&widthFactor<=2&&item.Name=="上下两排点筋")Check(centre>0&&centre<length*scale/2,"dot text in support half");
+            double left=(label.Rightward?label.TextAnchor.X:label.TextAnchor.X-size.Width)/scale,right=left+size.Width/scale;
+            double lower=label.TextAnchor.Y/scale,upper=lower+size.Height/scale;
             foreach(var other in a.Labels)
             {
                 if(ReferenceEquals(item,other))continue;
+                var os=sizes[a.Labels.IndexOf(other)];var ol=other.Layout;
+                double otherLeft=(ol.Rightward?ol.TextAnchor.X:ol.TextAnchor.X-os.Width)/scale;
+                Check(!(left<otherLeft+os.Width/scale-1e-7&&right>otherLeft+1e-7&&lower<(ol.TextAnchor.Y+os.Height)/scale-1e-7&&upper>ol.TextAnchor.Y/scale+1e-7),"measured text boxes do not overlap");
+                foreach(var s in ol.Leaders)Check(!Hits(new AnnotationSegment(Mm(s.A,scale),Mm(s.B,scale)),left,right,lower,upper),"leaders do not cross another measured text box");
                 foreach(var s in label.Leaders)foreach(var t in other.Layout.Leaders)
                     Check(!Conflict(new AnnotationSegment(Mm(s.A,scale),Mm(s.B,scale)),new AnnotationSegment(Mm(t.A,scale),Mm(t.B,scale))),"no label intersections or duplicate collinear lines");
             }
-            if(item.Name!="底筋"&&item.Name!="上下两排点筋")Check(a.Dimensions.WidthLine.Y>label.TextAnchor.Y+1.5*height*scale,"L dimension row clears top text");
+            Check(!Hits(new AnnotationSegment(Mm(a.Dimensions.WidthA,scale),new AnnotationPoint(a.Dimensions.WidthA.X/scale,a.Dimensions.WidthLine.Y/scale)),left,right,lower,upper),"L support extension clears spec text");
+            Check(!Hits(new AnnotationSegment(Mm(a.Dimensions.WidthB,scale),new AnnotationPoint(a.Dimensions.WidthB.X/scale,a.Dimensions.WidthLine.Y/scale)),left,right,lower,upper),"L free extension clears spec text");
+            if(a.Lin!=null)
+            {
+                Check(!Hits(new AnnotationSegment(new AnnotationPoint(a.Lin.Cutoff.X,a.Lin.Cutoff.Y),new AnnotationPoint(a.Lin.Cutoff.X,a.LinLine.Y/scale)),left,right,lower,upper),"Lin cutoff extension clears measured spec text");
+                Check(!Hits(new AnnotationSegment(new AnnotationPoint(a.Lin.BeamFace.X,a.LinLine.Y/scale),new AnnotationPoint(a.Lin.Cutoff.X,a.LinLine.Y/scale)),left,right,lower,upper),"Lin horizontal row clears spec text");
+            }
         }
         Check(before.SequenceEqual(Geometry(steel,dots)),"layout leaves steel/dots/F unchanged");
         Check(record.SequenceEqual(CantileverDrawRecord.Encode(request)),"layout leaves all saved values unchanged");
+        // Long inner ranges must not push any label farther from its elbow,
+        // or affect the lower layout (whose contacts come only from slab bars).
+        if(mode==CantileverSupportMode.InnerWithAdditional&&e>=600)
+        {
+            var inner=a.Labels.Single(l=>l.Name=="内跨伸出筋").Layout;
+            double local=(inner.Leaders[0].A.X/scale-frame.SupportX)*sign;
+            Check(local>=-frame.BeamWidth-Math.Max(lin+Math.Max(8,.15*height),Math.Max(90,3*height))-1e-7,"inner anchor bounded by Lin clearance and height, not remote E");
+        }
+        if(mode==CantileverSupportMode.InnerWithAdditional&&e==10000)
+        {
+            var values=Enumerable.Range(0,15).Select(i=>request.Value(i)).ToArray();values[3]=600;
+            var shorter=new CantileverDrawRequest(direction,mode,values,new[]{25.0,12,12,20,height},Layers,scale,4,false);
+            var sp=shorter.Inputs(length,thickness);var ss=CantileverRebarGeometry.Calculate(frame,shorter.Specifications,sp);
+            var sd=CantileverDots.Calculate(frame,ss,sp,12,200);
+            var sa=CantileverAnnotationGeometry.Calculate(frame,shorter,sp,ss,sd,37);
+            CantileverAnnotationGeometry.ApplyMeasuredLayout(sa,sizes);
+            foreach(string name in new[]{"底筋","上下两排点筋","附加筋"})
+            {
+                var first=a.Labels.Single(l=>l.Name==name).Layout;var second=sa.Labels.Single(l=>l.Name==name).Layout;
+                Near(first.TextAnchor.X,second.TextAnchor.X,"E does not push slab labels X");
+                Near(first.TextAnchor.Y,second.TextAnchor.Y,"E does not push slab label rows");
+                Near(first.Leaders[0].A.X,second.Leaders[0].A.X,"E does not move slab label contacts");
+            }
+        }
+        var mirrorFrame=new CantileverFrame((CantileverDirection)(-sign),frame.SupportX,frame.TopY,frame.BeamWidth);
+        var mirroredSteel=CantileverRebarGeometry.Calculate(mirrorFrame,request.Specifications,p);
+        var mirroredDots=CantileverDots.Calculate(mirrorFrame,mirroredSteel,p,12,200);
+        var mirrorRequest=new CantileverDrawRequest((CantileverDirection)(-sign),mode,new[]{300.0,180,250,e,0,200,lin,12,150,8,200,16,100,6,200},new[]{25.0,12,12,20,height},Layers,scale,4,false);
+        var mirrored=CantileverAnnotationGeometry.Calculate(mirrorFrame,mirrorRequest,p,mirroredSteel,mirroredDots,37);
+        CantileverAnnotationGeometry.ApplyMeasuredLayout(mirrored,sizes);
+        for(int i=0;i<a.Labels.Count;i++)
+        {
+            Near(a.Labels[i].Layout.TextAnchor.X+mirrored.Labels[i].Layout.TextAnchor.X,2*frame.SupportX*scale,"mirrored text position");
+            Near(a.Labels[i].Layout.TextAnchor.Y,mirrored.Labels[i].Layout.TextAnchor.Y,"mirrored text row");
+        }
         if(preview) SavePreview(direction,steel,dots,a,frame,p);
     }
+    static bool Hits(AnnotationSegment s,double left,double right,double bottom,double top)
+    { return Math.Max(s.A.X,s.B.X)>left+1e-7&&Math.Min(s.A.X,s.B.X)<right-1e-7&&Math.Max(s.A.Y,s.B.Y)>bottom+1e-7&&Math.Min(s.A.Y,s.B.Y)<top-1e-7; }
     static void SavePreview(CantileverDirection dir,CantileverRebarLayout steel,CantileverDotLayout dots,CantileverAnnotationResult a,CantileverFrame frame,CantileverPathInputs p)
     {
         // Pure-layout preview only: no AutoCAD or approximation of its TEXT extents.
@@ -132,6 +192,6 @@ internal static class CantileverAnnotationTests
             var q=item.Layout.TextAnchor;lines.Add("<text x='"+n(x(q.X))+"' y='"+n(y(q.Y)-4)+"' text-anchor='"+(item.Layout.Rightward?"start":"end")+"' font-family='Microsoft YaHei' font-size='16'>"+item.Layout.Text+"</text>");
         }
         lines.Add("<text x='20' y='30' font-size='18'>Pure layout preview: "+dir+"; schematic steel arcs; CAD TEXT extents require user verification</text></svg>");
-        File.WriteAllLines(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"cantilever-orthogonal-"+dir+".svg"),lines);
+        File.WriteAllLines(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"cantilever-compact-"+dir+".svg"),lines);
     }
 }
