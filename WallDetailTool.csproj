@@ -41,6 +41,8 @@
     <Compile Include="CantileverCadCommand.cs" />
     <Compile Include="EndLengthAnnotationGeometry.cs" />
     <Compile Include="EndLengthAnnotationCad.cs" />
+    <Compile Include="RectangleInputGeometry.cs" />
+    <Compile Include="RectangleInputCad.cs" />
     <Compile Include="RebarCommands.cs" />
     <Compile Include="RebarPalette.cs" />
     <Compile Include="DrawingData.cs" />

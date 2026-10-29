@@ -9,7 +9,7 @@ namespace WallDetailTool
     {
         private readonly CantileverDrawState state;
         private readonly TextBox[] fields=new TextBox[15];
-        private readonly ComboBox direction,mode,units;
+        private readonly ComboBox direction,mode,units,input;
         private readonly double normalScale;
         private readonly int unitCode;
         private readonly bool requiresChoice;
@@ -20,15 +20,17 @@ namespace WallDetailTool
         {
             this.state=state;normalScale=scale;this.unitCode=unitCode;requiresChoice=choice;
             Name="CantileverDrawForm";Text="WallDetailTool V0.5 普通悬挑板";
-            ClientSize=new Size(960,720);AutoScaleMode=AutoScaleMode.Dpi;
+            ClientSize=new Size(960,760);AutoScaleMode=AutoScaleMode.Dpi;
             FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;MinimizeBox=false;StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=4,Padding=new Padding(14) };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,52));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,48));
-            foreach(float h in new[]{80f,450f,110f,50f}) root.RowStyles.Add(new RowStyle(SizeType.Absolute,h));
-            var selectors=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=2 };
+            foreach(float h in new[]{120f,450f,110f,50f}) root.RowStyles.Add(new RowStyle(SizeType.Absolute,h));
+            var selectors=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=3 };
             selectors.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,25));selectors.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,75));
             direction=Choice("Direction",new[]{"向右伸出","向左伸出"},state.Saved!=null&&state.Saved.Direction==CantileverDirection.Left?1:0);
             mode=Choice("Mode",new[]{"1 无内跨 · 支座端向上","2 无内跨 · 支座端向下","3 全部由内跨板伸出","4 内跨伸出筋＋独立附加筋"},state.Saved==null?0:(int)state.Saved.Mode-1);
+            input=Choice("InputMethod",new[]{"选择已有轮廓","两点矩形（仅局部）"},0);
+            Row(selectors,2,"输入方式",input);
             Row(selectors,0,"方向",direction);Row(selectors,1,"支座模式",mode);
             root.Controls.Add(selectors,0,0);root.SetColumnSpan(selectors,2);
             var grid=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=2,RowCount=15 };
@@ -63,6 +65,7 @@ namespace WallDetailTool
                 catch(Exception ex) { MessageBox.Show(this,ex.Message,"参数无效",MessageBoxButtons.OK,MessageBoxIcon.Warning); } };
             buttons.Controls.Add(cancel);buttons.Controls.Add(generate);root.Controls.Add(buttons,0,3);root.SetColumnSpan(buttons,2);
             Controls.Add(root);AcceptButton=generate;CancelButton=cancel;
+            input.SelectedIndexChanged+=(s,e)=>generate.Text=input.SelectedIndex==1?"点取两点并生成":"选择悬挑轮廓并生成";
             mode.SelectedIndexChanged+=(s,e)=>RefreshMode();direction.SelectedIndexChanged+=(s,e)=>RefreshMode();RefreshMode();
         }
         private void RefreshMode()
@@ -84,7 +87,7 @@ namespace WallDetailTool
             if(requiresChoice&&units.SelectedIndex<0) throw new ArgumentException("请明确选择本次图纸单位解释。");
             bool mm=requiresChoice&&(normalScale<=0||units.SelectedIndex==1);
             return state.Create(fields.Select(f=>f.Text).ToArray(),direction.SelectedIndex==0?CantileverDirection.Right:CantileverDirection.Left,
-                (CantileverSupportMode)(mode.SelectedIndex+1),mm?1:requiresChoice?normalScale:1,unitCode,mm);
+                (CantileverSupportMode)(mode.SelectedIndex+1),mm?1:requiresChoice?normalScale:1,unitCode,mm,input.SelectedIndex==1);
         }
         private static ComboBox Choice(string name,string[] items,int selected)
         { var c=new ComboBox { Name=name,Dock=DockStyle.Fill,DropDownStyle=ComboBoxStyle.DropDownList };c.Items.AddRange(items);c.SelectedIndex=selected;return c; }

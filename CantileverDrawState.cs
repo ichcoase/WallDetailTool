@@ -6,6 +6,7 @@ namespace WallDetailTool
     internal sealed class CantileverDrawRequest
     {
         internal readonly CantileverDirection Direction;
+        internal readonly bool TwoPointRectangle;
         internal readonly CantileverSupportMode Mode;
         internal readonly CantileverSpecifications Specifications;
         internal readonly double Scale;
@@ -14,7 +15,7 @@ namespace WallDetailTool
         private readonly double[] values,advanced;
         private readonly string[] layers;
         internal CantileverDrawRequest(CantileverDirection direction,CantileverSupportMode mode,double[] values,
-            double[] advanced,string[] layers,double scale,int unitCode,bool mmOverride)
+            double[] advanced,string[] layers,double scale,int unitCode,bool mmOverride,bool twoPointRectangle=false)
         {
             new CantileverFrame(direction,0,0,1);
             if(values==null||values.Length!=15||advanced==null||advanced.Length!=5||layers==null||layers.Length!=4)
@@ -38,7 +39,7 @@ namespace WallDetailTool
                 mode==CantileverSupportMode.InnerWithAdditional?new CantileverSpecification(CantileverBarRole.Additional,values[11],values[12]):null);
             Scale=CantileverNumbers.Positive(scale);
             if(unitCode<0||unitCode>32767||(mmOverride&&scale!=1)) throw new ArgumentException("单位解释无效。");
-            Direction=direction;Mode=mode;UnitCode=unitCode;OverrideMillimetres=mmOverride;
+            TwoPointRectangle=twoPointRectangle;Direction=direction;Mode=mode;UnitCode=unitCode;OverrideMillimetres=mmOverride;
         }
         internal double Value(int i) { return values[i]; }
         internal double Advanced(int i) { return advanced[i]; }
@@ -102,7 +103,7 @@ namespace WallDetailTool
             if(saved!=null) for(int i=0;i<5;i++) advanced[i]=saved.Advanced(i);
             Initial[4]="";
         }
-        internal CantileverDrawRequest Create(string[] text,CantileverDirection direction,CantileverSupportMode mode,double scale,int units,bool mmOverride)
+        internal CantileverDrawRequest Create(string[] text,CantileverDirection direction,CantileverSupportMode mode,double scale,int units,bool mmOverride,bool twoPointRectangle=false)
         {
             if(text==null||text.Length!=15) throw new ArgumentException("参数项数错误。");
             var values=new double[15];
@@ -117,7 +118,7 @@ namespace WallDetailTool
                     double.IsNaN(values[i])||double.IsInfinity(values[i])||values[i]<=0)
                     throw new ArgumentException("请填写所有启用项的有效正数毫米值。");
             }
-            return new CantileverDrawRequest(direction,mode,values,advanced,layers,scale,units,mmOverride);
+            return new CantileverDrawRequest(direction,mode,values,advanced,layers,scale,units,mmOverride,twoPointRectangle);
         }
     }
 }

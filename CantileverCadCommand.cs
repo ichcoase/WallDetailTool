@@ -45,18 +45,21 @@ namespace WallDetailTool
             {
                 var ed=doc.Editor;
                 ed.WriteMessage("\n仅选择悬挑板侧局部矩形或向梁开口U形轮廓；原混凝土只读。1mm="+r.Scale.ToString("g")+"CAD单位。");
+                BeamSideGeometry g;double elevation;
+                if(r.TwoPointRectangle) { var rectangle=PickNodeRectangle(doc,r.UnitCode,r.Scale);if(rectangle==null)return;g=rectangle.Side((BeamSideDirection)(int)r.Direction);elevation=rectangle.Elevation; }
+                else {
                 var selected=ed.GetSelection(new PromptSelectionOptions { MessageForAdding="\n选择悬挑板局部轮廓（不含内跨和梁外框）：" });
                 if(selected.Status!=PromptStatus.OK) return;
-                double elevation;var unit=new BeamSideUnitTransform(r.Scale);
+                var unit=new BeamSideUnitTransform(r.Scale);
                 var source=ReadBeamSideSegments(doc.Database,selected.Value.GetObjectIds(),unit,out elevation);
                 var found=BeamSideContourRecognizer.Recognize(source,elevation,(BeamSideDirection)(int)r.Direction,false);
-                BeamSideGeometry g;
                 if(found.Candidates.Count==1) g=found.Candidates[0];
                 else
                 {
                     var pick=ed.GetPoint("\n存在多个悬挑区域，请点选目标区域内部：");if(pick.Status!=PromptStatus.OK) return;
                     var point=pick.Value.TransformBy(ed.CurrentUserCoordinateSystem);
                     g=found.SelectCandidate(point.X/r.Scale,point.Y/r.Scale);
+                }
                 }
                 double x=r.Direction==CantileverDirection.Right?g.Block.Left:g.Block.Right;
                 var frame=new CantileverFrame(r.Direction,x,g.Block.Top,r.Value(0));var p=r.Inputs(g.Block.Width,g.Block.Height);

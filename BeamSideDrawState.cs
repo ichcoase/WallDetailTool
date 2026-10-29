@@ -6,13 +6,14 @@ namespace WallDetailTool
     internal sealed class BeamSideDrawRequest
     {
         internal readonly BeamSideDirection Direction;
+        internal readonly bool TwoPointRectangle;
         internal readonly bool FullSection,MillimetreOverride,AnnotationSideManual;
         internal readonly BeamSideRebarParameters Parameters;
         internal readonly double DrawingUnitsPerMillimetre;
         internal readonly int SourceUnitCode;
         private readonly string[] layers;
         internal BeamSideDrawRequest(BeamSideDirection direction,bool full,BeamSideRebarParameters p,
-            double scale,int sourceUnitCode,bool mmOverride,string[] layers,bool annotationSideManual=true)
+            double scale,int sourceUnitCode,bool mmOverride,string[] layers,bool annotationSideManual=true,bool twoPointRectangle=false)
         {
             if((direction!=BeamSideDirection.Left&&direction!=BeamSideDirection.Right)||p==null)
                 throw new InvalidOperationException("节点方向或参数无效。");
@@ -23,7 +24,8 @@ namespace WallDetailTool
             foreach(string name in layers)
                 if(String.IsNullOrWhiteSpace(name)||name.IndexOfAny(new[]{'<','>','/','\\','"',':',';','?','*','|',','})>=0)
                     throw new InvalidOperationException("图层名称无效。");
-            Direction=direction;FullSection=full;Parameters=p;DrawingUnitsPerMillimetre=scale;
+            if(twoPointRectangle&&full)throw new InvalidOperationException("两点矩形仅支持局部模式。");
+            TwoPointRectangle=twoPointRectangle;Direction=direction;FullSection=full;Parameters=p;DrawingUnitsPerMillimetre=scale;
             AnnotationSideManual=annotationSideManual;
             if(!annotationSideManual&&p.AnnotationRight!=(direction==BeamSideDirection.Right))
                 throw new InvalidOperationException("自动标注侧须跟随伸出方向。");
@@ -115,7 +117,7 @@ namespace WallDetailTool
             InitialText=Array.ConvertAll(numbers,v=>v>0?v.ToString("g",CultureInfo.CurrentCulture):"");
         }
         internal BeamSideDrawRequest Create(string[] text,BeamSideDirection direction,bool full,bool topUp,bool bottomUp,
-            bool annotationRight,double scale,int unitCode,bool mmOverride,bool annotationSideManual=true)
+            bool annotationRight,double scale,int unitCode,bool mmOverride,bool annotationSideManual=true,bool twoPointRectangle=false)
         {
             if(text==null||text.Length!=6) throw new InvalidOperationException("参数项数无效。");
             var v=new double[6];
@@ -123,7 +125,7 @@ namespace WallDetailTool
                 if(!double.TryParse(text[i],NumberStyles.Float,CultureInfo.CurrentCulture,out v[i])||double.IsNaN(v[i])||double.IsInfinity(v[i])||v[i]<=0)
                     throw new InvalidOperationException("请填写有效正数毫米值；L、V 首次必须明确输入。");
             var p=new BeamSideRebarParameters(v[4],v[5],advanced[0],v[0],v[1],v[2],v[3],advanced[1],advanced[2],advanced[3],topUp,bottomUp,annotationRight,advanced[4]);
-            return new BeamSideDrawRequest(direction,full,p,scale,unitCode,mmOverride,layers,annotationSideManual);
+            return new BeamSideDrawRequest(direction,full,p,scale,unitCode,mmOverride,layers,annotationSideManual,twoPointRectangle);
         }
     }
 }

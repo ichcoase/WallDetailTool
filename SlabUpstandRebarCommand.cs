@@ -16,14 +16,17 @@ namespace WallDetailTool
         public void GenerateSlabUpstandRebarForTest()
         { DrawSlabCore(null); }
 
-        private static void DrawSlabCore(SlabDrawValues drawValues,bool hanging=false)
+        private static void DrawSlabCore(SlabDrawValues drawValues,bool hanging=false,bool twoPointRectangle=false,int expectedUnit=-1)
         {
             Document doc=CadApplication.DocumentManager.MdiActiveDocument;
             if (doc==null) return;
             Editor ed=doc.Editor;
             try
             {
-                SlabUpstandGeometry g=SelectSlabGeometry(doc,drawValues==null?(double?)null:drawValues.LocalThickness,hanging);
+                CheckRectangleTarget(doc,expectedUnit);
+                var rectangle=twoPointRectangle?PickNodeRectangle(doc,expectedUnit,1):null;
+                SlabUpstandGeometry g=twoPointRectangle?(rectangle==null?null:rectangle.Slab(hanging,drawValues.LocalThickness)):
+                    SelectSlabGeometry(doc,drawValues==null?(double?)null:drawValues.LocalThickness,hanging);
                 if (g==null) return;
                 // Window requests own their accepted advanced settings. Only the
                 // legacy direct test path reads user defaults during generation.
@@ -100,6 +103,7 @@ namespace WallDetailTool
                 var entities=new List<Entity>();
                 try
                 {
+                    CheckRectangleTarget(doc,expectedUnit);
                     ed.Command("_.UNDO","_Begin");
                     try
                     {

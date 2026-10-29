@@ -1,6 +1,25 @@
 # V0.5 普通悬挑板候选交付验证
 
-## 2026-10-29 端部长度TEXT（当前交付，基线55a6e99）
+## 2026-10-29 两点矩形（当前交付，基线3393e76）
+
+新增两点输入并保留尺寸等高、端部数字，详见 [规则及证据边界](../docs/V05_TWO_POINT_RECTANGLE.md)。下方DLL为历史交付。
+
+- [x] RectangleInputTests：RECTANGLE_INPUT_PASS checks=3365。六节点方向、对角顺序、非零/负基点、Elevation、单位、同尺寸局部矩形计算一致、边界未知、退化/取消/文档单位切换、UCS/视图保护及窗口切换/完整模式禁用/请求/控件可见性。
+- [x] EndLengthAnnotationTests 2628项，CantileverAnnotationTests 87644项，CantileverGeometryTests 4714项，CantileverWindowTests 2928项通过。
+- [x] 原五组PASS，HangingNodeTests 2974项、NodeDrawWindowTests 158项，V0.4四组837/51529/1825/3180项通过。共16组实际编译并执行EXE。
+- [x] 既有排筋、点筋、方向、等高尺寸及端部数字服务源码与3393e76一致；输入方式不改变原成功记录格式。独立WinForms窗口预览已查看。
+- [x] Release/x64/.NET4.8、AutoCAD2023引用新目录构建，新增Compile项，无CAD托管程序集副本。原测试CS0649和PNG配置警告保留。
+- [ ] CAD原生拾取、矩形预示、坐标转换实际表现、两次取消、无空块/记录、多文档、一次UNDO/REDO及2023/2024用户验收均未运行。纯测试不代替CAD动态验证。
+
+DLL：`D:\Waste\WallDtailTool\bin\V05TwoPoint20261029\WallDetailTool.dll`
+
+SHA-256：`0DAFD85F69A152B175D80BEDDABFB290E08AC57EBA7D739A180435958DE5098D`。
+
+单一验收：新图加载此DLL，在节点窗口选“两点矩形”，确定参数后点对角点；检查只生成配筋普通块、不生成混凝土矩形，执行一次UNDO及REDO。再试第二点Esc应无新块或参数写入。旧DLL占用时由用户自行保存后重启CAD。本轮未启动/关闭CAD、不重试隔离加载、不改安全设置，不推送、不打标签。
+
+## 以下为3393e76及更早交付历史
+
+## 2026-10-29 端部长度TEXT（历史交付，基线55a6e99）
 
 承接55a6e99，不覆盖上次提交；新DLL同时包含Lin/L等高及本次端部文字。需求及证据边界见 [端部文字](../docs/V05_END_LENGTH_TEXT.md)。
 

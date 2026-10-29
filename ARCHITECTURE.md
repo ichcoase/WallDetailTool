@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-29 两点矩形适配
+
+RectangleInputCad封装GetPoint/GetCorner，不创建实体，捕获UCS转WCS并检查目标文档/单位/正交顶视图。RectangleInputGeometry标准化内存矩形，再调用既有Upstand/SlabUpstand/BeamSide识别器；方向仍由NodeOrientation或既有侧向适配，原排筋算法不改。三类请求增加只读TwoPointRectangle；旧请求/记录读取默认轮廓，不更改DWG记录格式。原生成器仅在几何输入处分支，事务、块、标注、成功记录共用。详见 [接口与限制](docs/V05_TWO_POINT_RECTANGLE.md)。
+
 ## 2026-10-29 共用端部数值TEXT
 
 新增EndLengthAnnotationGeometry/Cad，分别适配悬挑板V投影、板上/下L水平直段、梁侧V竖直直段。统一原生TEXT测量、0/90°正向字形、单位/留白、按实际范围避让和可选子事务；三个生成器仅在本次新块中追加文字。已有规格/尺寸服务及排筋算法不改，板下继续由NodeOrientation反射共用板上结果；已生成坐标不重复换算。几何及参数记录与55a6e99一致，Lin/L共Y计算保留。接口及旧板节点单位边界见 [端部文字](docs/V05_END_LENGTH_TEXT.md)。

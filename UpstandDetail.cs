@@ -148,14 +148,16 @@ namespace WallDetailTool
         [CommandMethod("WDTUPDRAW", CommandFlags.Session)]
         public void DrawUpstand() { ShowNodeForm(false,false); }
 
-        internal static void DrawUpstandCore(UpstandPanelValues panelValues,bool hanging=false)
+        internal static void DrawUpstandCore(UpstandPanelValues panelValues,bool hanging=false,bool twoPointRectangle=false,int expectedUnit=-1)
         {
             Document doc = CadApplication.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
             Editor ed = doc.Editor;
             try
             {
-                UpstandGeometry geometry=SelectUpstandGeometry(doc,hanging);
+                CheckRectangleTarget(doc,expectedUnit);
+                var rectangle=twoPointRectangle?PickNodeRectangle(doc,expectedUnit,1):null;
+                UpstandGeometry geometry=twoPointRectangle?(rectangle==null?null:rectangle.Beam(hanging)):SelectUpstandGeometry(doc,hanging);
                 if (geometry==null) return;
                 DetailParams values = panelValues == null ? ReadLast(doc.Database,hanging) : FromPanel(panelValues);
                 {
@@ -193,6 +195,7 @@ namespace WallDetailTool
                         }
                         double worldBase=NodeOrientation.Y(geometry.BaseY,hanging);
                         var failures=new List<string>();
+                        CheckRectangleTarget(doc,expectedUnit);
                         ed.Command("_.UNDO","_Begin");
                         try
                         {

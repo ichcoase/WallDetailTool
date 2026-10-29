@@ -66,7 +66,7 @@ namespace WallDetailTool
                 }
                 var state=new NodeDrawState(slab,hanging,text[0],text[1]);
                 NodeDrawRequest request;
-                using(var dialog=new NodeDrawForm(state,AdvancedValues(saved),AdvancedValues(saved)))
+                using(var dialog=new NodeDrawForm(state,AdvancedValues(saved),AdvancedValues(saved),(int)doc.Database.Insunits))
                 {
                     if(CadApplication.ShowModalDialog(dialog)!=DialogResult.OK) return;
                     request=dialog.Request;
@@ -76,7 +76,7 @@ namespace WallDetailTool
                 // document. No mutable global fields or command-string queue.
                 await CadApplication.DocumentManager.ExecuteInCommandContextAsync(_=>
                 {
-                    if(ReferenceEquals(doc,CadApplication.DocumentManager.MdiActiveDocument))
+                    if(RectangleInputGeometry.TargetMatches(doc,CadApplication.DocumentManager.MdiActiveDocument,request.UnitCode,(int)doc.Database.Insunits))
                         ExecuteNodeRequest(request);
                     else doc.Editor.WriteMessage("\n目标图纸已切换，本次绘制请求已放弃，请重新打开窗口。");
                     return Task.CompletedTask;
@@ -95,12 +95,12 @@ namespace WallDetailTool
                 DrawSlabCore(new SlabDrawValues { LineDiameter=r.Value(0),LineSpacing=r.Value(1),
                     DotDiameter=r.Value(2),DotSpacing=r.Value(3),LocalThickness=r.Value(4),H=r.Value(5),
                     LeftLength=r.Value(6),RightLength=r.Value(7),Cover=r.Advanced(0),LineDisplayWidth=r.Advanced(1),
-                    DotDisplayDiameter=r.Advanced(2),Radius=r.Advanced(3),TextHeight=r.Advanced(4) },r.Hanging);
+                    DotDisplayDiameter=r.Advanced(2),Radius=r.Advanced(3),TextHeight=r.Advanced(4) },r.Hanging,r.TwoPointRectangle,r.UnitCode);
             else
                 DrawUpstandCore(new UpstandPanelValues { LineDiameter=r.Value(0),LineSpacing=r.Value(1),
                     DotDiameter=r.Value(2),DotSpacing=r.Value(3),LeftAnchor=r.Value(4),RightAnchor=r.Value(5),
                     Cover=r.Advanced(0),LineDisplayWidth=r.Advanced(1),DotDisplayDiameter=r.Advanced(2),
-                    Radius=r.Advanced(3),TextHeight=r.Advanced(4) },r.Hanging);
+                    Radius=r.Advanced(3),TextHeight=r.Advanced(4) },r.Hanging,r.TwoPointRectangle,r.UnitCode);
         }
     }
 }

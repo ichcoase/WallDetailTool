@@ -9,7 +9,8 @@ namespace WallDetailTool
     {
         private readonly BeamSideDrawState state;
         private readonly TextBox[] fields=new TextBox[6];
-        private readonly ComboBox direction,mode,top,bottom,annotation,units;
+        private readonly ComboBox direction,mode,top,bottom,annotation,units,input;
+        private int contourMode;
         private readonly BeamSideSketch sketch;
         private readonly double normalScale;
         private readonly int unitCode;
@@ -19,14 +20,16 @@ namespace WallDetailTool
         internal BeamSideDrawForm(BeamSideDrawState state,string unitName,int unitCode,double normalScale,bool requiresChoice)
         {
             this.state=state;this.unitCode=unitCode;this.normalScale=normalScale;this.requiresChoice=requiresChoice;
-            Text="WallDetailTool 梁侧挂板";Name="BeamSideDrawForm";ClientSize=new Size(660,770);
+            Text="WallDetailTool 梁侧挂板";Name="BeamSideDrawForm";ClientSize=new Size(660,880);
             AutoScaleMode=AutoScaleMode.Dpi;FormBorderStyle=FormBorderStyle.FixedDialog;
             MaximizeBox=false;MinimizeBox=false;StartPosition=FormStartPosition.CenterParent;
             var content=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=1,RowCount=7,Padding=new Padding(16) };
-            foreach(float height in new[]{72f,124f,70f,204f,108f,78f,48f}) content.RowStyles.Add(new RowStyle(SizeType.Absolute,height));
-            var header=Grid(2);
+            foreach(float height in new[]{108f,124f,70f,204f,108f,78f,48f}) content.RowStyles.Add(new RowStyle(SizeType.Absolute,height));
+            var header=Grid(3);
             direction=Choice("Direction",new[]{"向右伸出","向左伸出"},state.Saved!=null&&state.Saved.Direction==BeamSideDirection.Left?1:0);
             mode=Choice("Mode",new[]{"局部轮廓（矩形 / 开放 U）","完整梁与块体截面"},state.Saved==null?-1:state.Saved.FullSection?1:0);
+            input=Choice("InputMethod",new[]{"选择已有轮廓","两点矩形（仅局部）"},0);
+            Row(header,2,"输入方式",input);
             Row(header,0,"块体伸出方向",direction);Row(header,1,"轮廓识别模式",mode);content.Controls.Add(header,0,0);
             sketch=new BeamSideSketch { Name="Sketch",Dock=DockStyle.Fill };content.Controls.Add(sketch,0,1);
             description=new Label { Name="Description",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft };content.Controls.Add(description,0,2);
@@ -68,6 +71,12 @@ namespace WallDetailTool
             buttons.Controls.Add(cancel);buttons.Controls.Add(generate);content.Controls.Add(buttons,0,6);
             Controls.Add(content);AcceptButton=generate;CancelButton=cancel;
             foreach(var selector in new[]{direction,mode,top,bottom,annotation}) selector.SelectedIndexChanged+=(s,e)=>RefreshSketch();
+            input.SelectedIndexChanged+=(s,e)=> {
+                generate.Text=input.SelectedIndex==1?"点取两点并生成":"选择轮廓并生成";
+                if(input.SelectedIndex==1) { contourMode=mode.SelectedIndex;mode.SelectedIndex=0;mode.Enabled=false; }
+                else { mode.Enabled=true;mode.SelectedIndex=contourMode; }
+                RefreshSketch();
+            };
             RefreshSketch();
         }
         private static ComboBox Choice(string name,string[] items,int index)
@@ -95,7 +104,7 @@ namespace WallDetailTool
             bool mmOverride=requiresChoice&&(normalScale<=0||units.SelectedIndex==1);
             double scale=mmOverride||!requiresChoice?1:normalScale;
             return state.Create(Array.ConvertAll(fields,t=>t.Text),direction.SelectedIndex==0?BeamSideDirection.Right:BeamSideDirection.Left,
-                mode.SelectedIndex==1,top.SelectedIndex==1,bottom.SelectedIndex==0,AnnotationRight,scale,unitCode,mmOverride,annotation.SelectedIndex!=0);
+                mode.SelectedIndex==1,top.SelectedIndex==1,bottom.SelectedIndex==0,AnnotationRight,scale,unitCode,mmOverride,annotation.SelectedIndex!=0,input.SelectedIndex==1);
         }
     }
     internal sealed class BeamSideSketch : Control

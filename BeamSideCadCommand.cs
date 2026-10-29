@@ -119,6 +119,7 @@ namespace WallDetailTool
         }
         private static BeamSideGeometry SelectBeamSideGeometry(Document doc,BeamSideDrawRequest r)
         {
+            if(r.TwoPointRectangle) { var rectangle=PickNodeRectangle(doc,r.SourceUnitCode,r.DrawingUnitsPerMillimetre);return rectangle==null?null:rectangle.Side(r.Direction); }
             var ed=doc.Editor;
             var options=new PromptSelectionOptions { MessageForAdding=r.FullSection?"\n选择相连的完整梁/块体截面：":"\n选择局部矩形或向梁开口 U（源图元只读）：" };
             var selected=ed.GetSelection(options);if(selected.Status!=PromptStatus.OK) return null;

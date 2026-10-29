@@ -10,6 +10,8 @@ namespace WallDetailTool
     internal sealed class NodeDrawForm : Form
     {
         private readonly NodeDrawState state;
+        private readonly ComboBox input;
+        private readonly int unitCode;
         private readonly double[][] advanced;
         private readonly TextBox[] fields;
         private readonly Label hLabel,description;
@@ -17,15 +19,15 @@ namespace WallDetailTool
         private readonly Button generate;
         internal NodeDrawRequest Request { get; private set; }
 
-        internal NodeDrawForm(NodeDrawState state,double[] upAdvanced,double[] downAdvanced)
+        internal NodeDrawForm(NodeDrawState state,double[] upAdvanced,double[] downAdvanced,int unitCode=-1)
         {
-            this.state=state; advanced=new[]{(double[])upAdvanced.Clone(),(double[])downAdvanced.Clone()};
-            Name="NodeDrawForm"; ClientSize=new Size(580,state.IsSlab?670:580);
+            this.state=state;this.unitCode=unitCode; advanced=new[]{(double[])upAdvanced.Clone(),(double[])downAdvanced.Clone()};
+            Name="NodeDrawForm"; ClientSize=new Size(580,state.IsSlab?710:620);
             AutoScaleMode=AutoScaleMode.Dpi;
             FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
             StartPosition=FormStartPosition.CenterParent;
             var content=new TableLayoutPanel { Dock=DockStyle.Fill,ColumnCount=1,RowCount=5,Padding=new Padding(16) };
-            content.RowStyles.Add(new RowStyle(SizeType.Absolute,38));
+            content.RowStyles.Add(new RowStyle(SizeType.Absolute,78));
             content.RowStyles.Add(new RowStyle(SizeType.Absolute,120));
             content.RowStyles.Add(new RowStyle(SizeType.Absolute,48));
             content.RowStyles.Add(new RowStyle(SizeType.Percent,100));
@@ -37,7 +39,12 @@ namespace WallDetailTool
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,90));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
             header.Controls.Add(new Label { Text="节点方向",AutoSize=true,Anchor=AnchorStyles.Left },0,0);
-            header.Controls.Add(direction,1,0); content.Controls.Add(header,0,0);
+            header.Controls.Add(direction,1,0);
+            input=new ComboBox { Name="InputMethod",Dock=DockStyle.Fill,DropDownStyle=ComboBoxStyle.DropDownList };
+            input.Items.AddRange(new object[]{"选择已有轮廓","两点矩形（仅局部）"});input.SelectedIndex=0;
+            header.RowCount=2;
+            header.Controls.Add(new Label { Text="输入方式",AutoSize=true,Anchor=AnchorStyles.Left },0,1);
+            header.Controls.Add(input,1,1);content.Controls.Add(header,0,0);
             sketch=new NodeSketch { Name="Sketch",Dock=DockStyle.Fill,IsSlab=state.IsSlab,Hanging=state.Hanging };
             content.Controls.Add(sketch,0,1);
             description=new Label { Name="Description",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft };
@@ -71,6 +78,7 @@ namespace WallDetailTool
                 state.Switch(direction.SelectedIndex==1,ReadText());
                 LoadDirection();
             };
+            input.SelectedIndexChanged+=(s,e)=> { state.Capture(ReadText());LoadDirection(); };
             LoadDirection();
         }
         private string[] ReadText() { return Array.ConvertAll(fields,f=>f.Text); }
@@ -83,14 +91,14 @@ namespace WallDetailTool
             if(hLabel!=null) hLabel.Text=state.HLabel;
             description.Text=state.IsSlab?
                 (state.Hanging?"钢筋向上进入楼板，在板顶附近向外弯折。":"钢筋向下进入楼板，在板底附近向外弯折。")+
-                    "\n完整截面识别板厚；局部轮廓须填写 h。水平直段从圆弧切点量起。":
+                    (input.SelectedIndex==1?"\n两点仅定义局部范围，须填写板厚h；L从切点量起。":"\n完整截面识别板厚；局部轮廓须填写 h。水平直段从圆弧切点量起。"):
                 (state.Hanging?"钢筋向上进入梁内，左右锚固长度分别输入。":"钢筋向下进入梁内，左右锚固长度分别输入。");
             sketch.Hanging=state.Hanging; sketch.Invalidate();
         }
         internal NodeDrawRequest CreateRequest()
         {
             state.Capture(ReadText());
-            return state.Request(advanced[state.Hanging?1:0]);
+            return state.Request(advanced[state.Hanging?1:0],input.SelectedIndex==1,unitCode);
         }
         private void AcceptValues()
         {
