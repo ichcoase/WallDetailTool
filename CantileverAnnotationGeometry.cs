@@ -188,6 +188,25 @@ namespace WallDetailTool
             CopyPlacement(dotLabel,bestDot);CopyPlacement(bottomLabel,bestBottom);
             // The slash follows the selected real bottom contact, not its old end.
             MoveSlash(bottomLabel,bottomLabel.Leaders[0].A.X);
+            AlignUpperDimensions(result,sizes);
+        }
+        // Route specifications first, then raise BOTH independent dimensions.
+        // Never feed this final row back into compact specification routing.
+        private static void AlignUpperDimensions(CantileverAnnotationResult result,IList<CantileverTextSize> sizes)
+        {
+            if(result.Lin==null)return;
+            double clearance=Math.Max(50*result.Scale,1.5*result.Dimensions.TextHeight);
+            double y=Math.Max(result.Dimensions.WidthLine.Y,result.LinLine.Y);
+            for(int i=0;i<result.Labels.Count;i++)
+            {
+                var label=result.Labels[i];
+                if(label.Name=="底筋"||label.Name=="上下两排点筋")continue;
+                double top=Math.Max(label.Layout.TextAnchor.Y+sizes[i].Height,
+                    label.Layout.Leaders.Max(s=>Math.Max(s.A.Y,s.B.Y)));
+                y=Math.Max(y,top+clearance);
+            }
+            result.Dimensions.WidthLine=new AnnotationPoint(result.Dimensions.WidthLine.X,y);
+            result.LinLine=new AnnotationPoint(result.LinLine.X,y);
         }
         private static void MoveSlash(UpstandLabelLayout label,double x)
         {

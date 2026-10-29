@@ -1,6 +1,24 @@
 # V0.5 普通悬挑板候选交付验证
 
-## 2026-10-29 紧凑标注（当前交付，基线a3bc0eb）
+## 2026-10-29 Lin/L上方尺寸等高（当前交付，基线f215032）
+
+用户确认及实现边界见 [等高尺寸](../docs/V05_ALIGNED_DIMENSIONS.md)。下方旧DLL均为历史交付。
+
+- [x] CantileverAnnotationTests：CANTILEVER_COMPACT_ANNOTATION_PASS checks=87644，新增左右模式④共世界Y、两组实测规格和引线共同避让、Lin/L真实长度与比例断言。保留不同L/h/字高/E/Lin、毫米/米/英寸及宽文字布局矩阵。
+- [x] CantileverGeometryTests 4714项、CantileverWindowTests 2928项；原五组PASS、HangingNodeTests 2974项、NodeDrawWindowTests 158项，V0.4四组837/51529/1825/3180项。共14组逐项编译并执行通过。
+- [x] 与f215032核对几何、点筋、DrawState/DrawForm、旧共用标注及CantileverCadCommand源码一致。唯一生产改动是规格路由结束后统一尺寸Y；沿用同一CAD尺寸样式和字高服务。
+- [x] 审查build.ps1及MSBuild/.NET4.8/本机AutoCAD2023引用，显式Release/x64新目录输出，仅DLL/PDB，无CAD程序集副本。原测试CS0649及PNG配置警告不影响通过。
+- [ ] AutoCAD2023/2024实际尺寸文字/箭头/界线及图面仍待用户验收；自动测试只证明纯布局性质。本轮未启动CAD、不重试隔离加载、不改安全设置。
+
+DLL：`D:\Waste\WallDtailTool\bin\V05AlignedDimensions20261029\WallDetailTool.dll`
+
+SHA-256：`5CF367DC08A78F98F82CA8869B117BCADE71348E6B5FFDA4468146EEBFEDA571`。
+
+用户验收：新图/副本加载此DLL，WDTCANTILEVER模式④左右各生成一处；检查Lin与L同一水平线、文字同高同样式，两组钢筋规格及下方标注位置保持，Lin不含梁宽。增大字高再生成，确认两尺寸共同上移。旧DLL占用时由用户自行保存后重启CAD。未推送、未打标签。
+
+## 以下为f215032及更早交付历史
+
+## 2026-10-29 紧凑标注（历史交付，基线a3bc0eb）
 
 需求及实现边界见 [紧凑布局](../docs/V05_COMPACT_LAYOUT.md)，覆盖旧的全包围盒外侧出字、底筋固定端点和下方必须向外展开限制。
 

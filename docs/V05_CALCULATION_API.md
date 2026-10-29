@@ -1,5 +1,9 @@
 # V0.5 悬挑板接口与记录
 
+## 2026-10-29 最终尺寸行
+
+模式④ApplyMeasuredLayout末尾统一计算最终Dimensions.WidthLine.Y与LinLine.Y，避让两组上方文字实测上界和引线最高点。只更新尺寸行Y，保留定义点、X、Lin数值及所有规格布局；非模式④不变。CAD继续同一尺寸服务和样式。见 [等高规则](V05_ALIGNED_DIMENSIONS.md)。
+
 ## 2026-10-29 标注接口补充
 
 CantileverAnnotationGeometry.Calculate仍从正式steel/dots结果提取真实接触段，不修改输入。新增CantileverTextSize(width,height)为图形单位的实测矩形；CAD测量事务复用BuildUpstandLabel取得实际DBText.GeometricExtents，随后ApplyMeasuredLayout(result,sizes)选择紧凑真实锚点、左右方向及行位。最终BuildCantileverLabel将实际字形近侧/下侧边界对齐TextAnchor，末条水平线到实测远侧边。无字符数估算、全节点包围盒推远或新设置系统。规格身份及记录接口不变。布局详见 [最新契约](V05_COMPACT_LAYOUT.md)；下方原接口中的固定底筋端点/向外出字为历史布局。

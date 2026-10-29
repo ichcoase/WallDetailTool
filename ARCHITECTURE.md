@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-29 模式④统一上方尺寸行
+
+CantileverAnnotationGeometry.ApplyMeasuredLayout完成原有规格布局后调用AlignUpperDimensions，按两组实测文字上界/引线最高点及留白确定一个最终Y，同时赋给WidthLine和LinLine。该值不反馈规格路由，Lin/L定义点及X坐标保留；非模式④返回原布局。CantileverCadCommand未改，两尺寸仍经相同BuildBeamSideDimension取得样式和字高。见 [接口与验证边界](docs/V05_ALIGNED_DIMENSIONS.md)。
+
 ## 2026-10-29 V0.5 按真实TEXT范围收紧布局
 
 仅改CantileverAnnotationGeometry与CantileverCadCommand。Calculate整理真实接触段；CAD复用BuildUpstandLabel测量真实DBText范围，ApplyMeasuredLayout再选择紧凑锚点、方向和行位；最后校正字形边界及水平末端。下方以板内1/4、3/4为中心目标，轴向线/实测文字范围排除重叠，必要时错高。上方不使用全节点包围盒，E远端不推远板侧规格；L/Lin界线冲突先换真实锚点，必要时只上移该规格行。旧共用标注、排筋、点筋、预设、自动F及记录源码保持a3bc0eb不变。尺寸定义/普通块/成功记录事务仍走既有服务，旧块不更新。见 [布局接口及边界](docs/V05_COMPACT_LAYOUT.md)。下方前版实现描述属于历史。

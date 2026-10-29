@@ -68,7 +68,21 @@ internal static class CantileverAnnotationTests
         var a=CantileverAnnotationGeometry.Calculate(frame,request,p,steel,dots,37);int sign=(int)direction;
         // Explicit measured-box fixtures, not a character-count estimate.
         var sizes=a.Labels.Select(l=>new CantileverTextSize((l.Name=="内跨伸出筋"?600:l.Name=="面筋"||l.Name=="附加筋"?400:350)*height/62.5*scale*widthFactor,height*scale)).ToArray();
+        double previousWidthRow=a.Dimensions.WidthLine.Y,previousLinRow=a.Lin==null?0:a.LinLine.Y;
         CantileverAnnotationGeometry.ApplyMeasuredLayout(a,sizes);
+        if(mode==CantileverSupportMode.InnerWithAdditional)
+        {
+            Near(a.Dimensions.WidthLine.Y,a.LinLine.Y,"L and Lin share world Y");
+            Near(Math.Abs(a.Dimensions.WidthB.X-a.Dimensions.WidthA.X),length*scale,"L preserves actual endpoints");
+            Near(Math.Abs(a.Lin.BeamFace.X-a.Lin.Cutoff.X),lin,"Lin excludes beam width");
+            for(int i=0;i<a.Labels.Count;i++)
+            {
+                var label=a.Labels[i];if(label.Name=="底筋"||label.Name=="上下两排点筋")continue;
+                Check(a.LinLine.Y>=label.Layout.TextAnchor.Y+sizes[i].Height+Math.Max(50,1.5*height)*scale-1e-7,"shared dimension row clears both measured upper specifications");
+                foreach(var segment in label.Layout.Leaders)
+                    Check(a.LinLine.Y>Math.Max(segment.A.Y,segment.B.Y),"shared row clears upper leaders");
+            }
+        }
         Check(a.Labels.Count==(mode==CantileverSupportMode.InnerWithAdditional?4:3),"no empty labels");
         for(int index=0;index<steel.Bars.Count;index++)
         {
@@ -123,11 +137,14 @@ internal static class CantileverAnnotationTests
                 foreach(var s in label.Leaders)foreach(var t in other.Layout.Leaders)
                     Check(!Conflict(new AnnotationSegment(Mm(s.A,scale),Mm(s.B,scale)),new AnnotationSegment(Mm(t.A,scale),Mm(t.B,scale))),"no label intersections or duplicate collinear lines");
             }
-            Check(!Hits(new AnnotationSegment(Mm(a.Dimensions.WidthA,scale),new AnnotationPoint(a.Dimensions.WidthA.X/scale,a.Dimensions.WidthLine.Y/scale)),left,right,lower,upper),"L support extension clears spec text");
-            Check(!Hits(new AnnotationSegment(Mm(a.Dimensions.WidthB,scale),new AnnotationPoint(a.Dimensions.WidthB.X/scale,a.Dimensions.WidthLine.Y/scale)),left,right,lower,upper),"L free extension clears spec text");
+            // Preserve prior routing checks up to the old dimension rows.
+            // The new common horizontal row is checked separately above both groups.
+            Check(!Hits(new AnnotationSegment(Mm(a.Dimensions.WidthA,scale),new AnnotationPoint(a.Dimensions.WidthA.X/scale,previousWidthRow/scale)),left,right,lower,upper),"prior L support routing preserved");
+            Check(!Hits(new AnnotationSegment(Mm(a.Dimensions.WidthB,scale),new AnnotationPoint(a.Dimensions.WidthB.X/scale,previousWidthRow/scale)),left,right,lower,upper),"prior L free routing preserved");
+            Check(!Hits(new AnnotationSegment(new AnnotationPoint(a.Dimensions.WidthA.X/scale,a.Dimensions.WidthLine.Y/scale),new AnnotationPoint(a.Dimensions.WidthB.X/scale,a.Dimensions.WidthLine.Y/scale)),left,right,lower,upper),"L horizontal row clears spec text");
             if(a.Lin!=null)
             {
-                Check(!Hits(new AnnotationSegment(new AnnotationPoint(a.Lin.Cutoff.X,a.Lin.Cutoff.Y),new AnnotationPoint(a.Lin.Cutoff.X,a.LinLine.Y/scale)),left,right,lower,upper),"Lin cutoff extension clears measured spec text");
+                Check(!Hits(new AnnotationSegment(new AnnotationPoint(a.Lin.Cutoff.X,a.Lin.Cutoff.Y),new AnnotationPoint(a.Lin.Cutoff.X,previousLinRow/scale)),left,right,lower,upper),"prior Lin cutoff routing preserved");
                 Check(!Hits(new AnnotationSegment(new AnnotationPoint(a.Lin.BeamFace.X,a.LinLine.Y/scale),new AnnotationPoint(a.Lin.Cutoff.X,a.LinLine.Y/scale)),left,right,lower,upper),"Lin horizontal row clears spec text");
             }
         }
