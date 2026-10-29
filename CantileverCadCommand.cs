@@ -147,6 +147,7 @@ namespace WallDetailTool
                     TryAppendAnnotation(db,id,local,r.Layer(3),70,"附加筋Lin尺寸",failures,optional=>BuildBeamSideDimension(db,optional,
                         new AnnotationPoint(lin.BeamFace.X*scale,lin.BeamFace.Y*scale),new AnnotationPoint(lin.Cutoff.X*scale,lin.Cutoff.Y*scale),annotation.LinLine,a.Elevation,scale,r.Layer(3)));
                 }
+                AppendEndLengthNotes(db,id,local,r.Layer(2),EndLengthAnnotationGeometry.Cantilever(frame,r,p,steel),a.Elevation,failures);
                 var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);
                 var reference=new BlockReference(origin,id) { Rotation=0 };reference.SetDatabaseDefaults(db);Append(space,tr,reference);
                 reference.CreateExtensionDictionary();var data=(DBDictionary)tr.GetObject(reference.ExtensionDictionary,OpenMode.ForWrite);

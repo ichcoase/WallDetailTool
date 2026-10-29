@@ -151,6 +151,13 @@ namespace WallDetailTool
                                 optional=>BuildCommittedUpstandDimension(doc.Database,optional,
                                     annotations.HeightA,annotations.HeightB,annotations.HeightLine,annotations.Elevation));
                         }
+                        try
+                        {
+                            double textScale=MillimetresToDrawingUnits(doc.Database);
+                            AppendEndLengthNotes(doc.Database,definitionId,local,LabelLayer,
+                                EndLengthAnnotationGeometry.Slab(layout,p,hanging,saved.TextHeight,textScale),layout.Elevation,failures);
+                        }
+                        catch(System.Exception ex) { failures.Add("端部长度文字："+ex.Message); }
                         BlockTableRecord space=(BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId,OpenMode.ForWrite);
                         var reference=new BlockReference(new Point3d(g.Left,worldBase,g.Elevation),definitionId)
                             { Rotation=0,Layer=((LayerTableRecord)tr.GetObject(doc.Database.Clayer,OpenMode.ForRead)).Name };

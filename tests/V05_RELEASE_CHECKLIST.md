@@ -1,6 +1,25 @@
 # V0.5 普通悬挑板候选交付验证
 
-## 2026-10-29 Lin/L上方尺寸等高（当前交付，基线f215032）
+## 2026-10-29 端部长度TEXT（当前交付，基线55a6e99）
+
+承接55a6e99，不覆盖上次提交；新DLL同时包含Lin/L等高及本次端部文字。需求及证据边界见 [端部文字](../docs/V05_END_LENGTH_TEXT.md)。
+
+- [x] EndLengthAnnotationTests：END_LENGTH_ANNOTATION_PASS checks=2628，覆盖不同节点长度取值、真实端段定位、仅对应端部数量、正向0/90°、左右/上下、毫米/米/英寸字高和间隔、明确文字范围障碍避让、无空位报告及工厂调用不改钢筋。
+- [x] CantileverAnnotationTests 87644项（保留Lin/L共Y和紧凑布局）、CantileverGeometryTests 4714项、CantileverWindowTests 2928项通过。
+- [x] 原五组PASS、HangingNodeTests 2974项、NodeDrawWindowTests 158项、V0.4四组837/51529/1825/3180项通过。共15组逐项编译并执行EXE，未运行CAD。
+- [x] 所有既有排筋/偏移/弯折计算、CantileverAnnotationGeometry、DrawState/DrawForm与55a6e99一致；仅三个生成器追加新文字。数据格式与成功记录不改，旧块不扫描。
+- [x] Release/x64/.NET4.8，AutoCAD2023引用，旧式Compile列表包含新源码。输出仅DLL/PDB，无CAD托管程序集副本；测试保留字段未赋值CS0649与PNG配置警告。
+- [ ] 原生TEXT实际字体、曲线/尺寸范围动态避让、普通块/撤销重做及2023/2024用户CAD验收未运行；纯计算与编译不作为CAD通过。旧板节点非毫米排筋未在本轮升级，新增TEXT只按已生成坐标定位，并换算其字高/间隔。
+
+DLL：`D:\Waste\WallDtailTool\bin\V05EndLengths20261029\WallDetailTool.dll`
+
+SHA-256：`20C1A2E6A513CF9D20677EE96ED1EBCC10E9945C1136F73D5D3EF8F2A7FEFF08`。
+
+用户验收：新图/副本加载此DLL，检查悬挑板无内跨支座V、板上/下两端L左/L右、梁侧挂板上下V各端一次、只有数值且字形正向、不压线或遮挡规格/尺寸；模式4仍Lin/L等高且无F数字；对新块执行一次UNDO/REDO。旧DLL已加载时由用户自行保存后重启CAD。没有启动/关闭CAD、不重试隔离加载、不改安全设置、不推送或打标签。
+
+## 以下为55a6e99及更早历史
+
+## 2026-10-29 Lin/L上方尺寸等高（历史交付，基线f215032）
 
 用户确认及实现边界见 [等高尺寸](../docs/V05_ALIGNED_DIMENSIONS.md)。下方旧DLL均为历史交付。
 

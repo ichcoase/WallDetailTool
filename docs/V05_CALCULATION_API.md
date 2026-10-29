@@ -1,5 +1,9 @@
 # V0.5 悬挑板接口与记录
 
+## 2026-10-29 端部长度文字接口
+
+EndLengthAnnotationGeometry.Cantilever/BeamSide/Slab分别提取各节点真实端段及其原始长度参数。EndLengthNote的A/B已是图形坐标，Text始终为毫米数值，Height/Gap已按当前比例换算；Rotation仅0或π/2。Place接收实测轴向TEXT宽高和障碍回调，仅返回新增文字范围，不修改钢筋或原标注。CAD适配器复用字体/图层/可选事务，文字追加到当前新普通块。三种长度语义及旧板节点单位边界见 [接口说明](V05_END_LENGTH_TEXT.md)。Lin/L共Y和记录接口保持。
+
 ## 2026-10-29 最终尺寸行
 
 模式④ApplyMeasuredLayout末尾统一计算最终Dimensions.WidthLine.Y与LinLine.Y，避让两组上方文字实测上界和引线最高点。只更新尺寸行Y，保留定义点、X、Lin数值及所有规格布局；非模式④不变。CAD继续同一尺寸服务和样式。见 [等高规则](V05_ALIGNED_DIMENSIONS.md)。

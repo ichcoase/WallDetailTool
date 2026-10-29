@@ -1,5 +1,9 @@
 # WallDetailTool 架构
 
+## 2026-10-29 共用端部数值TEXT
+
+新增EndLengthAnnotationGeometry/Cad，分别适配悬挑板V投影、板上/下L水平直段、梁侧V竖直直段。统一原生TEXT测量、0/90°正向字形、单位/留白、按实际范围避让和可选子事务；三个生成器仅在本次新块中追加文字。已有规格/尺寸服务及排筋算法不改，板下继续由NodeOrientation反射共用板上结果；已生成坐标不重复换算。几何及参数记录与55a6e99一致，Lin/L共Y计算保留。接口及旧板节点单位边界见 [端部文字](docs/V05_END_LENGTH_TEXT.md)。
+
 ## 2026-10-29 模式④统一上方尺寸行
 
 CantileverAnnotationGeometry.ApplyMeasuredLayout完成原有规格布局后调用AlignUpperDimensions，按两组实测文字上界/引线最高点及留白确定一个最终Y，同时赋给WidthLine和LinLine。该值不反馈规格路由，Lin/L定义点及X坐标保留；非模式④返回原布局。CantileverCadCommand未改，两尺寸仍经相同BuildBeamSideDimension取得样式和字高。见 [接口与验证边界](docs/V05_ALIGNED_DIMENSIONS.md)。

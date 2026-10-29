@@ -207,6 +207,7 @@ namespace WallDetailTool
                     TryAppendAnnotation(db,blockId,local,request.Layer(3),70,"高度尺寸",failures,
                         optional=>BuildBeamSideDimension(db,optional,annotation.HeightA,annotation.HeightB,annotation.HeightLine,annotation.Elevation,unit.Scale,request.Layer(3)));
                 }
+                AppendEndLengthNotes(db,blockId,local,request.Layer(2),EndLengthAnnotationGeometry.BeamSide(layout,unit.Scale),z,failures);
                 var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);
                 var reference=new BlockReference(new Point3d(basePoint.X,basePoint.Y,z),blockId) { Rotation=0 };
                 reference.SetDatabaseDefaults(db);Append(space,tr,reference);

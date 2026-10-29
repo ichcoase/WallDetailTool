@@ -39,6 +39,8 @@
     <Compile Include="CantileverDrawForm.cs" />
     <Compile Include="CantileverAnnotationGeometry.cs" />
     <Compile Include="CantileverCadCommand.cs" />
+    <Compile Include="EndLengthAnnotationGeometry.cs" />
+    <Compile Include="EndLengthAnnotationCad.cs" />
     <Compile Include="RebarCommands.cs" />
     <Compile Include="RebarPalette.cs" />
     <Compile Include="DrawingData.cs" />
