@@ -88,7 +88,7 @@ namespace WallDetailTool
         {
             string[] text=state.Current;
             for(int i=0;i<fields.Length;i++) fields[i].Text=text[i];
-            Text="WallDetailTool "+state.NodeName+"绘制";
+            Text="WallDetailTool "+(state.IsSlab?"板反坎/下挂":"梁反坎/下挂")+" · "+state.NodeName+"绘制";
             generate.Text="生成"+state.NodeName;
             if(hLabel!=null) hLabel.Text=state.HLabel;
             description.Text=state.IsSlab?

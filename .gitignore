@@ -13,3 +13,10 @@ tests/*.log
 *.pdb
 .env
 .env.*
+# User-authorized latest delivery only; all other build output stays ignored.
+!/bin/
+/bin/*
+!/bin/V05Naming20261030/
+/bin/V05Naming20261030/*
+!/bin/V05Naming20261030/WallDetailTool.dll
+!/bin/V05Naming20261030/WallDetailTool.pdb

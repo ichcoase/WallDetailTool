@@ -70,7 +70,7 @@ namespace WallDetailTool
         internal static double[] Decode(double[] source,bool hanging)
         {
             if(source.Length!=8 && (hanging || (source.Length!=3 && source.Length!=4)))
-                throw new InvalidOperationException("板节点参数记录格式不支持。");
+                throw new InvalidOperationException("板反坎/下挂参数记录格式不支持。");
             var result=new double[source.Length==3?4:source.Length];
             Array.Copy(source,result,source.Length);
             for(int i=0;i<result.Length;i++)
@@ -81,7 +81,7 @@ namespace WallDetailTool
                     continue;
                 }
                 if(double.IsNaN(result[i]) || double.IsInfinity(result[i]) || result[i]<=0)
-                    throw new InvalidOperationException("板节点参数记录包含无效值。");
+                    throw new InvalidOperationException("板反坎/下挂参数记录包含无效值。");
             }
             return result;
         }
