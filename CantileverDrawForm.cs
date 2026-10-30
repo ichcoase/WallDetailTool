@@ -97,29 +97,69 @@ namespace WallDetailTool
         private static void Row(TableLayoutPanel grid,int index,string caption,Control control)
         { grid.Controls.Add(new Label { Text=caption,Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft },0,index);grid.Controls.Add(control,1,index); }
     }
-    internal sealed class CantileverSketch : Control
+    internal sealed class CantileverSketch : Control,IParameterSketch
     {
         internal bool Leftward;internal int Mode;
         internal CantileverSketch() { DoubleBuffered=true; }
+        internal CantileverSketchDiagram Diagram { get { return new CantileverSketchDiagram(Width,Height,Leftward,Mode); } }
+        public PointF[][] ParameterSegments(int index) { return Diagram.ParameterSegments(index); }
         protected override void OnPaint(PaintEventArgs e)
         {
             var g=e.Graphics;g.Clear(Color.White);g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            Func<float,float> x=v=>Leftward?Width-v:v;
+            var d=Diagram;
             using(var concrete=new SolidBrush(Color.FromArgb(230,235,242)))
             using(var line=new Pen(Color.SteelBlue,3)) using(var bottom=new Pen(Color.Sienna,3)) using(var extra=new Pen(Color.Purple,2))
             {
-                float edge=Math.Min(Width-20,390),support=170,inner=110;
-                g.FillRectangle(concrete,Math.Min(x(inner),x(support)),55,60,115);
-                g.FillRectangle(concrete,Math.Min(x(support),x(edge)),55,edge-support,80);
-                if(Mode>=3) g.FillRectangle(concrete,Math.Min(x(15),x(inner)),55,inner-15,80);
-                float start=Mode>=3?20:130;
-                g.DrawLine(line,x(start),72,x(edge-18),72);g.DrawLine(line,x(edge-18),72,x(edge-18),110);
-                if(Mode==1||Mode==2) g.DrawLine(line,x(start),72,x(start),Mode==1?22:155);
-                g.DrawLine(bottom,x(140),118,x(edge-18),118);
-                if(Mode==4) { g.DrawLine(extra,x(65),72,x(edge-18),72);g.DrawLine(extra,x(65),72,x(78),85); }
+                g.FillRectangle(concrete,d.Beam);g.FillRectangle(concrete,d.Slab);
+                if(Mode>=3)g.FillRectangle(concrete,d.InnerSlab);
+                g.DrawLines(line,d.Upper);g.DrawLines(bottom,d.Bottom);
+                if(Mode==4) { g.DrawLines(extra,d.Additional);g.DrawLines(extra,d.Symbol); }
             }
-            g.DrawString("面筋与底筋独立；左右共用计算",Font,Brushes.Black,5,175);
+            g.DrawString("示意（非比例）",Font,Brushes.DimGray,8,5);
+            if(Mode==4)g.DrawString("两组面筋共用路径",Font,Brushes.DimGray,8,Height-45);
             base.OnPaint(e);
+        }
+    }
+
+    // One responsive diagram supplies both painted paths and parameter targets.
+    // Values are illustrative screen positions, never engineering inputs.
+    internal sealed class CantileverSketchDiagram
+    {
+        internal readonly RectangleF Beam,Slab,InnerSlab;
+        internal readonly PointF[] Upper,Bottom,Additional,Symbol;
+        internal readonly PointF InnerFace,SupportFace,UpperSupport,SupportEnd,InnerEnd,AdditionalEnd,BottomEnd;
+        readonly int mode;readonly float width;readonly bool leftward;
+        readonly float inner,support,top,upperY,bottomY,beamBottom,start,additionalStart,bottomStart;
+        PointF P(float x,float y) { return new PointF(leftward?width-x:x,y); }
+        RectangleF Box(float x1,float y1,float x2,float y2)
+        { var a=P(x1,y1);var b=P(x2,y2);return RectangleF.FromLTRB(Math.Min(a.X,b.X),y1,Math.Max(a.X,b.X),y2); }
+        internal CantileverSketchDiagram(float width,float height,bool leftward,int mode)
+        {
+            this.width=width;this.leftward=leftward;this.mode=mode;
+            float left=20,right=width-20,span=right-left;inner=left+span*.26f;support=left+span*.44f;
+            top=62;float slabBottom=height-76;beamBottom=height-50;upperY=top+16;bottomY=slabBottom-16;
+            start=support-span*.12f;additionalStart=inner-span*.14f;bottomStart=support-span*.09f;
+            InnerFace=P(inner,upperY);SupportFace=P(support,upperY);UpperSupport=P(start,upperY);
+            SupportEnd=P(start,mode==1?top-28:beamBottom-8);InnerEnd=P(left+5,upperY);AdditionalEnd=P(additionalStart,upperY);BottomEnd=P(bottomStart,bottomY);
+            Beam=Box(inner,top,support,beamBottom);Slab=Box(support,top,right,slabBottom);InnerSlab=Box(left,top,inner,slabBottom);
+            var bend=P(right-14,upperY);var freeEnd=P(right-14,bottomY-10);
+            Upper=mode<3?new[]{SupportEnd,UpperSupport,bend,freeEnd}:new[]{InnerEnd,bend,freeEnd};
+            Bottom=new[]{BottomEnd,P(right-14,bottomY)};
+            Additional=new[]{AdditionalEnd,bend,freeEnd};Symbol=new[]{AdditionalEnd,P(additionalStart+12,upperY+12)};
+        }
+        internal PointF[][] ParameterSegments(int index)
+        {
+            PointF a,b;
+            switch(index) {
+                case 0:a=P(inner,top);b=P(support,top);break;
+                case 1:if(mode>=3)return new PointF[0][];a=SupportFace;b=UpperSupport;break;
+                case 2:if(mode>=3)return new PointF[0][];a=UpperSupport;b=SupportEnd;break;
+                case 3:if(mode<3)return new PointF[0][];a=InnerFace;b=InnerEnd;break;
+                case 5:a=P(support,bottomY);b=BottomEnd;break;
+                case 6:if(mode!=4)return new PointF[0][];a=InnerFace;b=AdditionalEnd;break;
+                default:return new PointF[0][];
+            }
+            return new[]{new[]{a,b}};
         }
     }
 }

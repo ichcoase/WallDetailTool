@@ -2,6 +2,8 @@
 
 2026-10-30，基于5fef3cb阶段收尾继续，实施方案先提交于9c764e8。本轮未新增节点、通知面板或比例功能，未发布1.0。
 
+同日后续：首次交付9b89b99的梁/板混凝土示意与悬挑高亮位置经用户反馈纠正。当前示意底图和焦点目标共用各自屏幕模型，不再在窗口适配器里复制定位常数；隐藏字段不残留高亮。详见[修正及新工件](SKETCH_DIAGRAM_FIX.md)。下方首次交付路径/证据继续作为历史保留。
+
 ## 窗口与请求
 
 UnifiedNodeUi只重排原NodeDrawForm、BeamSideDrawForm、CantileverDrawForm的控件；NodeDrawState、BeamSideDrawState、CantileverDrawState仍各自解释参数，CreateRequest仍生成完整不可变请求。目标文档和单位校验、选择/两点适配、普通块、成功事务保存由原命令执行。没有全局pending，没有两套排筋算法。

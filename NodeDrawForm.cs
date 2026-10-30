@@ -110,42 +110,61 @@ namespace WallDetailTool
         }
     }
 
-    internal sealed class NodeSketch : Control
+    internal sealed class NodeSketch : Control,IParameterSketch
     {
         internal bool IsSlab,Hanging;
         internal NodeSketch() { DoubleBuffered=true; BackColor=Color.WhiteSmoke; }
+        internal NodeSketchDiagram Diagram { get { return new NodeSketchDiagram(Width,Height,IsSlab,Hanging); } }
+        public PointF[][] ParameterSegments(int index) { return Diagram.ParameterSegments(index); }
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g=e.Graphics; g.SmoothingMode=SmoothingMode.AntiAlias;
-            // Explanatory diagram only: never used as design geometry.
-            float cx=Width*.46f, face=Height*(Hanging?.34f:.60f), sign=Hanging?1:-1;
-            float supportOther=face-sign*Height*(IsSlab?.20f:.28f), end=face+sign*Height*.32f;
+            // The concrete silhouette and dimension targets share one UI model.
+            var d=Diagram;
             using(var fill=new SolidBrush(Color.FromArgb(220,225,230)))
-                g.FillRectangle(fill,35,Math.Min(face,supportOther),Width-155,Math.Abs(face-supportOther));
+                g.FillPolygon(fill,d.Outline);
             using(var concrete=new Pen(Color.DimGray,1.4f))
-            {
-                g.DrawRectangle(concrete,35,Math.Min(face,supportOther),Width-155,Math.Abs(face-supportOther));
-                g.DrawLines(concrete,new[]{new PointF(cx-45,face),new PointF(cx-45,end),new PointF(cx+45,end),new PointF(cx+45,face)});
-            }
+                g.DrawPolygon(concrete,d.Outline);
             using(var steel=new Pen(Color.Firebrick,3))
-            {
-                float anchor=face-sign*16, cap=end-sign*8;
-                var path=IsSlab?
-                    new[]{new PointF(cx-75,anchor),new PointF(cx-34,anchor),new PointF(cx-34,cap),new PointF(cx+34,cap),new PointF(cx+34,anchor),new PointF(cx+75,anchor)}:
-                    new[]{new PointF(cx-34,anchor),new PointF(cx-34,cap),new PointF(cx+34,cap),new PointF(cx+34,anchor)};
-                g.DrawLines(steel,path);
-            }
-            using(var arrow=new Pen(Color.Firebrick,2))
-            using(var arrowCap=new AdjustableArrowCap(4,5))
-            {
-                arrow.CustomEndCap=arrowCap;
-                g.DrawLine(arrow,cx+100,face+sign*16,cx+100,face-sign*14);
-            }
-            g.DrawString(IsSlab?"楼板":"梁",Font,Brushes.DimGray,40,Math.Min(face,supportOther)+3);
-            g.DrawString(Hanging?"下挂":"反坎",Font,Brushes.DimGray,cx-18,(face+end)/2-7);
+                g.DrawLines(steel,d.Steel);
+            g.DrawString(IsSlab?"楼板":"梁",Font,Brushes.DimGray,d.Support.Left+8,d.Support.Top+5);
+            g.DrawString(Hanging?"下挂":"反坎",Font,Brushes.DimGray,d.Center-18,(d.Face+d.NodeEnd)/2-7);
             g.DrawString("示意（非比例）",Font,Brushes.DimGray,Width-125,8);
-            g.DrawString(Hanging?"向上入筋":"向下入筋",Font,Brushes.Firebrick,Width-125,55);
             base.OnPaint(e); // Paint subscribers add focused dimension after the diagram.
+        }
+    }
+
+    // Screen coordinates only. Never supplies values to a CAD request/calculator.
+    internal sealed class NodeSketchDiagram
+    {
+        internal readonly RectangleF Support;
+        internal readonly PointF[] Outline,Steel;
+        internal readonly float Center,Face,OtherFace,NodeEnd,AnchorY;
+        readonly bool slab;
+        readonly float leftSteel,rightSteel,leftTail,rightTail;
+        internal NodeSketchDiagram(float width,float height,bool slab,bool hanging)
+        {
+            this.slab=slab;Center=width/2;
+            float top=32,bottom=height-38,range=bottom-top,sign=hanging?1:-1;
+            float depth=range*(slab?.26f:.46f),rise=range*.44f;
+            Face=hanging?top+depth:bottom-depth;OtherFace=Face-sign*depth;NodeEnd=Face+sign*rise;
+            float half=Math.Min(48,width*.18f);leftSteel=Center-half+10;rightSteel=Center+half-10;
+            leftTail=leftSteel-Math.Min(40,width*.12f);rightTail=rightSteel+Math.Min(40,width*.12f);
+            AnchorY=slab?OtherFace+sign*depth*.28f:Face-sign*depth*.67f;
+            float cap=NodeEnd-sign*10;
+            Support=RectangleF.FromLTRB(20,Math.Min(Face,OtherFace),width-20,Math.Max(Face,OtherFace));
+            Outline=new[]{new PointF(20,Face),new PointF(Center-half,Face),new PointF(Center-half,NodeEnd),new PointF(Center+half,NodeEnd),
+                new PointF(Center+half,Face),new PointF(width-20,Face),new PointF(width-20,OtherFace),new PointF(20,OtherFace)};
+            Steel=slab?new[]{new PointF(leftTail,AnchorY),new PointF(leftSteel,AnchorY),new PointF(leftSteel,cap),new PointF(rightSteel,cap),new PointF(rightSteel,AnchorY),new PointF(rightTail,AnchorY)}:
+                new[]{new PointF(leftSteel,AnchorY),new PointF(leftSteel,cap),new PointF(rightSteel,cap),new PointF(rightSteel,AnchorY)};
+        }
+        internal PointF[][] ParameterSegments(int index)
+        {
+            if(!slab&&(index==4||index==5)) { float x=index==4?leftSteel:rightSteel;return new[]{new[]{new PointF(x,Face),new PointF(x,AnchorY)}}; }
+            if(slab&&index==4)return new[]{new[]{new PointF(Support.Right-8,Face),new PointF(Support.Right-8,OtherFace)}};
+            if(slab&&index==5)return new[]{new[]{new PointF(leftSteel-8,OtherFace),new PointF(leftSteel-8,AnchorY)}};
+            if(slab&&(index==6||index==7))return new[]{index==6?new[]{new PointF(leftSteel,AnchorY),new PointF(leftTail,AnchorY)}:new[]{new PointF(rightSteel,AnchorY),new PointF(rightTail,AnchorY)}};
+            return new PointF[0][];
         }
     }
 }

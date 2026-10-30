@@ -2,6 +2,8 @@
 
 ## 2026-10-30 统一界面适配层
 
+示意纠错补充：NodeSketchDiagram/CantileverSketchDiagram只生成解释性屏幕坐标，供对应Control绘制和IParameterSketch.ParameterSegments共同使用。UnifiedNodeUi通过接口获取焦点目标，不再为梁/板/悬挑重复硬编码位置；PaintFocus忽略已隐藏/禁用参数。无CAD模型或输入数值从示意反向写入。梁侧现有示意和高亮算法保持原状。见[修正记录](docs/SKETCH_DIAGRAM_FIX.md)。
+
 新增UnifiedNodeUi复用原三种窗口及字段控件，不统一不同构造的工程参数模型。共同承担可滚动双栏/固定操作区、规格表、当前字段显隐、ErrorProvider、恢复试用值、模式原始文字草稿、焦点尺寸高亮及编译内置离线帮助。NodeDrawState继续拥有梁/板上下草稿；梁侧/悬挑模式草稿由本次窗口字典持有，窗口结束即释放。示意用既有System.Drawing，无浏览器、新图片依赖或CAD实体。
 
 首次参数从现有命令读取有效成功记录/共享值后传入窗口，缺项补试用值；梁窗口兼容已知旧记录逐项合并，不写回/升级记录。板上下缺少规格统一取共享；梁侧已保存高级值优先。恢复只改当前启用数字，原设置服务和成功键不变。各窗仍走原CreateRequest、不可变请求及目标文档/单位检查，生成核心、事务、普通块和各类型持久化不重写。

@@ -57,9 +57,9 @@ internal static class UsabilityTests
      Check(f.CreateRequest().Advanced(0)==25,"advanced unchanged");
      FocusVisible(f,slab?5:4);
      var sketch=Find<NodeSketch>(f,"Sketch");var segment=Ui(f).FocusSegments(slab?5:4)[0];
-     Check(Math.Abs(segment[0].Y-(slab?sketch.Height*.8f:sketch.Height*.6f))<.1,"dimension starts at actual support face in upward sketch");
+     Check(Math.Abs(segment[0].Y-(slab?sketch.Diagram.OtherFace:sketch.Diagram.Face))<.1,"dimension starts at actual support face in upward sketch");
      Find<ComboBox>(f,"Direction").SelectedIndex=1;segment=Ui(f).FocusSegments(slab?5:5)[0];
-     Check(Math.Abs(segment[0].Y-(slab?sketch.Height*.14f:sketch.Height*.34f))<.1,"downward sketch follows support face");
+     Check(Math.Abs(segment[0].Y-(slab?sketch.Diagram.OtherFace:sketch.Diagram.Face))<.1,"downward sketch follows support face");
      Find<ComboBox>(f,"Direction").SelectedIndex=0;
      Find<TextBox>(f,"Parameter0").Text="bad";Find<Button>(f,"Generate").PerformClick();Check(f.Request==null&&Find<TextBox>(f,"Parameter0").Text=="bad","inline error keeps draft without accepting");Find<TextBox>(f,"Parameter0").Text="8";
      Find<TextBox>(f,"Parameter0").Focus();Application.DoEvents();Check(Find<Label>(f,"ParameterHelp").Text.Contains("实际直径"),"focus explanation");

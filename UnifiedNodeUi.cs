@@ -6,6 +6,10 @@ using System.Linq;
 using System.Windows.Forms;
 namespace WallDetailTool
 {
+    internal interface IParameterSketch
+    {
+        PointF[][] ParameterSegments(int index);
+    }
     // UI-only adapter. Does not own engineering requests, CAD objects or settings.
     internal sealed class UnifiedNodeUi
     {
@@ -99,7 +103,7 @@ namespace WallDetailTool
             low.Controls.Add(Caption("保护层、R、显示尺寸、字高与图层继续使用工具条已有高级设置；本窗口恢复不会重置这些设置。"));
             var right=new Panel { Dock=DockStyle.Fill,AutoScroll=true,Padding=new Padding(10,0,0,0) };var guide=Stack();right.Controls.Add(guide);
             body.Controls.Add(right,1,0);
-            sketch.Dock=DockStyle.Top;sketch.Height=200;guide.Controls.Add(sketch);
+            sketch.Dock=DockStyle.Top;sketch.Height=240;guide.Controls.Add(sketch);
             details=new Label { Name="ParameterHelp",Dock=DockStyle.Top,AutoSize=true,MaximumSize=new Size(340,0),Text="选择参数查看起算点；示意不按比例，不是实时CAD预览。",Padding=new Padding(4,12,4,12) };guide.Controls.Add(details);
             if(rule!=null) { rule.Dock=DockStyle.Top;rule.AutoSize=true;rule.MaximumSize=new Size(340,0);guide.Controls.Add(rule); }
             guide.Controls.Add(Caption("1 选择方向、构造和输入方式。\n2 修改参数后生成，选择轮廓或点两个对角点。\n3 核对配筋；试用预设不是规范推荐。"));
@@ -164,7 +168,7 @@ namespace WallDetailTool
         bool Flag(string name) { return (bool)SketchValue(name); }
         void PaintFocus(Graphics g)
         {
-            if(focused<0)return;
+            if(focused<0||!fields[focused].Enabled)return;
             foreach(var path in FocusSegments(focused))using(var pen=new Pen(Color.DarkOrange,3))g.DrawLines(pen,path);
             string caption=Explain(kind,focused,form.Text);caption=caption.Contains("：")?caption.Split('：')[0]:"规格";
             g.DrawString(caption+" · 选中参数",form.Font,Brushes.DarkOrange,8,sketch.Height-18);
@@ -172,31 +176,15 @@ namespace WallDetailTool
         // Explanatory coordinates follow the native sketches, never CAD geometry.
         internal PointF[][] FocusSegments(int index)
         {
-            int focused=index;
-            float a=30,b=140,y=35,z=110;bool vertical=false;string symbol="规格";
-            bool c=kind=="cantilever",n=kind=="beam"||kind=="slab",side=kind=="side";
-            if(c&&focused<7)
+            var parameterSketch=sketch as IParameterSketch;
+            if(parameterSketch!=null)return parameterSketch.ParameterSegments(index);
+            if(kind=="side"&&index>=4)
             {
-                var starts=new[]{110f,130,130,20,0,140,65};var ends=new[]{170f,170,130,110,0,170,110};
-                a=starts[focused];b=ends[focused];symbol=new[]{"b","A","V","E","F自动","B","Lin"}[focused];
-                if(focused==2){vertical=true;y=72;z=Convert.ToInt32(SketchValue("Mode"))==1?22:155;}
-                if(Flag("Leftward")){a=sketch.Width-a;b=sketch.Width-b;}
-            }
-            else if(n&&focused>=4)
-            {
-                float cx=sketch.Width*.46f,face=sketch.Height*(Flag("Hanging")?.34f:.60f),sign=Flag("Hanging")?1:-1;
-                if((kind=="slab")&&focused>=6){a=cx+(focused==6?-75:34);b=cx+(focused==6?-34:75);y=face-sign*16;symbol=focused==6?"L左":"L右";}
-                else if(kind=="slab") { a=cx-90;vertical=true;y=face-sign*sketch.Height*.2f;z=focused==4?face:face-sign*16;symbol=focused==4?"h":"H"; }
-                else {a=cx+(focused==4?-34:34);vertical=true;y=face;z=face-sign*16;symbol=focused==4?"左锚固":"右锚固";}
-            }
-            else if(side&&focused>=4)
-            {
-                a=sketch.Width*.48f-55;b=sketch.Width*.48f;y=38;z=y+(Flag("TopUp")?-20:20);
+                float a=sketch.Width*.48f-55,b=sketch.Width*.48f,y=38,z=y+(Flag("TopUp")?-20:20);
                 if(!Flag("ExtendsRight")){a=sketch.Width-a;b=sketch.Width-b;}
-                return new[]{focused==4?new[]{new PointF(b,y),new PointF(a,y),new PointF(a,z)}:new[]{new PointF(a,y),new PointF(a,z)}};
+                return new[]{index==4?new[]{new PointF(b,y),new PointF(a,y),new PointF(a,z)}:new[]{new PointF(a,y),new PointF(a,z)}};
             }
-            if(symbol=="规格")return new PointF[0][];
-            return new[]{vertical?new[]{new PointF(a,y),new PointF(a,z)}:new[]{new PointF(a,y),new PointF(b,y)}};
+            return new PointF[0][];
         }
         internal static string Explain(string kind,int i,string title)
         {
