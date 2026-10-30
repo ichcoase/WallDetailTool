@@ -52,7 +52,7 @@ internal static class NodeDrawWindowTests
                     bool hanging=direction==1;
                     string node=(slab?"板":"梁")+(hanging?"下下挂":"上反坎");
                     Ok(form.Text.Contains(node),"title agrees");
-                    Ok(Find<Button>(form,"Generate").Text=="生成"+node,"button agrees");
+                    Ok(Find<Button>(form,"Generate").Text=="选择轮廓并生成","button agrees");
                     Ok(Find<NodeSketch>(form,"Sketch").Hanging==hanging,"sketch agrees");
                     Ok(Find<Label>(form,"Description").Text.Contains(hanging?"向上":"向下"),"entry direction explanation");
                     if(slab) Ok(Find<Label>(form,"HLabel").Text.Contains(hanging?"板顶至水平筋中心线距离 H":"板底至水平筋中心线距离 H"),"H meaning caption");

@@ -16,6 +16,7 @@ namespace WallDetailTool
         private readonly int unitCode;
         private readonly bool requiresChoice;
         private readonly Label description;
+        private UnifiedNodeUi unified;
         internal BeamSideDrawRequest Request { get; private set; }
         internal BeamSideDrawForm(BeamSideDrawState state,string unitName,int unitCode,double normalScale,bool requiresChoice)
         {
@@ -27,7 +28,7 @@ namespace WallDetailTool
             foreach(float height in new[]{108f,124f,70f,204f,108f,78f,48f}) content.RowStyles.Add(new RowStyle(SizeType.Absolute,height));
             var header=Grid(3);
             direction=Choice("Direction",new[]{"向右伸出","向左伸出"},state.Saved!=null&&state.Saved.Direction==BeamSideDirection.Left?1:0);
-            mode=Choice("Mode",new[]{"局部轮廓（矩形 / 开放 U）","完整梁与块体截面"},state.Saved==null?-1:state.Saved.FullSection?1:0);
+            mode=Choice("Mode",new[]{"局部轮廓（矩形 / 开放 U）","完整梁与块体截面"},state.Saved==null?0:state.Saved.FullSection?1:0);
             input=Choice("InputMethod",new[]{"选择已有轮廓","两点矩形（仅局部）"},0);
             Row(header,2,"输入方式",input);
             Row(header,0,"块体伸出方向",direction);Row(header,1,"轮廓识别模式",mode);content.Controls.Add(header,0,0);
@@ -65,6 +66,7 @@ namespace WallDetailTool
             var generate=new Button { Name="Generate",Text="选择轮廓并生成",Width=165 };
             generate.Click+=(s,e)=>
             {
+                if(unified!=null&&!unified.Validate())return;
                 try { Request=CreateRequest();DialogResult=DialogResult.OK;Close(); }
                 catch(Exception ex) { MessageBox.Show(this,ex.Message,"参数无效",MessageBoxButtons.OK,MessageBoxIcon.Warning); }
             };
@@ -78,6 +80,7 @@ namespace WallDetailTool
                 RefreshSketch();
             };
             RefreshSketch();
+            unified=UnifiedNodeUi.Install(this,"side",fields,new[]{"8","150","6","200","400","100"},()=>mode.SelectedIndex.ToString());
         }
         private static ComboBox Choice(string name,string[] items,int index)
         { var c=new ComboBox { Name=name,Dock=DockStyle.Fill,DropDownStyle=ComboBoxStyle.DropDownList };c.Items.AddRange(items);c.SelectedIndex=index;return c; }
@@ -114,7 +117,7 @@ namespace WallDetailTool
         private PointF P(float x,float y) { return new PointF(ExtendsRight?x:Width-x,y); }
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;
+            var g=e.Graphics;g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             float c=Width*.48f,o=c+78,t=28,b=Height-22;
             using(var fill=new SolidBrush(Full?Color.FromArgb(218,224,230):Color.FromArgb(237,237,237)))
                 g.FillRectangle(fill,ExtendsRight?c-150:Width-c,17,150,Height-24);
@@ -133,6 +136,7 @@ namespace WallDetailTool
             { g.DrawLine(leader,anchor,new PointF(end,anchor.Y));g.DrawLine(leader,lineAnchor,new PointF(end,lineAnchor.Y)); }
             g.DrawString("梁",Font,Brushes.DimGray,P(c-110,22));
             g.DrawString("L / V 示意（非比例）",Font,Brushes.DimGray,8,3);
+            base.OnPaint(e);
         }
     }
 }

@@ -110,9 +110,9 @@ namespace WallDetailTool
         {
             if(sharedAdvanced==null||sharedAdvanced.Length!=5||initialSpecifications.Length!=4)
                 throw new InvalidOperationException("缺少共享设置或规格。");
-            Saved=saved;advanced=(double[])sharedAdvanced.Clone();this.layers=(string[])layers.Clone();
+            Saved=saved;advanced=saved==null?(double[])sharedAdvanced.Clone():new[]{saved.Parameters.Cover,saved.Parameters.LineDisplayWidth,saved.Parameters.DotDisplayDiameter,saved.Parameters.Radius,saved.Parameters.TextHeight};this.layers=(string[])layers.Clone();
             var p=saved==null?null:saved.Parameters;
-            var numbers=p==null?new[]{initialSpecifications[0],initialSpecifications[1],initialSpecifications[2],initialSpecifications[3],0.0,0}:
+            var numbers=p==null?new[]{initialSpecifications[0],initialSpecifications[1],initialSpecifications[2],initialSpecifications[3],400.0,100}:
                 new[]{p.LineDiameter,p.LineSpacing,p.DotDiameter,p.DotSpacing,p.Length,p.Vertical};
             InitialText=Array.ConvertAll(numbers,v=>v>0?v.ToString("g",CultureInfo.CurrentCulture):"");
         }

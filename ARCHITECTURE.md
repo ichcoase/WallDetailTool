@@ -1,5 +1,13 @@
 # WallDetailTool 架构
 
+## 2026-10-30 统一界面适配层
+
+新增UnifiedNodeUi复用原三种窗口及字段控件，不统一不同构造的工程参数模型。共同承担可滚动双栏/固定操作区、规格表、当前字段显隐、ErrorProvider、恢复试用值、模式原始文字草稿、焦点尺寸高亮及编译内置离线帮助。NodeDrawState继续拥有梁/板上下草稿；梁侧/悬挑模式草稿由本次窗口字典持有，窗口结束即释放。示意用既有System.Drawing，无浏览器、新图片依赖或CAD实体。
+
+首次参数从现有命令读取有效成功记录/共享值后传入窗口，缺项补试用值；梁窗口兼容已知旧记录逐项合并，不写回/升级记录。板上下缺少规格统一取共享；梁侧已保存高级值优先。恢复只改当前启用数字，原设置服务和成功键不变。各窗仍走原CreateRequest、不可变请求及目标文档/单位检查，生成核心、事务、普通块和各类型持久化不重写。
+
+标注共性继续复用原TEXT/实测范围/字体/交接/端部数字服务，所有节点的纯几何及生产标注算法本轮未改。具体映射、各节点布局例外、记录兼容和证据边界见[实现说明](docs/USABILITY_IMPLEMENTATION.md)及[完整预设](docs/USABILITY_PRESETS.md)。原框架.NET4.8/x64及CAD2023/2024目标不变；新增源码已加入旧式csproj。独立窗口缩放模拟不等于CAD高DPI/MDI验收。
+
 ## 2026-10-29 两点矩形适配
 
 RectangleInputCad封装GetPoint/GetCorner，不创建实体，捕获UCS转WCS并检查目标文档/单位/正交顶视图。RectangleInputGeometry标准化内存矩形，再调用既有Upstand/SlabUpstand/BeamSide识别器；方向仍由NodeOrientation或既有侧向适配，原排筋算法不改。三类请求增加只读TwoPointRectangle；旧请求/记录读取默认轮廓，不更改DWG记录格式。原生成器仅在几何输入处分支，事务、块、标注、成功记录共用。详见 [接口与限制](docs/V05_TWO_POINT_RECTANGLE.md)。

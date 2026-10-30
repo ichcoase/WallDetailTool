@@ -2,7 +2,7 @@ param([string]$OutputPath='bin\V05Calculation\')
 $ErrorActionPreference='Stop'
 $msbuild='C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe'
 # Standalone .NET executables only. Never starts AutoCAD/Core Console.
-$names=@('RectangleInputTests','EndLengthAnnotationTests','CantileverGeometryTests','CantileverWindowTests','CantileverAnnotationTests','UpstandGeometryStage1Tests','SlabUpstandGeometryTests',
+$names=@('UsabilityTests','RectangleInputTests','EndLengthAnnotationTests','CantileverGeometryTests','CantileverWindowTests','CantileverAnnotationTests','UpstandGeometryStage1Tests','SlabUpstandGeometryTests',
     'UpstandRebarStage2Tests','SlabUpstandRebarTests','UpstandAnnotationStage3Tests','HangingNodeTests',
     'NodeDrawWindowTests','BeamSideContourTests','BeamSideDotsTests','BeamSideRebarTests','BeamSideWindowTests')
 foreach($name in $names) {

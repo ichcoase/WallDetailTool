@@ -9,6 +9,6 @@
     <Compile Include="..\NodeOrientation.cs"/><Compile Include="..\BeamSideRebarGeometry.cs"/><Compile Include="..\BeamSideDots.cs"/>
     <Compile Include="BeamSideTestSupport.cs"/><Compile Include="..\RectangleInputGeometry.cs"/><Compile Include="..\NodeDrawState.cs"/><Compile Include="..\NodeDrawForm.cs"/>
 <Compile Include="..\BeamSideDrawState.cs"/><Compile Include="..\BeamSideDrawForm.cs"/><Compile Include="..\CantileverDrawForm.cs"/><Compile Include="RectangleInputTests.cs"/>
-  </ItemGroup>
+  <Compile Include="..\UnifiedNodeUi.cs"/></ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

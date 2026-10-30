@@ -1,0 +1,14 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>UsabilityTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><OutputPath>bin\V05Calculation\</OutputPath><BaseIntermediateOutputPath>obj\UsabilityTests\</BaseIntermediateOutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/><Reference Include="System.Drawing"/><Reference Include="System.Windows.Forms"/>
+    <Compile Include="..\UpstandGeometry.cs"/><Compile Include="..\UpstandRebarGeometry.cs"/><Compile Include="..\UpstandDotDistribution.cs"/><Compile Include="..\UpstandAnnotationGeometry.cs"/>
+    <Compile Include="..\BeamSideGeometry.cs"/><Compile Include="..\BeamSideContourRecognizer.cs"/><Compile Include="..\BeamSideCurve.cs"/>
+    <Compile Include="..\CantileverGeometry.cs"/><Compile Include="..\CantileverRebarGeometry.cs"/><Compile Include="..\CantileverDots.cs"/><Compile Include="..\CantileverDrawState.cs"/><Compile Include="..\CantileverAnnotationGeometry.cs"/>
+    <Compile Include="..\EndLengthAnnotationGeometry.cs"/>
+    <Compile Include="..\SlabUpstandGeometry.cs"/><Compile Include="..\SlabUpstandRebarGeometry.cs"/>
+    <Compile Include="..\NodeOrientation.cs"/><Compile Include="..\BeamSideRebarGeometry.cs"/><Compile Include="..\BeamSideDots.cs"/>
+    <Compile Include="BeamSideTestSupport.cs"/><Compile Include="..\RectangleInputGeometry.cs"/><Compile Include="..\NodeDrawState.cs"/><Compile Include="..\NodeDrawForm.cs"/>
+<Compile Include="..\BeamSideDrawState.cs"/><Compile Include="..\BeamSideDrawForm.cs"/><Compile Include="..\CantileverDrawForm.cs"/><Compile Include="UsabilityTests.cs"/>
+  <Compile Include="..\UnifiedNodeUi.cs"/></ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

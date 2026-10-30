@@ -35,14 +35,15 @@ namespace WallDetailTool
             Application.EnableVisualStyles();
             var advanced=(double[])Advanced.Clone();var layers=(string[])Layers.Clone();
             var state=new BeamSideDrawState(null,advanced,layers,new[]{8.0,150,6,200});advanced[0]=999;layers[0]="changed";
-            BeamSideTest.Check(state.InitialText[4]==""&&state.InitialText[5]=="","L/V require explicit first input");
+            BeamSideTest.Check(state.InitialText[4]=="400"&&state.InitialText[5]=="100","usable initial L/V presets");
             BeamSideDrawRequest captured;
             using(var f=new BeamSideDrawForm(state,"毫米",4,1,false))
             {
-                BeamSideTest.Check(Find<ComboBox>(f,"Mode").SelectedIndex==-1,"first opening cannot default a full rectangle to local");
-                BeamSideTest.Reject(()=>f.CreateRequest(),"mode required");
-                Find<ComboBox>(f,"Mode").SelectedIndex=0;BeamSideTest.Reject(()=>f.CreateRequest(),"blank L/V");
-                Find<TextBox>(f,"Parameter4").Text="400";BeamSideTest.Reject(()=>f.CreateRequest(),"blank V");Fill(f);
+                BeamSideTest.Check(Find<ComboBox>(f,"Mode").SelectedIndex==0,"first trial is explicit local mode");
+                captured=f.CreateRequest();
+                Find<ComboBox>(f,"Mode").SelectedIndex=-1;BeamSideTest.Reject(()=>f.CreateRequest(),"invalid mode rejected");
+                Find<ComboBox>(f,"Mode").SelectedIndex=0;
+                Find<TextBox>(f,"Parameter4").Text="";BeamSideTest.Reject(()=>f.CreateRequest(),"blank L rejected");Fill(f);
                 captured=f.CreateRequest();BeamSideTest.Near(captured.Parameters.Cover,25);BeamSideTest.Check(captured.Layer(0)==Layers[0],"layer snapshot");
                 Render(f,"beam_side_default");
                 foreach(int d in new[]{0,1}) foreach(int t in new[]{0,1}) foreach(int b in new[]{0,1}) foreach(int a in new[]{0,1})

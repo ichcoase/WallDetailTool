@@ -56,6 +56,7 @@
     <Compile Include="UpstandToolbar.cs" />
     <Compile Include="NodeDrawState.cs" />
     <Compile Include="NodeDrawForm.cs" />
+    <Compile Include="UnifiedNodeUi.cs" />
     <Compile Include="NodeDrawCommands.cs" />
     <Compile Include="UpstandGeometry.cs" />
     <Compile Include="BeamSideGeometry.cs" />

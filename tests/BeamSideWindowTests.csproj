@@ -5,6 +5,6 @@
     <Compile Include="..\BeamSideGeometry.cs"/><Compile Include="..\BeamSideContourRecognizer.cs"/><Compile Include="..\BeamSideCurve.cs"/><Compile Include="..\BeamSideRebarGeometry.cs"/><Compile Include="..\BeamSideDots.cs"/>
     <Compile Include="..\BeamSideDrawState.cs"/><Compile Include="..\BeamSideDrawForm.cs"/><Compile Include="..\BeamSideAnnotationGeometry.cs"/>
     <Compile Include="BeamSideTestSupport.cs"/><Compile Include="BeamSideWindowTests.cs"/>
-  </ItemGroup>
+  <Compile Include="..\UnifiedNodeUi.cs"/></ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

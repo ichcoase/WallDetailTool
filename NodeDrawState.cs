@@ -16,6 +16,10 @@ namespace WallDetailTool
             int count=slab?8:6;
             if(up.Length!=count || down.Length!=count) throw new ArgumentException("参数项数错误。");
             drafts=new[]{(string[])up.Clone(),(string[])down.Clone()};
+            foreach(var d in drafts)for(int i=0;i<count;i++) {
+                double v;bool missing=String.IsNullOrWhiteSpace(d[i])||(double.TryParse(d[i],out v)&&v<=0);
+                if(missing)d[i]=i==count-1?d[i-1]:(slab?new[]{"8","150","6","200","200","31","300","300"}:new[]{"8","150","6","200","300","300"})[i];
+            }
         }
         internal string[] Current { get { return (string[])drafts[Hanging?1:0].Clone(); } }
         internal void Capture(string[] text)

@@ -4,6 +4,6 @@
     <Compile Include="..\NodeDrawState.cs"/>
     <Compile Include="..\NodeDrawForm.cs"/>
     <Compile Include="NodeDrawWindowTests.cs"/>
-  </ItemGroup>
+  <Compile Include="..\UnifiedNodeUi.cs"/></ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

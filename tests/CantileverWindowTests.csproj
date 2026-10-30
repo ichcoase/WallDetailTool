@@ -6,6 +6,6 @@
     <Compile Include="..\CantileverGeometry.cs"/><Compile Include="..\CantileverRebarGeometry.cs"/><Compile Include="..\CantileverDots.cs"/><Compile Include="..\CantileverDrawState.cs"/>
     <Compile Include="..\CantileverDrawForm.cs"/><Compile Include="..\CantileverAnnotationGeometry.cs"/>
     <Compile Include="CantileverWindowTests.cs"/>
-  </ItemGroup>
+  <Compile Include="..\UnifiedNodeUi.cs"/></ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

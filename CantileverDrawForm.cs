@@ -15,6 +15,7 @@ namespace WallDetailTool
         private readonly bool requiresChoice;
         private readonly CantileverSketch sketch;
         private readonly Label explanation;
+        private UnifiedNodeUi unified;
         internal CantileverDrawRequest Request { get; private set; }
         internal CantileverDrawForm(CantileverDrawState state,string unitName,int unitCode,double scale,bool choice)
         {
@@ -61,12 +62,14 @@ namespace WallDetailTool
             var buttons=new FlowLayoutPanel { Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft };
             var cancel=new Button { Name="Cancel",Text="取消",Width=90,DialogResult=DialogResult.Cancel };
             var generate=new Button { Name="Generate",Text="选择悬挑轮廓并生成",Width=180 };
-            generate.Click+=(s,e)=> { try { Request=CreateRequest();DialogResult=DialogResult.OK;Close(); }
+            generate.Click+=(s,e)=> { if(unified!=null&&!unified.Validate())return;
+                try { Request=CreateRequest();DialogResult=DialogResult.OK;Close(); }
                 catch(Exception ex) { MessageBox.Show(this,ex.Message,"参数无效",MessageBoxButtons.OK,MessageBoxIcon.Warning); } };
             buttons.Controls.Add(cancel);buttons.Controls.Add(generate);root.Controls.Add(buttons,0,3);root.SetColumnSpan(buttons,2);
             Controls.Add(root);AcceptButton=generate;CancelButton=cancel;
             input.SelectedIndexChanged+=(s,e)=>generate.Text=input.SelectedIndex==1?"点取两点并生成":"选择悬挑轮廓并生成";
             mode.SelectedIndexChanged+=(s,e)=>RefreshMode();direction.SelectedIndexChanged+=(s,e)=>RefreshMode();RefreshMode();
+            unified=UnifiedNodeUi.Install(this,"cantilever",fields,new[]{"300","180","250","600","","200","450","8","150","8","150","8","150","6","200"},()=>mode.SelectedIndex.ToString());
         }
         private void RefreshMode()
         {
@@ -100,7 +103,7 @@ namespace WallDetailTool
         internal CantileverSketch() { DoubleBuffered=true; }
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);var g=e.Graphics;g.Clear(Color.White);g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var g=e.Graphics;g.Clear(Color.White);g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             Func<float,float> x=v=>Leftward?Width-v:v;
             using(var concrete=new SolidBrush(Color.FromArgb(230,235,242)))
             using(var line=new Pen(Color.SteelBlue,3)) using(var bottom=new Pen(Color.Sienna,3)) using(var extra=new Pen(Color.Purple,2))
@@ -116,6 +119,7 @@ namespace WallDetailTool
                 if(Mode==4) { g.DrawLine(extra,x(65),72,x(edge-18),72);g.DrawLine(extra,x(65),72,x(78),85); }
             }
             g.DrawString("面筋与底筋独立；左右共用计算",Font,Brushes.Black,5,175);
+            base.OnPaint(e);
         }
     }
 }

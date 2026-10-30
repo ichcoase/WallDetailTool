@@ -17,6 +17,7 @@ namespace WallDetailTool
         private readonly Label hLabel,description;
         private readonly NodeSketch sketch;
         private readonly Button generate;
+        private UnifiedNodeUi unified;
         internal NodeDrawRequest Request { get; private set; }
 
         internal NodeDrawForm(NodeDrawState state,double[] upAdvanced,double[] downAdvanced,int unitCode=-1)
@@ -80,6 +81,7 @@ namespace WallDetailTool
             };
             input.SelectedIndexChanged+=(s,e)=> { state.Capture(ReadText());LoadDirection(); };
             LoadDirection();
+            unified=UnifiedNodeUi.Install(this,state.IsSlab?"slab":"beam",fields,state.IsSlab?new[]{"8","150","6","200","200","31","300","300"}:new[]{"8","150","6","200","300","300"},()=>state.Hanging.ToString());
         }
         private string[] ReadText() { return Array.ConvertAll(fields,f=>f.Text); }
         private void LoadDirection()
@@ -102,6 +104,7 @@ namespace WallDetailTool
         }
         private void AcceptValues()
         {
+            if(unified!=null&&!unified.Validate())return;
             try { Request=CreateRequest(); DialogResult=DialogResult.OK; Close(); }
             catch(Exception ex) { MessageBox.Show(this,ex.Message,"参数无效",MessageBoxButtons.OK,MessageBoxIcon.Warning); }
         }
@@ -113,7 +116,7 @@ namespace WallDetailTool
         internal NodeSketch() { DoubleBuffered=true; BackColor=Color.WhiteSmoke; }
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e); Graphics g=e.Graphics; g.SmoothingMode=SmoothingMode.AntiAlias;
+            Graphics g=e.Graphics; g.SmoothingMode=SmoothingMode.AntiAlias;
             // Explanatory diagram only: never used as design geometry.
             float cx=Width*.46f, face=Height*(Hanging?.34f:.60f), sign=Hanging?1:-1;
             float supportOther=face-sign*Height*(IsSlab?.20f:.28f), end=face+sign*Height*.32f;
@@ -142,6 +145,7 @@ namespace WallDetailTool
             g.DrawString(Hanging?"下挂":"反坎",Font,Brushes.DimGray,cx-18,(face+end)/2-7);
             g.DrawString("示意（非比例）",Font,Brushes.DimGray,Width-125,8);
             g.DrawString(Hanging?"向上入筋":"向下入筋",Font,Brushes.Firebrick,Width-125,55);
+            base.OnPaint(e); // Paint subscribers add focused dimension after the diagram.
         }
     }
 }
