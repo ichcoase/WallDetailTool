@@ -32,6 +32,13 @@
       <Private>False</Private>
     </Reference>
     <Compile Include="Commands.cs" />
+    <Compile Include="TopSlabGeometry.cs" />
+    <Compile Include="TopSlabContourInput.cs" />
+    <Compile Include="TopSlabRebar.cs" />
+    <Compile Include="TopSlabDots.cs" />
+    <Compile Include="TopSlabAnnotationGeometry.cs" />
+    <Compile Include="TopSlabForm.cs" />
+    <Compile Include="TopSlabCad.cs" />
     <Compile Include="CantileverGeometry.cs" />
     <Compile Include="CantileverRebarGeometry.cs" />
     <Compile Include="CantileverDots.cs" />

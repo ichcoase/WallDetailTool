@@ -1,5 +1,7 @@
 # 项目执行约定
 
+用户要求 Codex 直接操作 AutoCAD 测试时，先阅读 [CAD 协助测试指南](docs/CAD_ASSISTED_TEST_GUIDE.md)，按本轮授权使用新图或副本，并区分真实运行、专项验证和用户验收。
+
 ## 2026-10-26 V0.3.1 统一入口维护
 
 V0.3.1 仅统一梁/板节点窗口与请求传递。梁上/下仍共用 UpstandRebarGeometry，板上/下仍共用 SlabUpstandRebarGeometry，方向只由 NodeOrientation 适配；不复制下挂算法，构造分支须用户确认。共用规则修复必须回归对应上下节点并跑原五组及 HangingNodeTests，新增 BUG 成对覆盖上下节点。本轮窗口/参数记忆另以 NodeDrawWindowTests 验证，不能以独立 WinForms 测试代替 CAD 命令上下文、DWG 持久化及多文档验收。

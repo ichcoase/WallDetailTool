@@ -1,0 +1,10 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>TopSlabReaderContractTests</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><BaseIntermediateOutputPath>obj\TopSlabReaderContractTests\</BaseIntermediateOutputPath></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/>
+    <Compile Include="..\UpstandGeometry.cs"/><Compile Include="..\BeamSideGeometry.cs"/>
+    <Compile Include="..\BeamSideContourRecognizer.cs"/><Compile Include="..\BeamSideCurve.cs"/>
+    <Compile Include="..\TopSlabGeometry.cs"/><Compile Include="..\TopSlabContourInput.cs"/>
+    <Compile Include="$(GeneratedReader)"/><Compile Include="TopSlabReaderContractTests.cs"/>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

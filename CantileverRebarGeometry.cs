@@ -107,7 +107,7 @@ namespace WallDetailTool
             for(int i=0;i<strokes.Count;i++) for(int j=0;j<i-1;j++)
                 if(strokes[i].Overlaps(strokes[j])) throw new ArgumentException("本根钢筋显示轮廓自相交。");
         }
-        private static List<CantileverVertex> Round(CantileverFrame frame,List<CantileverPoint> corners,double radius)
+        internal static List<CantileverVertex> Round(CantileverFrame frame,List<CantileverPoint> corners,double radius)
         {
             var result=new List<CantileverVertex>();
             Action<CantileverPoint,double> add=(point,bulge)=>result.Add(new CantileverVertex(frame.ToWorld(point.X,point.Y),frame.WorldBulge(bulge)));

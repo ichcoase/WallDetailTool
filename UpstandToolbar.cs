@@ -52,6 +52,7 @@ namespace WallDetailTool
                 strip.Items.Add(new ToolStripButton("板反坎/下挂",null,(s,e)=>RebarPalette.Queue("WDTSLABNODE")));
                 strip.Items.Add(new ToolStripButton("梁侧挂板",null,(s,e)=>RebarPalette.Queue("WDTBEAMSIDE")));
                 strip.Items.Add(new ToolStripButton("悬挑板",null,(s,e)=>RebarPalette.Queue("WDTCANTILEVER")));
+                strip.Items.Add(new ToolStripButton("反坎带飘板",null,(s,e)=>RebarPalette.Queue("WDTTOPSLAB")));
                 strip.Items.Add(new ToolStripButton("高级设置",null,(s,e)=>RebarPalette.Queue("WDTUPSETTINGS")));
                 toolbar.Add("工具",strip);
             }

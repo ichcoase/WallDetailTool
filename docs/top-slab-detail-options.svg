@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="540" viewBox="0 0 1000 540">
+<rect width="1000" height="540" fill="#142131"/>
+<g fill="#eef4fa" font-family="Microsoft YaHei,sans-serif"><text x="35" y="40" font-size="24">反坎带飘板：待设计确认的局部参数（无比例）</text></g>
+<path d="M180 420V100H870V250H350V420" stroke="#fff" stroke-width="3" fill="none"/>
+<path d="M205 400V140Q205 125 220 125H840" stroke="#ff7770" stroke-width="5" fill="none"/>
+<path d="M325 400V170Q325 155 310 155H235" stroke="#ffb15a" stroke-width="5" fill="none"/>
+<path d="M840 225H250Q235 225 235 240V325" stroke="#d99bff" stroke-width="5" fill="none"/>
+<g stroke="#f9d36d" fill="none" stroke-width="2"><path d="M235 175V195M310 175V195M235 185H310"/><path d="M255 240H275M255 325H275M265 240V325"/><path d="M840 115L920 85M840 225L920 275"/></g>
+<g fill="#eef4fa" font-family="Microsoft YaHei,sans-serif" font-size="18"><text x="370" y="185" fill="#ffb15a">A：竖筋顶部向外弯，圆弧切点至端头的水平直段</text><text x="285" y="305" fill="#d99bff">B：板下筋向下弯，圆弧切点至端头的竖直直段</text><text x="590" y="340">C：自由端上、下筋的收口形式</text><text x="35" y="465">建议 A、B 独立填写设计值，不预置15d或La；空间不足明确拒绝。</text><text x="35" y="500">C 须选择直端或具体封边；若增加独立封边筋，需确认三根线筋范围是否调整。</text></g>
+</svg>

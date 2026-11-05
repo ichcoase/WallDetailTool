@@ -1,5 +1,51 @@
 # WallDetailTool 架构
 
+## 2026-11-05 组合节点开放轮廓适配
+
+仅修改TopSlab识别适配，不放宽旧节点规则，也不复制配筋算法。`TopSlabRecognizer.RecognizeInput`在原边图中区分度数全为2的闭环与恰有两个度数1端点的开放链；验证端点等高、最低且相邻实边竖直后，只在局部内存边表补底边，再复用原遍历、同向共线拆边合并及标准六角L形完整校验。原`Recognize`接口仍返回相同有效几何。数值容差仍为1e-6。
+
+`TopSlabContourInput`只存不可变有效几何和是否虚拟补边，底边端点从有效几何得到；不含CAD对象，不进入生成请求或DWG记录。`TopSlabContourConfirmation`负责闭合免询问、开放确认/重选/取消和作用域清理，可独立验证。`TopSlabCad.SelectTopSlabInput`复用未修改的`ReadBeamSideSegments`读取真实边，拒绝混选及多个多段线。开放多段线读取n−1段；不修改Closed属性。
+
+`TopSlabSelectionDisplay`只读高亮源实体，将虚拟底边分成10段非数据库Line经TransientManager显示，形成虚线，不依赖/修改全局线型、图层或尺寸样式。确认作用域退出及异常会清理；DocumentToBeDeactivated/DocumentToBeDestroyed提前清理并使本次确认失效，返回原文档也不能沿用已经消失的显示。创建中途失败也清理已创建资源。源实体只读；生成仍由同一个事务创建普通块并保存成功参数。TopSlab请求、记录版本3及梁板类型键不变；既有配筋、标注、默认参数算法本轮未改。
+
+独立计算及读取契约验证不等同CAD：后者抽取原生产读取函数及单位类，以API替身执行，实际CAD实体、瞬态显示、事件清理、事务及DWG持久化仍待验。见[验证清单](tests/TOP_SLAB_CHECKLIST.md)。
+
+2026-11-05：TopSlabForm.TrialValues仅将组合节点板上分支改为h120/L150；旧板上反坎及梁上预设、记录读取优先级、计算算法不变。
+
+## 2026-11-05 板上参数适配
+
+TopSlabForm仅对板上重排h/H/L控件并说明与旧板上同义，支持内侧原始空草稿随外侧解析；TrialValues沿用旧板上h/H/L含义及EffectiveH口径，其中本组合节点h/L已按用户确认改为120/150，TopSlabCad读取有效成功记录覆盖默认。字段槽位、请求记录版本/键、几何和事务不变。梁板草稿隔离与成功后写入边界保留。
+
+## 2026-11-05 新节点显示净距适配
+
+TopSlabRebar按用户确认用显示宽度/点径推导红蓝水平净距及端头到圆的最短净距；TopSlabDots保留左角点在外侧竖段内缘，其余顶排约束到蓝色直段可用X区间，全部共Y及同步侧排。请求/快照版本3兼容读1/2，历史块不重写，共用算法不改。
+
+## 2026-11-04 顶排水平可用区间
+
+TopSlabDots在固定Y上由有限曲线偏距解析交点划分区间，真实距离逐段分类后取连续可用范围排顶筋，避开外侧顶部弧。改动局限新节点，不修改BeamSideCurve或旧上下反坎算法。实际CAD失败夹具和三图生成由TopSlabCollisionTests覆盖。
+
+## 2026-11-04 组合节点一次选择生成
+
+TopSlabForm 校验参数后交出本次数值并进入轮廓选择；TopSlabCad 识别成功后立即绑定原目标文档创建请求并生成，失败/取消回到草稿，成功记录仍在生成事务中写入。梁上内侧锚固默认跟随外侧，用户覆盖后独立；梁板草稿及记录不合并。几何、共用规则和旧记录键不变。详见[实现](docs/TOP_SLAB_V1.md)。
+
+## 2026-11-04 自动端头及v2记录
+
+TopSlabRebar派生EffectiveA/LowerBendX，TopSlabDots以真实蓝色段定位共同顶排；不再求可脱离水平段的Y相位。请求自动A槽为0；成功记录v2兼容读v1，块快照保留实际自动A供查看。详见[实现](docs/TOP_SLAB_V1.md)和[本轮证据](tests/TOP_SLAB_CHECKLIST.md)。
+
+## 2026-11-03 组合节点共同顶部相位
+
+仅TopSlabDots适配层将两侧各自起排替换为共同相位求交：实际竖轨迹的解析可用区间按i×s平移，校验整组排位后取最高共同顶部Y。顶部中间点同Y；元数据WallCommonTop记录实际标高。TopSlabAnnotationGeometry对齐顶面尺寸定义点/尺寸线Y，内侧规格独立在内侧，点筋文字添加另一实际排的分支。共用算法、钢筋路径、请求与DWG键不改；历史块不重写。
+
+## 2026-11-02 组合节点四项修正
+
+仅新节点增加TopSlabDots及TopSlabAnnotationGeometry，分别处理反坎域/飘板域归属和实测文字布局。旧排位有效保留，冲突时按用户确认从真实曲线求可用区间重排；飘板直接调用CantileverDots，以内侧面为支承边。删除首次实现补点及跨组取较小间距的逻辑，保留三根线筋。生产标签/尺寸增加本实例颜色覆盖，不改共用层/样式。布局只改标注坐标，反坎厚/飘出定义不变且均上置。详见[定位、颜色与证据边界](docs/TOP_SLAB_V1.md)。本节覆盖下方初版点筋及布局说明。
+
+## 2026-11-02 反坎带飘板增量
+
+TopSlabGeometry/Recognizer只读标准化完整顶部L形，以局部X向飘出侧、Y始终WCS向上适配左右。TopSlabRequest防御复制完整参数、几何及目标Document；TopSlabForm只拥有本次两类型原始文字草稿。TopSlabCad在命令上下文循环显示窗口/拾取/高亮，普通块实体、快照与本类型成功记录同事务提交，无全局pending、无源轮廓写入。
+
+TopSlabRebar保留三根独立筋，复用现有CantileverRebarGeometry的自由端计算及Round圆弧基础（Round仅由private改internal，原算法不变）、BeamSideCurve/Stroke、UpstandDotDistribution相切偏距和现有实体/字体/文字/尺寸/记录服务。底部沿用梁上直锚、板上h/H/L定义；未改变UpstandRebarGeometry/SlabUpstandRebarGeometry与NodeOrientation共用关系。独立新LAST/块键不覆盖旧节点。仅毫米/无单位，块参数是生成时快照；WDTTOPSLABINFO可查看，原生编辑不反算，关联重生成未接入。详见[接口、定位公式和边界](docs/TOP_SLAB_V1.md)。
+
 ## 2026-10-30 统一界面适配层
 
 示意纠错补充：NodeSketchDiagram/CantileverSketchDiagram只生成解释性屏幕坐标，供对应Control绘制和IParameterSketch.ParameterSegments共同使用。UnifiedNodeUi通过接口获取焦点目标，不再为梁/板/悬挑重复硬编码位置；PaintFocus忽略已隐藏/禁用参数。无CAD模型或输入数值从示意反向写入。梁侧现有示意和高亮算法保持原状。见[修正记录](docs/SKETCH_DIAGRAM_FIX.md)。
