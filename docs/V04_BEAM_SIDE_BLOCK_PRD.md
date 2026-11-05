@@ -43,7 +43,7 @@ SHA-256：680478669E1E8102BAC087A7CA7BA983CB027FC10221851A09CCF4CDB54FBC7C
 - L 从梁侧连接面起沿钢筋中心线量至端头，包含水平直段、圆弧和竖直直段；V 为圆弧切点至端头的竖直直段长度。
 - 上端和下端分别选择向上或向下弯折。默认上端向下、下端向上，允许全部四种组合。
 
-参考 [块体示意](design-preview/beam-side-block-understanding.svg) 仅说明外形和点筋位置；其中尚未画出的梁内端部弯折以本文为准。[早期横长示意](design-preview/beam-side-plate-understanding.svg) 已被用户纠正，不能作为梁侧挂板依据。
+本机参考示意`design-preview/beam-side-block-understanding.svg`仅说明外形和点筋位置；其中尚未画出的梁内端部弯折以本文为准。早期横长示意`design-preview/beam-side-plate-understanding.svg`已被用户纠正，不能作为梁侧挂板依据。两份用户示意仅保留本机，不作为仓库下载链接。
 
 以下标为“实施口径”的内容，是本稿为形成可执行任务作出的界面与几何细化，不冒充用户逐项确认的结构规则。
 

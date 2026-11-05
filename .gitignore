@@ -13,10 +13,7 @@ tests/*.log
 *.pdb
 .env
 .env.*
-# User-authorized latest delivery only; all other build output stays ignored.
-!/bin/
-/bin/*
-!/bin/V05Naming20261030/
-/bin/V05Naming20261030/*
-!/bin/V05Naming20261030/WallDetailTool.dll
-!/bin/V05Naming20261030/WallDetailTool.pdb
+# Build output stays local; downloadable plugin artifacts belong in GitHub Releases.
+/tmp/
+# Retired one-off development prompt is retained locally only.
+/docs/V04_BEAM_SIDE_BLOCK_CODEX_PROMPT.md

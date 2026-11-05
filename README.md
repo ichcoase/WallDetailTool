@@ -32,16 +32,18 @@
 
 试画可参考：梁/板反坎/下挂局部300×400，梁侧挂板300×600，悬挑板1500×200；参数见[完整试用预设表](docs/USABILITY_PRESETS.md)和[六类本地示例](docs/help/README.md)。这些尺寸不保证适合已有的自定义高级设置。
 
-## 最新本机交付工件
+## 下载与发布
 
-用户已明确授权将本次最新bin一并上传。可下载[当前DLL](bin/V05Naming20261030/WallDetailTool.dll)，同目录提供PDB调试符号。仅上传这一交付目录的插件DLL/PDB；不上传其他历史bin、AutoCAD程序集、用户DWG、配置或日志。也可按下文自行构建。
+最新反坎带飘板交付见[V0.6.0 Preview 1](https://github.com/ichcoase/WallDetailTool/releases/tag/v0.6.0-preview.1)：下载`WallDetailTool.dll`及`SHA256SUMS.txt`，在AutoCAD中使用NETLOAD加载。它是开发预览版，真实CAD专项仍待验，不是正式1.0；[发布索引](RELEASES.md)区分当前预览与历史V0.5.0。
+
+2026-11-05按用户要求，仓库默认分支不再跟踪bin或PDB等构建产物；下载转至Releases。仅清理当前分支文件，不重写历史提交或旧标签；本机已有DLL/PDB、用户图纸和未知文件保留。源码仓库继续提供构建脚本、测试及有效历史验证资料。
 
 ```text
-D:\Waste\WallDtailTool\bin\V05Naming20261030\WallDetailTool.dll
-SHA-256: 62A68F3994BC0AB3F201B975EA5998FCFCBCD422DE02E80BBC9D1D298DB86A3C
+D:\Waste\WallDtailTool\bin\TopSlabOpen20261105\WallDetailTool.dll
+SHA-256: 8D860CB230FEDB043C1AE3AE76DA251D1570332701DE9B4E56C9639EC205354D
 ```
 
-该工件为Release/x64/.NET Framework4.8，输出目录仅DLL/PDB，CAD托管引用未复制。完整交付见[最新示意修正记录](docs/SKETCH_DIAGRAM_FIX.md)。本次命名调整重新构建Release/x64并执行窗口及帮助相关测试，最新哈希和证据见[本次交付](docs/V05_NAMING_DELIVERY.md)。
+该工件为Release/x64/.NET Framework4.8，使用AutoCAD2023引用构建，不附带CAD托管程序集。此前实际构建/测试及CAD待验见[组合节点清单](tests/TOP_SLAB_CHECKLIST.md)；本次发布整理不改源码、不重新构建或重跑测试。旧命名版本的历史交付见[原记录](docs/V05_NAMING_DELIVERY.md)。
 
 ## 构建与自动测试
 
@@ -65,6 +67,7 @@ SHA-256: 62A68F3994BC0AB3F201B975EA5998FCFCBCD422DE02E80BBC9D1D298DB86A3C
 
 ## 文档导航
 
+- [发布与下载](RELEASES.md)、[反坎带飘板使用说明](docs/TOP_SLAB_QUICK_START.md)
 - [产品需求](PRD.md)、[架构](ARCHITECTURE.md)、[开发计划](DEVELOPMENT_PLAN.md)
 - [完整预设及记录兼容](docs/USABILITY_PRESETS.md)、[帮助与六类示例](docs/help/README.md)
 - [统一界面与标注映射](docs/USABILITY_IMPLEMENTATION.md)、[统一界面验收清单](tests/USABILITY_CHECKLIST.md)

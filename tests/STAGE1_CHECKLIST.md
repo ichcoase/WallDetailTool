@@ -1,6 +1,6 @@
 # V0.1 阶段 1 轮廓验收清单
 
-标准测试图：[WallDetailTool_V01_Stage1_Contour.dwg](WallDetailTool_V01_Stage1_Contour.dwg)，位于本目录。用 AutoCAD 2023 Core Console 在旧测试 DWG 的临时副本内清空当前空间，设 WCS、标高 0 和毫米单位，再按 `stage1_native.scr` 原生命令生成并 `QSAVE`，最后复制到此路径；原测试 DWG 未改。DWG 作为本地交付，不上传 Git。A–H 区域沿 X 方向依次排列：A 0–200，B 400–600，C 800–1000，D 1200–2200，E 2400–3600，F 3800–4000，G 4200–4400，H 4600–4800。请在此测试 DWG 的副本中操作，不保存覆盖本文件。
+标准测试图：`WallDetailTool_V01_Stage1_Contour.dwg`，位于本目录。用 AutoCAD 2023 Core Console 在旧测试 DWG 的临时副本内清空当前空间，设 WCS、标高 0 和毫米单位，再按 `stage1_native.scr` 原生命令生成并 `QSAVE`，最后复制到此路径；原测试 DWG 未改。DWG 作为本地交付，不上传 Git。A–H 区域沿 X 方向依次排列：A 0–200，B 400–600，C 800–1000，D 1200–2200，E 2400–3600，F 3800–4000，G 4200–4400，H 4600–4800。请在此测试 DWG 的副本中操作，不保存覆盖本文件。
 
 测试方法：在测试副本 `NETLOAD` 本次 DLL，运行 `WDTUPCONTOUR`，仅选对应区域的轮廓线。检查命令行的输入类型、左右边界、顶部、梁顶、宽高和左下基点，并检查原始图元没有变化。取消点选应不留下图元。旧命令 `WDTUPDRAW` 仍只接受三条闭合矩形，不用于本阶段三类输入验收。
 

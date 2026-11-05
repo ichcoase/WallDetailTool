@@ -88,7 +88,7 @@
 
 下文 2026-10-21 清单中的 `WDT-REBAR-TEXT`、`WDT-DIM` 与字高 20 等描述是旧版本记录；本轮以上表为准。
 
-测试图：[WallDetailTool_V01_Stage3_Annotation.dwg](WallDetailTool_V01_Stage3_Annotation.dwg) 是阶段 2 标准测试 DWG 的独立副本，仅本地交付，不纳入 Git。每轮验收再复制一份操作，勿保存覆盖标准图。A/B/C/D/E 区域及 I/J 非法几何沿用 [阶段 2 清单](STAGE2_CHECKLIST.md)。本图本身仅含测试轮廓；正式标注须加载新 DLL 后运行 `WDTUPDRAW` 生成。
+测试图：`WallDetailTool_V01_Stage3_Annotation.dwg` 是阶段 2 标准测试 DWG 的独立副本，仅本地交付，不纳入 Git。每轮验收再复制一份操作，勿保存覆盖标准图。A/B/C/D/E 区域及 I/J 非法几何沿用 [阶段 2 清单](STAGE2_CHECKLIST.md)。本图本身仅含测试轮廓；正式标注须加载新 DLL 后运行 `WDTUPDRAW` 生成。
 
 用户在本次任务前反馈阶段 2 钢筋绘图“结果正常”。这是**用户对阶段 2 的人工反馈**，不替代本次阶段 3 的 AutoCAD 运行证据。
 
